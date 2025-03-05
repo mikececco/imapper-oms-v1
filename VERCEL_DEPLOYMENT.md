@@ -54,7 +54,7 @@ The `vercel.json` file in your project contains the configuration for your Verce
 ```json
 {
   "version": 2,
-  "buildCommand": "npm install tailwindcss postcss autoprefixer && npm run build:next",
+  "buildCommand": "npm run build:next",
   "outputDirectory": ".next",
   "framework": "nextjs",
   "regions": ["cdg1"],
@@ -69,47 +69,14 @@ The `vercel.json` file in your project contains the configuration for your Verce
 
 ## CSS Configuration
 
-This project uses a combination of CSS approaches:
+This project uses a simple CSS approach with a single stylesheet:
 
-1. **Basic CSS**: The project includes basic CSS files that don't rely on any CSS frameworks:
-   - `app/globals.css`: Contains basic styling for the application
-   - `app/styles.css`: Contains additional utility classes and components
+- `app/styles.css`: Contains all the styling for the application, including:
+  - Basic typography and colors
+  - Layout utilities
+  - Component styles (buttons, cards, forms, tables)
 
-2. **Tailwind CSS (Optional)**: If you want to use Tailwind CSS:
-   - Make sure these dependencies are in your `package.json`:
-     ```json
-     "devDependencies": {
-       "autoprefixer": "^10.4.16",
-       "postcss": "^8.4.31",
-       "tailwindcss": "^3.3.5"
-     }
-     ```
-   - Create a `tailwind.config.js` file:
-     ```js
-     /** @type {import('tailwindcss').Config} */
-     module.exports = {
-       content: [
-         './app/**/*.{js,ts,jsx,tsx,mdx}',
-         './pages/**/*.{js,ts,jsx,tsx,mdx}',
-         './components/**/*.{js,ts,jsx,tsx,mdx}',
-       ],
-       theme: {
-         extend: {},
-       },
-       plugins: [],
-     }
-     ```
-   - Create a `postcss.config.mjs` file:
-     ```js
-     const config = {
-       plugins: {
-         tailwindcss: {},
-         autoprefixer: {},
-       },
-     };
-     
-     export default config;
-     ```
+This approach avoids dependencies on CSS frameworks like Tailwind CSS, making the build process simpler and more reliable.
 
 ## API Server Deployment
 
@@ -135,12 +102,9 @@ If you encounter issues with your deployment:
 
 ### Common Build Errors
 
-1. **Missing Tailwind CSS dependencies**:
-   - Error: `Cannot find module '@tailwindcss/postcss'` or `Can't resolve 'tailwindcss'`
-   - Solution: 
-     - Make sure tailwindcss, postcss, and autoprefixer are installed
-     - Update the buildCommand in vercel.json to include installation of these dependencies
-     - Use basic CSS instead of Tailwind CSS by removing Tailwind imports from your CSS files
+1. **CSS Framework Issues**:
+   - If you encounter CSS-related build errors, consider using a simpler approach without CSS frameworks
+   - The current setup uses plain CSS without dependencies on Tailwind CSS or other frameworks
 
 2. **Invalid Next.js configuration**:
    - Error: `Invalid next.config.ts options detected: Unrecognized key(s) in object: 'swcMinify'`

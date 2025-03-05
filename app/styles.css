@@ -1,12 +1,25 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-800: #1f2937;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --gray-100: #1a1a1a;
+    --gray-200: #2a2a2a;
+    --gray-300: #3a3a3a;
+    --gray-800: #d1d5db;
   }
 }
 
@@ -16,36 +29,175 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
   padding: 0;
+  line-height: 1.5;
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 2rem 1rem;
+}
+
+header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+header p {
+  color: var(--gray-800);
+  font-size: 1.2rem;
+}
+
+main {
+  display: grid;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 768px) {
+  main {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .btn {
   display: inline-block;
-  padding: 0.5rem 1rem;
-  background-color: #3b82f6;
+  padding: 0.75rem 1.25rem;
+  background-color: var(--primary);
   color: white;
   border-radius: 0.25rem;
   text-decoration: none;
   cursor: pointer;
   border: none;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .btn:hover {
-  background-color: #2563eb;
+  background-color: var(--primary-dark);
 }
 
 .card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--gray-200);
   border-radius: 0.5rem;
-  padding: 1rem;
+  padding: 1.5rem;
   margin-bottom: 1rem;
   background-color: white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    background-color: var(--gray-100);
+  }
+}
+
+.card h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.status {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.status-item:last-child {
+  border-bottom: none;
+}
+
+.status-label {
+  font-weight: 500;
+}
+
+.status-value {
+  color: var(--success);
+  font-weight: 500;
+}
+
+/* Dashboard styles */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stat-card {
+  background-color: var(--gray-100);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--gray-800);
+}
+
+.activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.activity-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-time {
+  font-size: 0.75rem;
+  color: var(--gray-800);
+  margin-bottom: 0.25rem;
+}
+
+.activity-content {
+  font-size: 0.875rem;
+}
+
+/* Form styles */
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
 }
 
 .form-group {
@@ -55,9 +207,11 @@ body {
 .form-control {
   display: block;
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #e5e7eb;
+  padding: 0.75rem;
+  border: 1px solid var(--gray-200);
   border-radius: 0.25rem;
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 .table {
@@ -68,11 +222,19 @@ body {
 .table th,
 .table td {
   padding: 0.75rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--gray-200);
   text-align: left;
 }
 
 .table th {
-  background-color: #f9fafb;
+  background-color: var(--gray-100);
   font-weight: 600;
+}
+
+footer {
+  text-align: center;
+  padding: 2rem 0;
+  border-top: 1px solid var(--gray-200);
+  margin-top: 2rem;
+  color: var(--gray-800);
 } 
