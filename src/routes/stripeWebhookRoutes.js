@@ -112,7 +112,9 @@ async function handleInvoiceCreated(invoice) {
     // Using crypto to create a hash of the combined values
     const hashInput = `${customerName}-${createdTimestamp.getTime()}`;
     const hashId = crypto.createHash('sha256').update(hashInput).digest('hex').substring(0, 12);
-    const orderId = `ord_${hashId}`;
+    
+    // Generate a UUID for the primary key
+    const orderId = `ord_${crypto.randomUUID().replace(/-/g, '').substring(0, 16)}`;
     
     console.log(`Generated HashId: ${hashId} for customer: ${customerName} at time: ${createdTimestamp}`);
     
@@ -121,6 +123,7 @@ async function handleInvoiceCreated(invoice) {
       .from('orders')
       .insert([{
         id: orderId,
+        unique_id: hashId, // Store the hash in the unique_id field
         name: customerName,
         email: email,
         phone: phone,
@@ -147,7 +150,7 @@ async function handleInvoiceCreated(invoice) {
     
     if (error) throw error;
     
-    console.log(`Created new order ${orderId} for invoice ${invoice.id}`);
+    console.log(`Created new order ${orderId} with unique_id ${hashId} for invoice ${invoice.id}`);
   } catch (error) {
     console.error('Error handling invoice.created event:', error);
   }
@@ -262,57 +265,95 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
   try {
     console.log('Processing payment_intent.succeeded event:', paymentIntent.id);
     
-    // Check if this payment intent is associated with an invoice
-    if (paymentIntent.invoice) {
-      // If it's associated with an invoice, we'll handle it through the invoice events
-      console.log(`Payment intent ${paymentIntent.id} is associated with invoice ${paymentIntent.invoice}`);
+    // Check if we already have an order with this payment intent
+    const { data: existingOrder, error: lookupError } = await global.supabase
+      .from('orders')
+      .select('*')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .single();
+    
+    if (!lookupError && existingOrder) {
+      // Update the existing order
+      const { error: updateError } = await global.supabase
+        .from('orders')
+        .update({
+          paid: true,
+          status: 'processing',
+          updated_at: new Date()
+        })
+        .eq('stripe_payment_intent_id', paymentIntent.id);
+      
+      if (updateError) throw updateError;
+      
+      console.log(`Updated existing order ${existingOrder.id} for payment intent ${paymentIntent.id}`);
       return;
     }
     
-    // For direct payments not associated with invoices
-    // Generate a unique ID for the order
-    const orderId = `ord_${crypto.randomBytes(8).toString('hex')}`;
+    // If we don't have an order yet, create one
+    // Get customer details from Stripe
+    const customer = await stripe.customers.retrieve(paymentIntent.customer, {
+      expand: ['shipping']
+    });
     
-    // Get customer details if available
-    let customerName = 'Customer';
-    let customerEmail = '';
+    // Extract shipping address information (if available)
+    const shippingAddressCity = customer.shipping?.address?.city || '';
+    const shippingAddressCountry = customer.shipping?.address?.country || '';
+    const shippingAddressLine1 = customer.shipping?.address?.line1 || '';
+    const shippingAddressLine2 = customer.shipping?.address?.line2 || '';
+    const shippingAddressPostalCode = customer.shipping?.address?.postal_code || '';
     
-    if (paymentIntent.customer) {
-      try {
-        const customer = await stripe.customers.retrieve(paymentIntent.customer);
-        customerName = customer.name || customer.email || 'Customer';
-        customerEmail = customer.email || '';
-      } catch (err) {
-        console.error('Error retrieving customer:', err);
-      }
-    }
+    // Extract customer contact information
+    const email = customer.email || '';
+    const phone = customer.phone || '';
     
-    // Create a new order in your system
-    const { data, error } = await global.supabase
+    // Get creation timestamp
+    const createdTimestamp = new Date(paymentIntent.created * 1000);
+    
+    // Get customer name
+    const customerName = customer.name || customer.email || 'Unknown Customer';
+    
+    // Generate a HashId combining Name and Create timestamp
+    const hashInput = `${customerName}-${createdTimestamp.getTime()}`;
+    const hashId = crypto.createHash('sha256').update(hashInput).digest('hex').substring(0, 12);
+    
+    // Generate a UUID for the primary key
+    const orderId = `ord_${crypto.randomUUID().replace(/-/g, '').substring(0, 16)}`;
+    
+    console.log(`Generated HashId: ${hashId} for customer: ${customerName} at time: ${createdTimestamp}`);
+    
+    // Create a new order
+    const { error: insertError } = await global.supabase
       .from('orders')
       .insert([{
         id: orderId,
+        unique_id: hashId, // Store the hash in the unique_id field
         name: customerName,
-        email: customerEmail,
-        instruction: `Direct payment: ${paymentIntent.id}`,
-        order_pack: paymentIntent.description || 'Direct payment',
+        email: email,
+        phone: phone,
+        instruction: `Payment Intent: ${paymentIntent.id}`,
+        order_pack: paymentIntent.description || 'No description provided',
         package_prepared: false,
-        serial_number: '',
+        serial_number: paymentIntent.id.substring(3, 11),
         package_weight: 'UNKNOWN',
         ship_by: null,
         paid: true,
         ok_to_ship: false,
         status: 'processing',
         stripe_payment_intent_id: paymentIntent.id,
-        stripe_customer_id: paymentIntent.customer || null,
+        stripe_customer_id: paymentIntent.customer,
         amount: paymentIntent.amount / 100, // Convert from cents to dollars
-        created_at: new Date(),
+        shipping_address_city: shippingAddressCity,
+        shipping_address_country: shippingAddressCountry,
+        shipping_address_line1: shippingAddressLine1,
+        shipping_address_line2: shippingAddressLine2,
+        shipping_address_postal_code: shippingAddressPostalCode,
+        created_at: createdTimestamp,
         updated_at: new Date()
       }]);
     
-    if (error) throw error;
+    if (insertError) throw insertError;
     
-    console.log(`Created new order ${orderId} for payment intent ${paymentIntent.id}`);
+    console.log(`Created new order ${orderId} with unique_id ${hashId} for payment intent ${paymentIntent.id}`);
   } catch (error) {
     console.error('Error handling payment_intent.succeeded event:', error);
   }

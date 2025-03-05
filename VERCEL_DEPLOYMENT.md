@@ -7,6 +7,7 @@ This guide explains how to deploy your Order Management System to Vercel.
 1. A Vercel account (sign up at [vercel.com](https://vercel.com))
 2. Your project pushed to a Git repository (GitHub, GitLab, or Bitbucket)
 3. A Supabase project with the necessary tables set up
+4. A Stripe account for payment processing
 
 ## Setting Up Environment Variables
 
@@ -21,8 +22,47 @@ Before deploying, you need to set up environment variables in Vercel:
    - `NEXT_SUPABASE_URL` - Your Supabase URL (from Supabase dashboard > Settings > API)
    - `NEXT_SUPABASE_ANON_KEY` - Your Supabase anonymous key (from Supabase dashboard > Settings > API)
    - `NEXT_PUBLIC_API_URL` - The URL of your API server (if separate from the Next.js app)
+   - `STRIPE_SECRET_KEY` - Your Stripe secret key (from Stripe dashboard > Developers > API keys)
+   - `STRIPE_WEBHOOK_SECRET` - Your Stripe webhook signing secret (see Stripe Webhook Configuration below)
 7. Make sure to set these variables for all environments (Production, Preview, and Development)
 8. Click "Save" and redeploy your application
+
+## Stripe Webhook Configuration
+
+The application uses Stripe webhooks to process payments and create orders. To set up webhooks:
+
+1. Go to the [Stripe Dashboard](https://dashboard.stripe.com/)
+2. Navigate to Developers > Webhooks
+3. Click "Add endpoint"
+4. Enter your webhook URL: `https://your-domain.com/api/webhook/stripe`
+5. Select the following events to listen for:
+   - `invoice.created`
+   - `invoice.paid`
+   - `invoice.payment_failed`
+   - `invoice.finalized`
+   - `payment_intent.succeeded`
+   - `payment_intent.payment_failed`
+   - `charge.succeeded`
+   - `charge.failed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+6. Click "Add endpoint"
+7. After creating the endpoint, you'll see a signing secret. Copy this value and add it as the `STRIPE_WEBHOOK_SECRET` environment variable in Vercel.
+
+### Testing Webhooks Locally
+
+To test webhooks during development:
+
+1. Install the [Stripe CLI](https://stripe.com/docs/stripe-cli)
+2. Run `stripe login` to authenticate
+3. Start your local server
+4. Run `stripe listen --forward-to http://localhost:5000/api/webhook/stripe`
+5. In another terminal, trigger test events with commands like:
+   ```
+   stripe trigger invoice.created
+   stripe trigger payment_intent.succeeded
+   ```
 
 ## Database Setup
 
@@ -125,4 +165,14 @@ If you encounter issues with your deployment:
 3. **Supabase Connection Issues**:
    - Error: "Missing Supabase environment variables" or "Error fetching data from Supabase"
    - Solution: Make sure your Supabase URL and anon key are correctly set in the Vercel environment variables
-   - Check that your database tables are set up correctly according to the migration script 
+   - Check that your database tables are set up correctly according to the migration script
+
+4. **Stripe API Key Issues**:
+   - Error: "Invalid API Key provided" or "Authentication failed"
+   - Solution: Ensure your Stripe secret key is correctly set in the environment variables
+   - Make sure you're using the correct key for your environment (test key for development, live key for production)
+
+5. **Webhook Signature Verification Failed**:
+   - Error: "Webhook signature verification failed"
+   - Solution: Check that your `STRIPE_WEBHOOK_SECRET` is correctly set
+   - For local testing, make sure you're using the webhook secret provided by the Stripe CLI 
