@@ -67,6 +67,47 @@ The `vercel.json` file in your project contains the configuration for your Verce
 }
 ```
 
+## Tailwind CSS Configuration
+
+This project uses Tailwind CSS for styling. Make sure the following files are properly configured:
+
+1. `postcss.config.mjs`:
+   ```js
+   const config = {
+     plugins: {
+       tailwindcss: {},
+       autoprefixer: {},
+     },
+   };
+   
+   export default config;
+   ```
+
+2. `tailwind.config.js`:
+   ```js
+   /** @type {import('tailwindcss').Config} */
+   module.exports = {
+     content: [
+       './app/**/*.{js,ts,jsx,tsx,mdx}',
+       './pages/**/*.{js,ts,jsx,tsx,mdx}',
+       './components/**/*.{js,ts,jsx,tsx,mdx}',
+     ],
+     theme: {
+       extend: {},
+     },
+     plugins: [],
+   }
+   ```
+
+3. Make sure these dependencies are in your `package.json`:
+   ```json
+   "devDependencies": {
+     "autoprefixer": "^10.4.16",
+     "postcss": "^8.4.31",
+     "tailwindcss": "^3.3.5"
+   }
+   ```
+
 ## API Server Deployment
 
 If your API server is separate from your Next.js app, you'll need to deploy it separately. Options include:
@@ -87,4 +128,14 @@ If you encounter issues with your deployment:
 2. Ensure all environment variables are correctly set in the Vercel dashboard
 3. Verify that your API server is accessible from your Next.js app
 4. Check that your Supabase configuration is correct
-5. If you see "Environment Variable references Secret which does not exist" errors, make sure you've added the environment variables directly in the Vercel dashboard 
+5. If you see "Environment Variable references Secret which does not exist" errors, make sure you've added the environment variables directly in the Vercel dashboard
+
+### Common Build Errors
+
+1. **Missing Tailwind CSS dependencies**:
+   - Error: `Cannot find module '@tailwindcss/postcss'`
+   - Solution: Update your postcss.config.mjs file to use the correct plugin format and make sure tailwindcss and autoprefixer are installed.
+
+2. **Invalid Next.js configuration**:
+   - Error: `Invalid next.config.ts options detected: Unrecognized key(s) in object: 'swcMinify'`
+   - Solution: Remove the `swcMinify` option from your next.config.ts file as it's no longer supported in Next.js 15. 
