@@ -187,18 +187,22 @@ If you encounter issues with your deployment:
 2. **Invalid Next.js configuration**:
    - Error: `Invalid next.config.ts options detected: Unrecognized key(s) in object: 'swcMinify'`
    - Solution: Remove the `swcMinify` option from your next.config.ts file as it's no longer supported in Next.js 15.
+   
+3. **NODE_ENV in next.config.ts**:
+   - Error: `The key "NODE_ENV" under "env" in next.config.ts is not allowed.`
+   - Solution: Remove `NODE_ENV` from the `env` section in next.config.ts. Next.js automatically handles this environment variable and doesn't allow it to be explicitly set.
 
-3. **Supabase Connection Issues**:
+4. **Supabase Connection Issues**:
    - Error: "Missing Supabase environment variables" or "Error fetching data from Supabase"
    - Solution: Make sure your Supabase URL and anon key are correctly set in the Vercel environment variables
    - Check that your database tables are set up correctly according to the migration script
 
-4. **Stripe API Key Issues**:
+5. **Stripe API Key Issues**:
    - Error: "Invalid API Key provided" or "Authentication failed"
    - Solution: Ensure your Stripe secret key is correctly set in the environment variables
    - Make sure you're using the correct key for your environment (test key for development, live key for production)
 
-5. **Webhook Signature Verification Failed**:
+6. **Webhook Signature Verification Failed**:
    - Error: "Webhook signature verification failed"
    - Solution: Check that your `STRIPE_WEBHOOK_SECRET` is correctly set
    - For local testing, make sure you're using the webhook secret provided by the Stripe CLI 

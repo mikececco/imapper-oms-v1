@@ -6,7 +6,6 @@ export default async function Dashboard() {
   let orders = [];
   try {
     orders = await fetchOrders();
-    console.log(`Successfully fetched ${orders.length} orders`);
   } catch (error) {
     console.error("Error fetching orders:", error);
     // Continue with empty orders array
