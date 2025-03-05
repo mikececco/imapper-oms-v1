@@ -20,6 +20,9 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+console.log('helo');
+
+
 // Get orders to ship this week
 router.get('/ship-this-week', auth, async (req, res) => {
   try {
