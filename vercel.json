@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm install tailwindcss postcss autoprefixer && npm run build:next",
+  "buildCommand": "npm run build:next",
   "outputDirectory": ".next",
   "framework": "nextjs",
   "regions": ["cdg1"],
