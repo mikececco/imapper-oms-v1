@@ -20,6 +20,21 @@ The Order Management System has a simplified structure for consistency across en
 
 The home page automatically redirects to the dashboard for a consistent user experience in both production and development environments.
 
+## Ensuring Consistent Rendering
+
+To ensure the application looks and behaves the same in both development and production environments:
+
+1. **Error Handling**: All data fetching includes robust error handling to prevent crashes
+2. **Date Formatting**: Dates are formatted consistently using the same locale settings
+3. **Font Loading**: Fonts use the `display: swap` strategy to prevent layout shifts
+4. **Environment Variables**: The same environment variables are used in all environments
+5. **Responsive Design**: The application uses a mobile-first approach with consistent breakpoints
+
+If you notice any differences between environments, check:
+- That all environment variables are correctly set in Vercel
+- That the Supabase connection is working properly
+- That the database schema is identical in both environments
+
 ## Setting Up Environment Variables
 
 Before deploying, you need to set up environment variables in Vercel:

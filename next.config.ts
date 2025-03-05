@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
       {
         source: '/api/:path*',
         destination: process.env.NODE_ENV === 'production' 
-          ? `${process.env.NEXT_PUBLIC_API_URL || 'https://your-api-url.vercel.app/api'}/:path*`
+          ? `${process.env.NEXT_PUBLIC_API_URL || '/api'}/:path*`
           : 'http://localhost:5000/api/:path*',
       },
     ];
@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_SUPABASE_URL: process.env.NEXT_SUPABASE_URL,
     NEXT_SUPABASE_ANON_KEY: process.env.NEXT_SUPABASE_ANON_KEY,
+    NODE_ENV: process.env.NODE_ENV || 'development',
   },
 };
 

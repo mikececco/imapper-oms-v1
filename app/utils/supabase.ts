@@ -12,17 +12,22 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper function to fetch orders
 export async function fetchOrders() {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false });
-  
-  if (error) {
-    console.error('Error fetching orders:', error);
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching orders:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (e) {
+    console.error('Exception fetching orders:', e);
     return [];
   }
-  
-  return data || [];
 }
 
 // Helper function to fetch order statistics

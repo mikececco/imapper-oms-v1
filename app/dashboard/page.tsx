@@ -2,13 +2,29 @@ import Link from "next/link";
 import { fetchOrders } from "../utils/supabase";
 
 export default async function Dashboard() {
-  // Fetch real orders from Supabase
-  const orders = await fetchOrders();
+  // Fetch orders with error handling
+  let orders = [];
+  try {
+    orders = await fetchOrders();
+    console.log(`Successfully fetched ${orders.length} orders`);
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    // Continue with empty orders array
+  }
 
-  // Format date for display
+  // Format date for display - using a simple, consistent approach
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return 'Invalid date';
+    }
   };
 
   return (
@@ -31,7 +47,7 @@ export default async function Dashboard() {
             </Link>
           </div>
 
-          {orders.length > 0 ? (
+          {orders && orders.length > 0 ? (
             <table className="table">
               <thead>
                 <tr>
@@ -48,11 +64,11 @@ export default async function Dashboard() {
                     <td>{order.id}</td>
                     <td>{order.name || 'N/A'}</td>
                     <td>
-                      <span className={`status-badge status-${order.status}`}>
+                      <span className={`status-badge status-${order.status || 'pending'}`}>
                         {order.status || 'Pending'}
                       </span>
                     </td>
-                    <td>{order.created_at ? formatDate(order.created_at) : 'N/A'}</td>
+                    <td>{formatDate(order.created_at)}</td>
                     <td>
                       <Link 
                         href={`/orders/${order.id}`} 
