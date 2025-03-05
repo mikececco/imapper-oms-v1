@@ -1,27 +1,28 @@
 {
-  "name": "imapper-oms-v1",
-  "version": "0.1.0",
-  "private": true,
+  "name": "order-management-system",
+  "version": "1.0.0",
+  "description": "Order management system with Zapier integration using Supabase",
+  "main": "src/server.js",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "node src/server.js",
+    "server": "node src/server.js",
+    "client": "cd client && npm start",
+    "dev:server": "npx nodemon src/server.js",
+    "dev:client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client && npm run build --prefix client"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "next": "15.2.2-canary.1"
+    "@supabase/supabase-js": "^2.21.0",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "stripe": "^12.0.0"
   },
   "devDependencies": {
-    "typescript": "^5",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
-    "eslint": "^9",
-    "eslint-config-next": "15.2.2-canary.1",
-    "@eslint/eslintrc": "^3"
+    "concurrently": "^6.3.0",
+    "nodemon": "^2.0.14"
   }
 }
