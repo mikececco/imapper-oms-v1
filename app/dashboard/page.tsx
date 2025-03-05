@@ -1,71 +1,77 @@
 import Link from "next/link";
-import { fetchOrderStats, fetchRecentActivity } from "../utils/supabase";
-import { formatDistanceToNow } from "date-fns";
+import { fetchOrders } from "../utils/supabase";
 
 export default async function Dashboard() {
-  // Fetch real data from Supabase
-  const stats = await fetchOrderStats();
-  const activities = await fetchRecentActivity();
+  // Fetch real orders from Supabase
+  const orders = await fetchOrders();
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
 
   return (
     <div className="container">
       <header>
         <h1>Dashboard</h1>
-        <p>Overview of your Order Management System</p>
+        <p>Order Management System</p>
       </header>
 
       <main>
-        <section className="card">
-          <h2>Order Statistics</h2>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-value">{stats.total}</div>
-              <div className="stat-label">Total Orders</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{stats.pending}</div>
-              <div className="stat-label">Pending</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{stats.shipped}</div>
-              <div className="stat-label">Shipped</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{stats.delivered}</div>
-              <div className="stat-label">Delivered</div>
-            </div>
-          </div>
-        </section>
-
-        <section className="card">
-          <h2>Recent Activity</h2>
-          {activities.length > 0 ? (
-            <ul className="activity-list">
-              {activities.map((activity) => (
-                <li key={activity.id} className="activity-item">
-                  <div className="activity-time">
-                    {formatDistanceToNow(activity.time, { addSuffix: true })}
-                  </div>
-                  <div className="activity-content">{activity.activity}</div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No recent activity found.</p>
-          )}
-        </section>
-
-        <section className="card">
-          <h2>Quick Actions</h2>
-          <div className="actions">
-            <Link href="/orders" className="btn">
-              View All Orders
-            </Link>
+        <div className="card">
+          <h2>Recent Orders</h2>
+          
+          <div className="actions" style={{ marginBottom: '1rem' }}>
             <Link href="/orders/new" className="btn">
               Create New Order
             </Link>
+            <Link href="/orders" className="btn">
+              View All Orders
+            </Link>
           </div>
-        </section>
+
+          {orders.length > 0 ? (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.slice(0, 10).map((order) => (
+                  <tr key={order.id}>
+                    <td>{order.id}</td>
+                    <td>{order.name || 'N/A'}</td>
+                    <td>
+                      <span className={`status-badge status-${order.status}`}>
+                        {order.status || 'Pending'}
+                      </span>
+                    </td>
+                    <td>{order.created_at ? formatDate(order.created_at) : 'N/A'}</td>
+                    <td>
+                      <Link 
+                        href={`/orders/${order.id}`} 
+                        className="btn" 
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty-state">
+              <p>No orders found. Create your first order to get started.</p>
+            </div>
+          )}
+        </div>
       </main>
 
       <footer>

@@ -9,6 +9,17 @@ This guide explains how to deploy your Order Management System to Vercel.
 3. A Supabase project with the necessary tables set up
 4. A Stripe account for payment processing
 
+## Application Structure
+
+The Order Management System has a simplified structure for consistency across environments:
+
+- **Dashboard**: The main entry point that displays a table of recent orders
+- **Orders Page**: A complete list of all orders with filtering options
+- **New Order Page**: Form to create new orders manually
+- **Order Detail Page**: View and manage individual orders
+
+The home page automatically redirects to the dashboard for a consistent user experience in both production and development environments.
+
 ## Setting Up Environment Variables
 
 Before deploying, you need to set up environment variables in Vercel:
