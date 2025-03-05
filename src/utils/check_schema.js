@@ -14,14 +14,14 @@ require('dotenv').config({
 
 // Initialize Supabase client
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.NEXT_SUPABASE_URL,
+  process.env.NEXT_SUPABASE_ANON_KEY
 );
 
 async function checkSchema() {
   try {
     console.log('Checking Supabase database schema...');
-    console.log('Using URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('Using URL:', process.env.NEXT_SUPABASE_URL);
     
     // Check if we can connect to Supabase
     const { data: userData, error: userError } = await supabase.auth.getUser();

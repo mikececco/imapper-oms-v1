@@ -8,8 +8,8 @@ module.exports = {
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
   supabase: {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    url: process.env.NEXT_SUPABASE_URL,
+    anonKey: process.env.NEXT_SUPABASE_ANON_KEY
   },
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY,

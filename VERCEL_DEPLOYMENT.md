@@ -17,8 +17,8 @@ Before deploying, you need to set up environment variables in Vercel:
 4. After the initial deployment, go to your project settings
 5. Navigate to "Environment Variables"
 6. Add the following environment variables:
-   - `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase URL
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anonymous key
+   - `NEXT_SUPABASE_URL` - Your Supabase URL
+   - `NEXT_SUPABASE_ANON_KEY` - Your Supabase anonymous key
    - `NEXT_PUBLIC_API_URL` - The URL of your API server (if separate from the Next.js app)
 7. Make sure to set these variables for all environments (Production, Preview, and Development)
 8. Click "Save" and redeploy your application

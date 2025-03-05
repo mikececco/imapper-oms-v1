@@ -12,7 +12,7 @@ This guide explains how to run database migrations on your Supabase database.
 
 2. Update your `.env.development` file with these values:
    ```
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_SUPABASE_URL=your_supabase_url
    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
    ```
 

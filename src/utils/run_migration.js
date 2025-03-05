@@ -5,7 +5,7 @@
  * It uses the Supabase JavaScript client with the service role key for authentication.
  * 
  * Usage:
- * 1. Make sure your .env file contains NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+ * 1. Make sure your .env file contains NEXT_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
  * 2. Run: node src/utils/run_migration.js
  */
 
@@ -17,8 +17,8 @@ require('dotenv').config({
 });
 
 // Validate environment variables
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  console.error('Error: NEXT_PUBLIC_SUPABASE_URL is not defined in your environment');
+if (!process.env.NEXT_SUPABASE_URL) {
+  console.error('Error: NEXT_SUPABASE_URL is not defined in your environment');
   process.exit(1);
 }
 
@@ -31,7 +31,7 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 
 // Initialize Supabase client with service role key
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
