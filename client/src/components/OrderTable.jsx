@@ -1,36 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Table, Button, Badge, Tabs, Tab, Form, InputGroup } from 'react-bootstrap';
+import { Table, Button, Badge, Form, InputGroup } from 'react-bootstrap';
+import { supabase } from '../utils/supabaseClient';
 
 const OrderTable = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchOrders();
-  }, [activeTab]);
+  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      let endpoint = '/api/orders';
+      // Fetch orders directly from Supabase instead of through the API
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
       
-      if (activeTab === 'this-week') {
-        endpoint = '/api/orders/ship-this-week';
-      } else if (activeTab === 'after-week') {
-        endpoint = '/api/orders/ship-after-week';
+      if (error) {
+        throw error;
       }
       
-      const token = localStorage.getItem('token');
-      const res = await axios.get(endpoint, {
-        headers: {
-          'x-auth-token': token
-        }
-      });
-      
-      setOrders(res.data);
+      console.log('Orders fetched from Supabase:', data);
+      setOrders(data || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
@@ -39,18 +35,22 @@ const OrderTable = () => {
   };
 
   const handleOpenOrder = (id) => {
-    // Navigate to order details page
-    window.location.href = `/orders/${id}`;
+    // For now, just log the order ID
+    console.log('Opening order:', id);
+    alert(`Opening order: ${id}`);
   };
 
   const handleUpdateShipStatus = async (id, status) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/orders/${id}`, { ok_to_ship: status }, {
-        headers: {
-          'x-auth-token': token
-        }
-      });
+      // Update order directly in Supabase
+      const { error } = await supabase
+        .from('orders')
+        .update({ ok_to_ship: status, updated_at: new Date() })
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
       
       // Refresh orders
       fetchOrders();
@@ -60,29 +60,19 @@ const OrderTable = () => {
   };
 
   const filteredOrders = orders.filter(order => 
-    order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.id && order.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (order.name && order.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
     <div className="order-table-container">
-      <h2>GENERAL</h2>
-      
-      <Tabs
-        activeKey={activeTab}
-        onSelect={(k) => setActiveTab(k)}
-        className="mb-3"
-      >
-        <Tab eventKey="all" title="ALL ORDERS" />
-        <Tab eventKey="this-week" title="TO SHIP THIS WEEK" />
-        <Tab eventKey="after-week" title="TO SHIP AFTER THIS WEEK" />
-      </Tabs>
+      <h2>ALL ORDERS</h2>
       
       <Form className="mb-3">
         <InputGroup>
           <Form.Control
             type="text"
-            placeholder="Search by any field"
+            placeholder="Search by ID or name"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -91,23 +81,22 @@ const OrderTable = () => {
       
       {loading ? (
         <p>Loading orders...</p>
+      ) : orders.length === 0 ? (
+        <div className="alert alert-info">
+          No orders found. If you've added orders to Supabase, check the console for any errors.
+        </div>
       ) : (
         <Table striped bordered hover responsive>
           <thead>
             <tr>
               <th>Actions</th>
               <th>ID</th>
-              <th>Copy</th>
-              <th>Ship by</th>
-              <th>Paid?</th>
-              <th>Ok to Ship?</th>
               <th>Name</th>
               <th>Order Pack</th>
-              <th>Package Prepared?</th>
-              <th>Serial Number</th>
-              <th>Instruction</th>
-              <th>Package Weight</th>
+              <th>Paid?</th>
+              <th>Ok to Ship?</th>
               <th>Status</th>
+              <th>Created At</th>
             </tr>
           </thead>
           <tbody>
@@ -119,20 +108,12 @@ const OrderTable = () => {
                     size="sm" 
                     onClick={() => handleOpenOrder(order.id)}
                   >
-                    Open Order
+                    Open
                   </Button>
                 </td>
                 <td>{order.id}</td>
-                <td>
-                  <Button 
-                    variant="light" 
-                    size="sm" 
-                    onClick={() => navigator.clipboard.writeText(order.id)}
-                  >
-                    📋
-                  </Button>
-                </td>
-                <td>{order.ship_by ? new Date(order.ship_by).toLocaleDateString() : ''}</td>
+                <td>{order.name}</td>
+                <td>{order.order_pack}</td>
                 <td>
                   {order.paid ? (
                     <Badge bg="success">Yes</Badge>
@@ -147,18 +128,6 @@ const OrderTable = () => {
                     onChange={() => handleUpdateShipStatus(order.id, !order.ok_to_ship)}
                   />
                 </td>
-                <td>{order.name}</td>
-                <td>{order.order_pack}</td>
-                <td>
-                  {order.package_prepared ? (
-                    <Badge bg="success">Yes</Badge>
-                  ) : (
-                    <Badge bg="warning" text="dark">No</Badge>
-                  )}
-                </td>
-                <td>{order.serial_number}</td>
-                <td>{order.instruction}</td>
-                <td>{order.package_weight || 'UNKNOWN'}</td>
                 <td>
                   <Badge bg={
                     order.status === 'delivered' ? 'success' :
@@ -166,9 +135,10 @@ const OrderTable = () => {
                     order.status === 'processing' ? 'primary' :
                     order.status === 'cancelled' ? 'danger' : 'secondary'
                   }>
-                    {order.status.toUpperCase()}
+                    {order.status ? order.status.toUpperCase() : 'PENDING'}
                   </Badge>
                 </td>
+                <td>{order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}</td>
               </tr>
             ))}
           </tbody>
