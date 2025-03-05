@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./styles.css"; // Only using our basic CSS
 
@@ -14,16 +13,12 @@ const geistMono = Geist_Mono({
   display: "swap", // Ensure text remains visible during font loading
 });
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "Order Management System",
   description: "Manage your orders with Supabase and Stripe integration",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
@@ -38,4 +33,4 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
+} 

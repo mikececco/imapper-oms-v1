@@ -12,7 +12,7 @@ export default async function Orders() {
   }
 
   // Format date for display - using a simple, consistent approach
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
