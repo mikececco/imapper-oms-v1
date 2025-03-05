@@ -6,6 +6,7 @@ This guide explains how to deploy your Order Management System to Vercel.
 
 1. A Vercel account (sign up at [vercel.com](https://vercel.com))
 2. Your project pushed to a Git repository (GitHub, GitLab, or Bitbucket)
+3. A Supabase project with the necessary tables set up
 
 ## Setting Up Environment Variables
 
@@ -17,11 +18,22 @@ Before deploying, you need to set up environment variables in Vercel:
 4. After the initial deployment, go to your project settings
 5. Navigate to "Environment Variables"
 6. Add the following environment variables:
-   - `NEXT_SUPABASE_URL` - Your Supabase URL
-   - `NEXT_SUPABASE_ANON_KEY` - Your Supabase anonymous key
+   - `NEXT_SUPABASE_URL` - Your Supabase URL (from Supabase dashboard > Settings > API)
+   - `NEXT_SUPABASE_ANON_KEY` - Your Supabase anonymous key (from Supabase dashboard > Settings > API)
    - `NEXT_PUBLIC_API_URL` - The URL of your API server (if separate from the Next.js app)
 7. Make sure to set these variables for all environments (Production, Preview, and Development)
 8. Click "Save" and redeploy your application
+
+## Database Setup
+
+Before your application will work correctly, you need to set up the database tables in Supabase:
+
+1. Go to your Supabase dashboard
+2. Navigate to the SQL Editor
+3. Run the database migration script from `src/utils/database_migration.sql`
+4. Verify that the tables have been created correctly
+
+For more detailed instructions, see the [Database Migration Guide](src/utils/MIGRATION_README.md).
 
 ## Deployment
 
@@ -108,4 +120,9 @@ If you encounter issues with your deployment:
 
 2. **Invalid Next.js configuration**:
    - Error: `Invalid next.config.ts options detected: Unrecognized key(s) in object: 'swcMinify'`
-   - Solution: Remove the `swcMinify` option from your next.config.ts file as it's no longer supported in Next.js 15. 
+   - Solution: Remove the `swcMinify` option from your next.config.ts file as it's no longer supported in Next.js 15.
+
+3. **Supabase Connection Issues**:
+   - Error: "Missing Supabase environment variables" or "Error fetching data from Supabase"
+   - Solution: Make sure your Supabase URL and anon key are correctly set in the Vercel environment variables
+   - Check that your database tables are set up correctly according to the migration script 

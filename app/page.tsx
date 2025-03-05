@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { fetchOrderStats } from "./utils/supabase";
 
-export default function Home() {
+export default async function Home() {
+  // Fetch real data from Supabase
+  const stats = await fetchOrderStats();
+
   return (
     <div className="container">
       <header>
@@ -36,8 +40,12 @@ export default function Home() {
               <span className="status-value">Online</span>
             </div>
             <div className="status-item">
+              <span className="status-label">Orders:</span>
+              <span className="status-value">{stats.total} Total</span>
+            </div>
+            <div className="status-item">
               <span className="status-label">Environment:</span>
-              <span className="status-value">Production</span>
+              <span className="status-value">{process.env.NODE_ENV === 'production' ? 'Production' : 'Development'}</span>
             </div>
           </div>
         </section>

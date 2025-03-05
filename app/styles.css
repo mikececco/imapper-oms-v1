@@ -136,6 +136,43 @@ main {
   font-weight: 500;
 }
 
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-pending {
+  background-color: var(--warning);
+  color: white;
+}
+
+.status-shipped {
+  background-color: var(--primary);
+  color: white;
+}
+
+.status-delivered {
+  background-color: var(--success);
+  color: white;
+}
+
+.status-cancelled {
+  background-color: var(--danger);
+  color: white;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 2rem 0;
+  color: var(--gray-800);
+}
+
 /* Dashboard styles */
 .stats-grid {
   display: grid;

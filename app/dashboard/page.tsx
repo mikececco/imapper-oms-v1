@@ -1,6 +1,12 @@
 import Link from "next/link";
+import { fetchOrderStats, fetchRecentActivity } from "../utils/supabase";
+import { formatDistanceToNow } from "date-fns";
 
-export default function Dashboard() {
+export default async function Dashboard() {
+  // Fetch real data from Supabase
+  const stats = await fetchOrderStats();
+  const activities = await fetchRecentActivity();
+
   return (
     <div className="container">
       <header>
@@ -13,19 +19,19 @@ export default function Dashboard() {
           <h2>Order Statistics</h2>
           <div className="stats-grid">
             <div className="stat-card">
-              <div className="stat-value">24</div>
+              <div className="stat-value">{stats.total}</div>
               <div className="stat-label">Total Orders</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">12</div>
+              <div className="stat-value">{stats.pending}</div>
               <div className="stat-label">Pending</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">8</div>
+              <div className="stat-value">{stats.shipped}</div>
               <div className="stat-label">Shipped</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">4</div>
+              <div className="stat-value">{stats.delivered}</div>
               <div className="stat-label">Delivered</div>
             </div>
           </div>
@@ -33,24 +39,20 @@ export default function Dashboard() {
 
         <section className="card">
           <h2>Recent Activity</h2>
-          <ul className="activity-list">
-            <li className="activity-item">
-              <div className="activity-time">2 hours ago</div>
-              <div className="activity-content">New order created: ORD-024</div>
-            </li>
-            <li className="activity-item">
-              <div className="activity-time">5 hours ago</div>
-              <div className="activity-content">Order ORD-021 marked as shipped</div>
-            </li>
-            <li className="activity-item">
-              <div className="activity-time">Yesterday</div>
-              <div className="activity-content">Order ORD-019 marked as delivered</div>
-            </li>
-            <li className="activity-item">
-              <div className="activity-time">Yesterday</div>
-              <div className="activity-content">New order created: ORD-023</div>
-            </li>
-          </ul>
+          {activities.length > 0 ? (
+            <ul className="activity-list">
+              {activities.map((activity) => (
+                <li key={activity.id} className="activity-item">
+                  <div className="activity-time">
+                    {formatDistanceToNow(activity.time, { addSuffix: true })}
+                  </div>
+                  <div className="activity-content">{activity.activity}</div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No recent activity found.</p>
+          )}
         </section>
 
         <section className="card">

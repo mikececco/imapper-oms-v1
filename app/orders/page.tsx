@@ -1,6 +1,16 @@
 import Link from "next/link";
+import { fetchOrders } from "../utils/supabase";
 
-export default function Orders() {
+export default async function Orders() {
+  // Fetch real orders from Supabase
+  const orders = await fetchOrders();
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="container">
       <header>
@@ -19,52 +29,46 @@ export default function Orders() {
             </Link>
           </div>
 
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>ORD-001</td>
-                <td>John Doe</td>
-                <td>Pending</td>
-                <td>2023-05-15</td>
-                <td>
-                  <Link href="/orders/ORD-001" className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}>
-                    View
-                  </Link>
-                </td>
-              </tr>
-              <tr>
-                <td>ORD-002</td>
-                <td>Jane Smith</td>
-                <td>Shipped</td>
-                <td>2023-05-14</td>
-                <td>
-                  <Link href="/orders/ORD-002" className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}>
-                    View
-                  </Link>
-                </td>
-              </tr>
-              <tr>
-                <td>ORD-003</td>
-                <td>Bob Johnson</td>
-                <td>Delivered</td>
-                <td>2023-05-10</td>
-                <td>
-                  <Link href="/orders/ORD-003" className="btn" style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}>
-                    View
-                  </Link>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          {orders.length > 0 ? (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <tr key={order.id}>
+                    <td>{order.id}</td>
+                    <td>{order.name || 'N/A'}</td>
+                    <td>
+                      <span className={`status-badge status-${order.status}`}>
+                        {order.status || 'Pending'}
+                      </span>
+                    </td>
+                    <td>{order.created_at ? formatDate(order.created_at) : 'N/A'}</td>
+                    <td>
+                      <Link 
+                        href={`/orders/${order.id}`} 
+                        className="btn" 
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty-state">
+              <p>No orders found. Create your first order to get started.</p>
+            </div>
+          )}
         </div>
       </main>
 
