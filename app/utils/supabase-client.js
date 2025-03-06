@@ -2,13 +2,19 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize the Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Get environment variables with fallbacks
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// Check if environment variables are set
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('Supabase environment variables are missing. Please check your configuration.');
+}
+
+// Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Fetch all orders
+// Fetch orders
 export async function fetchOrders() {
   const { data, error } = await supabase
     .from('orders')
@@ -56,7 +62,7 @@ export async function updateOrderStatus(orderId, status) {
     
     return { success: true, status: data.status };
   } catch (error) {
-    console.error('Unexpected error updating order status:', error);
+    console.error('Error updating order status:', error);
     return { success: false, error };
   }
 }
@@ -64,24 +70,25 @@ export async function updateOrderStatus(orderId, status) {
 // Update payment status
 export async function updatePaymentStatus(orderId) {
   try {
-    // First, get the current payment status
+    // First, get the current status
     const { data: order, error: fetchError } = await supabase
       .from('orders')
-      .select('paid')
+      .select('is_paid')
       .eq('id', orderId)
       .single();
     
     if (fetchError) {
-      console.error('Error fetching payment status:', fetchError);
+      console.error('Error fetching order payment status:', fetchError);
       return { success: false, error: fetchError };
     }
     
-    // Toggle the payment status
-    const newPaidStatus = !order.paid;
+    // Toggle the status
+    const newStatus = !order.is_paid;
     
+    // Update the status
     const { data, error } = await supabase
       .from('orders')
-      .update({ paid: newPaidStatus })
+      .update({ is_paid: newStatus })
       .eq('id', orderId)
       .select()
       .single();
@@ -91,9 +98,9 @@ export async function updatePaymentStatus(orderId) {
       return { success: false, error };
     }
     
-    return { success: true, isPaid: data.paid };
+    return { success: true, isPaid: data.is_paid };
   } catch (error) {
-    console.error('Unexpected error updating payment status:', error);
+    console.error('Error updating payment status:', error);
     return { success: false, error };
   }
 }
@@ -101,7 +108,7 @@ export async function updatePaymentStatus(orderId) {
 // Update shipping status
 export async function updateShippingStatus(orderId) {
   try {
-    // First, get the current shipping status
+    // First, get the current status
     const { data: order, error: fetchError } = await supabase
       .from('orders')
       .select('ok_to_ship')
@@ -109,16 +116,17 @@ export async function updateShippingStatus(orderId) {
       .single();
     
     if (fetchError) {
-      console.error('Error fetching shipping status:', fetchError);
+      console.error('Error fetching order shipping status:', fetchError);
       return { success: false, error: fetchError };
     }
     
-    // Toggle the shipping status
-    const newShippingStatus = !order.ok_to_ship;
+    // Toggle the status
+    const newStatus = !order.ok_to_ship;
     
+    // Update the status
     const { data, error } = await supabase
       .from('orders')
-      .update({ ok_to_ship: newShippingStatus })
+      .update({ ok_to_ship: newStatus })
       .eq('id', orderId)
       .select()
       .single();
@@ -130,7 +138,7 @@ export async function updateShippingStatus(orderId) {
     
     return { success: true, okToShip: data.ok_to_ship };
   } catch (error) {
-    console.error('Unexpected error updating shipping status:', error);
+    console.error('Error updating shipping status:', error);
     return { success: false, error };
   }
 } 
