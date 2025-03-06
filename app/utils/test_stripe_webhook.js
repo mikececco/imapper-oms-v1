@@ -3,16 +3,29 @@
  * 
  * Usage:
  * 1. Make sure your local server is running
- * 2. Run this script with: node app/utils/test_stripe_webhook.js
+ * 2. Run this script with: node app/utils/test_stripe_webhook.js [eventType] [webhookSecret]
+ *    Example: node app/utils/test_stripe_webhook.js customerCreated whsec_your_webhook_secret
  * 3. Check your server logs to see the webhook processing
  */
 
-const fetch = require('node-fetch');
-const crypto = require('crypto');
+import fetch from 'node-fetch';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import { argv } from 'process';
+
+// Get the directory of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load environment variables from .env.development
+dotenv.config({ path: resolve(__dirname, '../../.env.development') });
 
 // Configuration
-const WEBHOOK_URL = 'http://localhost:3000/api/webhook/stripe';
-const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test';
+const WEBHOOK_URL = process.env.WEBHOOK_URL || 'http://localhost:5000/api/webhook/stripe';
+// Get webhook secret from command line args, environment variable, or use default
+const WEBHOOK_SECRET = argv[3] || process.env.STRIPE_WEBHOOK_SECRET || 'whsec_test';
 
 // Sample events
 const events = {
@@ -118,6 +131,7 @@ function generateSignature(payload, secret) {
 async function sendTestWebhook(eventType) {
   if (!events[eventType]) {
     console.error(`Unknown event type: ${eventType}`);
+    console.error(`Available event types: ${Object.keys(events).join(', ')}`);
     return;
   }
   
@@ -127,6 +141,7 @@ async function sendTestWebhook(eventType) {
   
   try {
     console.log(`Sending ${eventType} event to ${WEBHOOK_URL}...`);
+    console.log(`Using webhook secret: ${WEBHOOK_SECRET.substring(0, 5)}...`);
     
     const response = await fetch(WEBHOOK_URL, {
       method: 'POST',
@@ -137,15 +152,37 @@ async function sendTestWebhook(eventType) {
       body: payload
     });
     
-    const responseData = await response.json();
+    // Clone the response before trying to read it
+    const responseStatus = response.status;
+    let responseData;
     
-    console.log(`Response status: ${response.status}`);
+    if (responseStatus === 204) {
+      responseData = 'No Content';
+    } else {
+      try {
+        // Clone the response to avoid the "body used already" error
+        const responseClone = response.clone();
+        responseData = await responseClone.json();
+      } catch (e) {
+        try {
+          responseData = await response.text();
+        } catch (textError) {
+          responseData = `Could not parse response: ${textError.message}`;
+        }
+      }
+    }
+    
+    console.log(`Response status: ${responseStatus}`);
     console.log('Response data:', responseData);
     
     if (response.ok) {
       console.log(`Successfully sent ${eventType} event!`);
     } else {
       console.error(`Failed to send ${eventType} event.`);
+      console.error('If you see a signature verification error, make sure to:');
+      console.error('1. Pass the correct webhook secret as the second argument');
+      console.error('2. Set STRIPE_WEBHOOK_SECRET in your .env.development file');
+      console.error('3. Make sure the secret matches what your server expects');
     }
   } catch (error) {
     console.error('Error sending webhook:', error);
@@ -154,11 +191,13 @@ async function sendTestWebhook(eventType) {
 
 // Main function
 async function main() {
-  const eventType = process.argv[2] || 'checkoutSessionCompleted';
+  const eventType = argv[2] || 'checkoutSessionCompleted';
   
   console.log('Stripe Webhook Test Script');
   console.log('=========================');
   console.log(`Testing event: ${eventType}`);
+  console.log(`Webhook URL: ${WEBHOOK_URL}`);
+  console.log(`Webhook Secret: ${WEBHOOK_SECRET.substring(0, 5)}...`);
   
   await sendTestWebhook(eventType);
 }

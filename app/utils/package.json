@@ -1,0 +1,7 @@
+{
+  "name": "stripe-webhook-utils",
+  "version": "1.0.0",
+  "description": "Utilities for testing Stripe webhooks",
+  "type": "module",
+  "private": true
+} 
