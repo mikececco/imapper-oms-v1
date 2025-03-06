@@ -3,7 +3,6 @@
 import { useState, useEffect, use } from "react";
 import { fetchOrders, searchOrders, filterOrders } from "../utils/supabase-client";
 import OrderSearch from "../components/OrderSearch";
-import OrderDetailModal from "../components/OrderDetailModal";
 import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
 import OrderFilters from "../components/OrderFilters";
 import "./orders.css";
@@ -84,10 +83,6 @@ export default function Orders({ searchParams }) {
           />
         </div>
       </div>
-      
-      {/* Include the OrderDetailModal component */}
-      {/* This is the single order detail modal used throughout the application */}
-      <OrderDetailModal />
     </div>
   );
 }

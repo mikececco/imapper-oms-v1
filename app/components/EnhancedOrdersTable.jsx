@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "./ui/table";
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector, OrderPackDropdown } from "./OrderActions";
+import { useOrderDetailModal } from "./OrderDetailModal";
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -57,12 +58,10 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
   const [hoveredButtonId, setHoveredButtonId] = useState(null);
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
+  const { openModal } = useOrderDetailModal();
 
   const openOrderDetail = (orderId) => {
-    // Use the global function if it exists (from the fixed modal)
-    if (window.openOrderDetail) {
-      window.openOrderDetail(orderId);
-    }
+    openModal(orderId);
   };
 
   // Create shipping label
@@ -122,7 +121,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
               <TableHead className="text-black w-[80px]">Paid?</TableHead>
               <TableHead className="text-black w-[100px]">Ok to Ship?</TableHead>
               <TableHead className="text-black w-[100px]">Status</TableHead>
-              <TableHead className="text-black w-[150px]">Shipping</TableHead>
+              <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
               <TableHead className="text-black w-[120px]">Tracking #</TableHead>
               <TableHead className="text-black w-[80px]">Label</TableHead>
               <TableHead className="text-black w-[180px]">Created At</TableHead>

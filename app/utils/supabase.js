@@ -42,36 +42,34 @@ export async function fetchOrders() {
 // Helper function to fetch order statistics
 export async function fetchOrderStats() {
   try {
-    const { data, error } = await supabase
+    // First, get the total count of orders
+    const { count: total, error: countError } = await supabase
       .from('orders')
-      .select('status, count(*)')
-      .group('status');
+      .select('*', { count: 'exact', head: true });
     
-    if (error) {
-      console.error('Error fetching order stats:', error);
+    if (countError) {
+      console.error('Error fetching order count:', countError);
       return { total: 0, pending: 0, shipped: 0, delivered: 0 };
     }
     
-    // Calculate stats
-    const stats = {
-      total: 0,
-      pending: 0,
-      shipped: 0,
-      delivered: 0
-    };
+    // Then get counts for each status
+    const statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const stats = { total };
     
-    data.forEach(item => {
-      const count = parseInt(item.count, 10);
-      stats.total += count;
+    // Get count for each status in parallel
+    await Promise.all(statuses.map(async (status) => {
+      const { count, error } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', status);
       
-      if (item.status === 'pending') {
-        stats.pending += count;
-      } else if (item.status === 'shipped') {
-        stats.shipped += count;
-      } else if (item.status === 'delivered') {
-        stats.delivered += count;
+      if (error) {
+        console.error(`Error fetching ${status} order count:`, error);
+        stats[status] = 0;
+      } else {
+        stats[status] = count;
       }
-    });
+    }));
     
     return stats;
   } catch (error) {
@@ -928,11 +926,11 @@ export async function fetchOrdersByCustomerId(customerId) {
  */
 export async function fetchDeliveryStats() {
   try {
+    // Get all orders with delivery status
     const { data, error } = await supabase
       .from('orders')
-      .select('delivery_status, shipping_instruction, count(*)')
-      .not('delivery_status', 'is', null)
-      .group('delivery_status, shipping_instruction');
+      .select('delivery_status, shipping_instruction')
+      .not('delivery_status', 'is', null);
     
     if (error) {
       console.error('Error fetching delivery stats:', error);
@@ -949,7 +947,7 @@ export async function fetchDeliveryStats() {
     
     // Count orders by delivery status
     const stats = {
-      total_tracked: 0,
+      total_tracked: data.length,
       delivered: 0,
       in_transit: 0,
       to_ship: 0,
@@ -958,34 +956,30 @@ export async function fetchDeliveryStats() {
       by_instruction: {}
     };
     
-    // Process the data
-    data.forEach(item => {
-      const count = parseInt(item.count, 10);
-      stats.total_tracked += count;
-      
+    // Process each order
+    data.forEach(order => {
       // Count by delivery status
-      if (item.delivery_status?.toLowerCase().includes('delivered')) {
-        stats.delivered += count;
-      } else if (item.delivery_status?.toLowerCase().includes('transit') || 
-                item.delivery_status?.toLowerCase().includes('shipped')) {
-        stats.in_transit += count;
+      if (order.delivery_status === 'delivered') {
+        stats.delivered++;
+      } else if (order.delivery_status === 'in_transit' || order.delivery_status === 'out_for_delivery') {
+        stats.in_transit++;
+      } else {
+        stats.unknown++;
       }
       
       // Count by shipping instruction
-      if (item.shipping_instruction) {
-        if (!stats.by_instruction[item.shipping_instruction]) {
-          stats.by_instruction[item.shipping_instruction] = 0;
+      if (order.shipping_instruction) {
+        if (!stats.by_instruction[order.shipping_instruction]) {
+          stats.by_instruction[order.shipping_instruction] = 0;
         }
-        stats.by_instruction[item.shipping_instruction] += count;
-        
-        // Also update the summary counts
-        if (item.shipping_instruction === 'TO SHIP') {
-          stats.to_ship += count;
-        } else if (item.shipping_instruction === 'DO NOT SHIP') {
-          stats.do_not_ship += count;
-        } else if (item.shipping_instruction === 'UNKNOWN') {
-          stats.unknown += count;
-        }
+        stats.by_instruction[order.shipping_instruction]++;
+      }
+      
+      // Count to_ship and do_not_ship
+      if (order.shipping_instruction === 'TO SHIP') {
+        stats.to_ship++;
+      } else if (order.shipping_instruction === 'DO NOT SHIP') {
+        stats.do_not_ship++;
       }
     });
     

@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css"; // Using our new global CSS file with Tailwind
 import Navigation from "./components/Navigation";
+import Providers from "./components/Providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,7 +33,9 @@ export default function RootLayout({ children }) {
       >
         <Navigation />
         <div className="page-content">
-          {children}
+          <Providers>
+            {children}
+          </Providers>
         </div>
       </body>
     </html>
