@@ -224,6 +224,9 @@ export async function searchOrders(query) {
 // Helper function to create an order from a Stripe event
 export async function createOrderFromStripeEvent(stripeEvent) {
   try {
+    // First, verify that the event is stored in the database
+    await verifyStripeEventStored(stripeEvent);
+    
     // Generate a unique ID for the order
     const orderId = `ord_${crypto.randomBytes(6).toString('hex')}`;
     
@@ -233,6 +236,12 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     let customerEmail = '';
     let customerPhone = '';
     let shippingAddress = '';
+    let shippingAddressLine1 = '';
+    let shippingAddressLine2 = '';
+    let shippingAddressCity = '';
+    let shippingAddressState = '';
+    let shippingAddressPostalCode = '';
+    let shippingAddressCountry = '';
     let orderPack = '';
     let orderNotes = '';
     let stripeCustomerId = '';
@@ -251,13 +260,38 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       if (session.shipping) {
         customerPhone = session.shipping.phone || '';
         const shipping = session.shipping.address;
+        shippingAddressLine1 = shipping.line1 || '';
+        shippingAddressLine2 = shipping.line2 || '';
+        shippingAddressCity = shipping.city || '';
+        shippingAddressState = shipping.state || '';
+        shippingAddressPostalCode = shipping.postal_code || '';
+        shippingAddressCountry = shipping.country || '';
+        
         shippingAddress = [
-          shipping.line1,
-          shipping.line2,
-          shipping.city,
-          shipping.state,
-          shipping.postal_code,
-          shipping.country
+          shippingAddressLine1,
+          shippingAddressLine2,
+          shippingAddressCity,
+          shippingAddressState,
+          shippingAddressPostalCode,
+          shippingAddressCountry
+        ].filter(Boolean).join(', ');
+      } else if (session.customer_details && session.customer_details.address) {
+        // Use customer address if shipping address is not available
+        const address = session.customer_details.address;
+        shippingAddressLine1 = address.line1 || '';
+        shippingAddressLine2 = address.line2 || '';
+        shippingAddressCity = address.city || '';
+        shippingAddressState = address.state || '';
+        shippingAddressPostalCode = address.postal_code || '';
+        shippingAddressCountry = address.country || '';
+        
+        shippingAddress = [
+          shippingAddressLine1,
+          shippingAddressLine2,
+          shippingAddressCity,
+          shippingAddressState,
+          shippingAddressPostalCode,
+          shippingAddressCountry
         ].filter(Boolean).join(', ');
       }
       
@@ -284,13 +318,38 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         customerName = paymentIntent.shipping.name || 'Unknown Customer';
         customerPhone = paymentIntent.shipping.phone || '';
         const shipping = paymentIntent.shipping.address;
+        shippingAddressLine1 = shipping.line1 || '';
+        shippingAddressLine2 = shipping.line2 || '';
+        shippingAddressCity = shipping.city || '';
+        shippingAddressState = shipping.state || '';
+        shippingAddressPostalCode = shipping.postal_code || '';
+        shippingAddressCountry = shipping.country || '';
+        
         shippingAddress = [
-          shipping.line1,
-          shipping.line2,
-          shipping.city,
-          shipping.state,
-          shipping.postal_code,
-          shipping.country
+          shippingAddressLine1,
+          shippingAddressLine2,
+          shippingAddressCity,
+          shippingAddressState,
+          shippingAddressPostalCode,
+          shippingAddressCountry
+        ].filter(Boolean).join(', ');
+      } else if (paymentIntent.billing_details && paymentIntent.billing_details.address) {
+        // Use billing address if shipping address is not available
+        const address = paymentIntent.billing_details.address;
+        shippingAddressLine1 = address.line1 || '';
+        shippingAddressLine2 = address.line2 || '';
+        shippingAddressCity = address.city || '';
+        shippingAddressState = address.state || '';
+        shippingAddressPostalCode = address.postal_code || '';
+        shippingAddressCountry = address.country || '';
+        
+        shippingAddress = [
+          shippingAddressLine1,
+          shippingAddressLine2,
+          shippingAddressCity,
+          shippingAddressState,
+          shippingAddressPostalCode,
+          shippingAddressCountry
         ].filter(Boolean).join(', ');
       }
       
@@ -310,6 +369,70 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       // Generate a fake invoice ID for reference
       stripeInvoiceId = `in_${Date.now()}${Math.floor(Math.random() * 10000)}`;
       
+      // Check if customer has an address
+      if (customer.address) {
+        const address = customer.address;
+        shippingAddressLine1 = address.line1 || '';
+        shippingAddressLine2 = address.line2 || '';
+        shippingAddressCity = address.city || '';
+        shippingAddressState = address.state || '';
+        shippingAddressPostalCode = address.postal_code || '';
+        shippingAddressCountry = address.country || '';
+        
+        shippingAddress = [
+          shippingAddressLine1,
+          shippingAddressLine2,
+          shippingAddressCity,
+          shippingAddressState,
+          shippingAddressPostalCode,
+          shippingAddressCountry
+        ].filter(Boolean).join(', ');
+      } else if (customer.shipping && customer.shipping.address) {
+        // Use shipping address if available
+        const address = customer.shipping.address;
+        shippingAddressLine1 = address.line1 || '';
+        shippingAddressLine2 = address.line2 || '';
+        shippingAddressCity = address.city || '';
+        shippingAddressState = address.state || '';
+        shippingAddressPostalCode = address.postal_code || '';
+        shippingAddressCountry = address.country || '';
+        
+        shippingAddress = [
+          shippingAddressLine1,
+          shippingAddressLine2,
+          shippingAddressCity,
+          shippingAddressState,
+          shippingAddressPostalCode,
+          shippingAddressCountry
+        ].filter(Boolean).join(', ');
+      } else if (customer.metadata && customer.metadata.address) {
+        // Try to parse address from metadata if it exists
+        try {
+          const address = typeof customer.metadata.address === 'string' 
+            ? JSON.parse(customer.metadata.address) 
+            : customer.metadata.address;
+            
+          shippingAddressLine1 = address.line1 || '';
+          shippingAddressLine2 = address.line2 || '';
+          shippingAddressCity = address.city || '';
+          shippingAddressState = address.state || '';
+          shippingAddressPostalCode = address.postal_code || '';
+          shippingAddressCountry = address.country || '';
+          
+          shippingAddress = [
+            shippingAddressLine1,
+            shippingAddressLine2,
+            shippingAddressCity,
+            shippingAddressState,
+            shippingAddressPostalCode,
+            shippingAddressCountry
+          ].filter(Boolean).join(', ');
+        } catch (e) {
+          console.error('Error parsing address from metadata:', e);
+          // If parsing fails, leave address empty
+        }
+      }
+      
       // Get metadata if available
       if (customer.metadata) {
         orderPack = customer.metadata.package || 'Basic Pack';
@@ -325,7 +448,11 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       name: customerName,
       email: customerEmail,
       phone: customerPhone,
-      shipping_address_city: shippingAddress,
+      shipping_address_city: shippingAddressCity,
+      shipping_address_line1: shippingAddressLine1,
+      shipping_address_line2: shippingAddressLine2,
+      shipping_address_postal_code: shippingAddressPostalCode,
+      shipping_address_country: shippingAddressCountry,
       order_pack: orderPack,
       instruction: orderNotes,
       stripe_customer_id: stripeCustomerId,
@@ -339,7 +466,11 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       name: customerName,
       email: customerEmail,
       phone: customerPhone,
-      shipping_address_city: shippingAddress,
+      shipping_address_city: shippingAddressCity,
+      shipping_address_line1: shippingAddressLine1,
+      shipping_address_line2: shippingAddressLine2,
+      shipping_address_postal_code: shippingAddressPostalCode,
+      shipping_address_country: shippingAddressCountry,
       order_pack: orderPack || 'Standard Pack', // Default value
       instruction: orderNotes,
       status: 'pending',
@@ -359,5 +490,43 @@ export async function createOrderFromStripeEvent(stripeEvent) {
   } catch (e) {
     console.error('Exception creating order from Stripe event:', e);
     return { success: false, error: e };
+  }
+}
+
+// Helper function to verify that a Stripe event is stored in the database
+async function verifyStripeEventStored(stripeEvent) {
+  try {
+    // Check if the event exists in the database
+    const { data, error } = await supabase
+      .from('stripe_events')
+      .select('*')
+      .eq('event_id', stripeEvent.id)
+      .single();
+    
+    if (error) {
+      console.log(`Stripe event ${stripeEvent.id} not found in database, storing it now...`);
+      
+      // Store the event in the database
+      const { error: insertError } = await supabase
+        .from('stripe_events')
+        .insert({
+          event_id: stripeEvent.id,
+          event_type: stripeEvent.type,
+          event_data: stripeEvent.data.object,
+          processed: false,
+          created_at: new Date()
+        });
+      
+      if (insertError) {
+        console.error('Error storing Stripe event:', insertError);
+      } else {
+        console.log(`Successfully stored Stripe event ${stripeEvent.id} in database`);
+      }
+    } else {
+      console.log(`Stripe event ${stripeEvent.id} already exists in database`);
+    }
+  } catch (e) {
+    console.error('Error verifying Stripe event storage:', e);
+    // Continue with order creation even if verification fails
   }
 } 

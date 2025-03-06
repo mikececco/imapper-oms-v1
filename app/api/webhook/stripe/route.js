@@ -177,16 +177,6 @@ async function handleCustomerCreated(event) {
     
     if (success) {
       console.log(`Successfully created order ${orderId} from customer ${customer.id}`);
-      
-      // Mark the event as processed
-      await supabase
-        .from('stripe_events')
-        .update({ 
-          processed: true,
-          processed_at: new Date()
-        })
-        .eq('event_id', event.id);
-        
       return { success: true, orderId };
     } else {
       console.error(`Failed to create order from customer ${customer.id}:`, error);
