@@ -192,7 +192,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                   </TableCell>
                   <TableCell>
                     <div className={`shipping-instruction ${order.shipping_instruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
-                      {order.shipping_instruction || 'UNKNOWN'}
+                      {order.shipping_instruction || 'ACTION REQUIRED'}
                     </div>
                   </TableCell>
                   <TableCell className="enhanced-table-monospace">

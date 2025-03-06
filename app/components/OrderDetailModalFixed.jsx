@@ -290,7 +290,7 @@ export default function OrderDetailModalFixed() {
                     <div className="mb-2">
                       <span className="font-medium text-black">Shipping Instruction: </span>
                       <div className={`shipping-instruction ${order.shipping_instruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
-                        {order.shipping_instruction || 'UNKNOWN'}
+                        {order.shipping_instruction || 'ACTION REQUIRED'}
                       </div>
                     </div>
                   )}
