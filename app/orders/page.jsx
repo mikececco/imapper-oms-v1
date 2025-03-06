@@ -1,20 +1,38 @@
-import Link from "next/link";
-import { fetchOrders, searchOrders } from "../utils/supabase";
-import OrderSearch from "../components/OrderSearch";
-import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from "../components/OrderActions";
+"use client"
 
-export default async function Orders({ searchParams }) {
+import { useState, useEffect } from "react";
+import { fetchOrders, searchOrders } from "../utils/supabase-client";
+import OrderSearch from "../components/OrderSearch";
+import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector, OrderPackDropdown } from "../components/OrderActions";
+import OrderDetailModal from "../components/OrderDetailModal";
+
+export default function Orders({ searchParams }) {
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   // Get search query from URL parameters
   const query = searchParams?.q || '';
   
   // Fetch orders with search functionality
-  let orders = [];
-  try {
-    orders = query ? await searchOrders(query) : await fetchOrders();
-  } catch (error) {
-    console.error("Error fetching orders:", error);
-    // Continue with empty orders array
-  }
+  useEffect(() => {
+    async function loadOrders() {
+      try {
+        const fetchedOrders = query 
+          ? await searchOrders(query) 
+          : await fetchOrders();
+        setOrders(fetchedOrders);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        // Continue with empty orders array
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadOrders();
+  }, [query]);
 
   // Format date for display - using a detailed format matching the image
   const formatDate = (dateString) => {
@@ -35,76 +53,111 @@ export default async function Orders({ searchParams }) {
     }
   };
 
+  const openOrderDetail = (orderId) => {
+    setSelectedOrderId(orderId);
+    setIsModalOpen(true);
+  };
+
+  const closeOrderDetail = () => {
+    setIsModalOpen(false);
+    setSelectedOrderId(null);
+  };
+
   return (
     <div className="container">
       <header className="orders-header">
-        <h1>Order Management System</h1>
-        <h2>ALL ORDERS</h2>
+        <h1 className="text-black">Order Management System</h1>
+        <h2 className="text-black">ALL ORDERS</h2>
       </header>
 
       <OrderSearch />
 
       <div className="orders-table-container">
-        <table className="orders-table">
-          <thead>
-            <tr>
-              <th>Actions</th>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Order Pack</th>
-              <th>Paid?</th>
-              <th>Ok to Ship?</th>
-              <th>Status</th>
-              <th>Created At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders && orders.length > 0 ? (
-              orders.map((order) => (
-                <tr key={order.id}>
-                  <td>
-                    <Link 
-                      href={`/orders/${order.id}`} 
-                      className="open-btn"
-                    >
-                      Open
-                    </Link>
-                  </td>
-                  <td>{order.id}</td>
-                  <td>{order.name || 'N/A'}</td>
-                  <td>{order.order_pack || 'Sample product'}</td>
-                  <td>
-                    <PaymentBadge 
-                      isPaid={order.paid} 
-                      orderId={order.id} 
-                    />
-                  </td>
-                  <td>
-                    <ShippingToggle 
-                      okToShip={order.ok_to_ship} 
-                      orderId={order.id} 
-                    />
-                  </td>
-                  <td>
-                    <StatusSelector 
-                      currentStatus={order.status || 'pending'} 
-                      orderId={order.id} 
-                    />
-                  </td>
-                  <td>{formatDate(order.created_at)}</td>
-                </tr>
-              ))
-            ) : (
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+          </div>
+        ) : (
+          <table className="orders-table">
+            <thead>
               <tr>
-                <td colSpan="8" className="empty-state">
-                  {query ? `No orders found matching "${query}". Try a different search term.` : 
-                    'No orders found. Create your first order to get started.'}
-                </td>
+                <th className="text-black">Actions</th>
+                <th className="text-black">ID</th>
+                <th className="text-black">Name</th>
+                <th className="text-black">Order Pack</th>
+                <th className="text-black">Paid?</th>
+                <th className="text-black">Ok to Ship?</th>
+                <th className="text-black">Status</th>
+                <th className="text-black">Created At</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {orders && orders.length > 0 ? (
+                orders.map((order) => (
+                  <tr key={order.id} className="text-black">
+                    <td>
+                      <button 
+                        onClick={() => openOrderDetail(order.id)}
+                        className="open-btn"
+                        style={{
+                          backgroundColor: '#000000',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Open
+                      </button>
+                    </td>
+                    <td>{order.id}</td>
+                    <td>{order.name || 'N/A'}</td>
+                    <td>
+                      <OrderPackDropdown 
+                        currentPack={order.order_pack} 
+                        orderId={order.id} 
+                      />
+                    </td>
+                    <td>
+                      <PaymentBadge 
+                        isPaid={order.paid} 
+                        orderId={order.id} 
+                      />
+                    </td>
+                    <td>
+                      <ShippingToggle 
+                        okToShip={order.ok_to_ship} 
+                        orderId={order.id} 
+                      />
+                    </td>
+                    <td>
+                      <StatusSelector 
+                        currentStatus={order.status || 'pending'} 
+                        orderId={order.id} 
+                      />
+                    </td>
+                    <td>{formatDate(order.created_at)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" className="empty-state text-black">
+                    {query ? `No orders found matching "${query}". Try a different search term.` : 
+                      'No orders found. Create your first order to get started.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
+
+      <OrderDetailModal 
+        isOpen={isModalOpen} 
+        onClose={closeOrderDetail} 
+        orderId={selectedOrderId} 
+      />
     </div>
   );
 } 

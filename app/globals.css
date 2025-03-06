@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Black and white color scheme */
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+  --muted-background: #f5f5f5;
+  --muted-foreground: #333333;
+  --border: #e0e0e0;
+  --input: #f5f5f5;
+  --ring: #000000;
+  --success: #000000;
+  --error: #000000;
+}
+
+/* Apply black and white styles to all elements */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+button, 
+input, 
+select, 
+textarea {
+  background-color: var(--input);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.btn, 
+.open-btn {
+  background-color: var(--foreground) !important;
+  color: var(--background) !important;
+  border: 1px solid var(--foreground) !important;
+}
+
+.btn:hover, 
+.open-btn:hover {
+  opacity: 0.9;
+}
+
+.card, 
+.bg-gray-50, 
+.orders-table th {
+  background-color: var(--muted-background) !important;
+  color: var(--foreground) !important;
+}
+
+.status-badge, 
+.paid-badge {
+  background-color: var(--foreground) !important;
+  color: var(--background) !important;
+}
+
+/* Animation utilities */
+@layer utilities {
+  .animate-in {
+    animation-duration: 150ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: forwards;
+  }
+  .animate-out {
+    animation-duration: 150ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: forwards;
+  }
+  .fade-in-0 {
+    opacity: 0;
+  }
+  .fade-in-100 {
+    opacity: 1;
+  }
+  .fade-out-0 {
+    opacity: 0;
+  }
+  .fade-out-100 {
+    opacity: 1;
+  }
+  .slide-in-from-right {
+    transform: translateX(100%);
+  }
+  .slide-in-to-left {
+    transform: translateX(0);
+  }
+  .slide-out-to-right {
+    transform: translateX(100%);
+  }
+  .slide-out-from-left {
+    transform: translateX(0);
+  }
+}
+
+/* Import existing styles */
+@import './styles.css'; 

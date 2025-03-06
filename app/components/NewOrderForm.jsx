@@ -195,7 +195,7 @@ export default function NewOrderForm() {
         >
           <option value="" disabled>Select a package</option>
           {ORDER_PACK_OPTIONS.map((option, index) => (
-            <option key={index} value={option}>{option}</option>
+            <option key={index} value={option.value}>{option.label}</option>
           ))}
         </select>
       </div>

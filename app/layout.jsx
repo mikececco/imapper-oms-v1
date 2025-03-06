@@ -1,5 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import "./styles.css"; // Only using our basic CSS
+import "./globals.css"; // Using our new global CSS file with Tailwind
 import Navigation from "./components/Navigation";
 
 const geistSans = Geist({

@@ -35,6 +35,15 @@ export default function OrderSearch() {
           placeholder="Search orders by ID or customer name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            backgroundColor: '#f5f5f5',
+            color: '#000000',
+            border: '1px solid #000000',
+            padding: '0.5rem',
+            borderRadius: '4px',
+            width: '100%',
+            maxWidth: '500px'
+          }}
         />
       </form>
     </div>
