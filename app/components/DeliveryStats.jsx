@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase-client';
+import { calculateOrderInstruction } from '../utils/order-instructions';
 
 export default function DeliveryStats() {
   const [stats, setStats] = useState({
@@ -24,11 +25,10 @@ export default function DeliveryStats() {
     try {
       setLoading(true);
       
-      // Fetch orders with delivery status
+      // Fetch all orders with their relevant fields for instruction calculation
       const { data, error } = await supabase
         .from('orders')
-        .select('delivery_status, shipping_instruction')
-        .not('delivery_status', 'is', null);
+        .select('*');
       
       if (error) {
         throw error;
@@ -46,30 +46,36 @@ export default function DeliveryStats() {
       };
       
       data.forEach(order => {
-        stats.total_tracked++;
-        
-        // Count by delivery status
-        if (order.delivery_status?.toLowerCase().includes('delivered')) {
-          stats.delivered++;
-        } else if (order.delivery_status?.toLowerCase().includes('transit') || 
-                  order.delivery_status?.toLowerCase().includes('shipped')) {
-          stats.in_transit++;
-        }
-        
-        // Count by shipping instruction
-        if (order.shipping_instruction) {
-          if (!stats.by_instruction[order.shipping_instruction]) {
-            stats.by_instruction[order.shipping_instruction] = 0;
-          }
-          stats.by_instruction[order.shipping_instruction]++;
+        // Only count orders with tracking information
+        if (order.tracking_number || order.tracking_link) {
+          stats.total_tracked++;
           
-          // Also update the summary counts
-          if (order.shipping_instruction === 'TO SHIP') {
-            stats.to_ship++;
-          } else if (order.shipping_instruction === 'DO NOT SHIP') {
-            stats.do_not_ship++;
-          } else if (order.shipping_instruction === 'UNKNOWN') {
-            stats.unknown++;
+          // Count by delivery status
+          if (order.delivery_status?.toLowerCase().includes('delivered')) {
+            stats.delivered++;
+          } else if (order.delivery_status?.toLowerCase().includes('transit') || 
+                    order.delivery_status?.toLowerCase().includes('shipped')) {
+            stats.in_transit++;
+          }
+          
+          // Calculate shipping instruction for each order
+          const instruction = calculateOrderInstruction(order);
+          
+          // Count by shipping instruction
+          if (instruction) {
+            if (!stats.by_instruction[instruction]) {
+              stats.by_instruction[instruction] = 0;
+            }
+            stats.by_instruction[instruction]++;
+            
+            // Also update the summary counts
+            if (instruction === 'TO SHIP') {
+              stats.to_ship++;
+            } else if (instruction === 'DO NOT SHIP') {
+              stats.do_not_ship++;
+            } else if (instruction === 'UNKNOWN' || instruction === 'ACTION REQUIRED') {
+              stats.unknown++;
+            }
           }
         }
       });
