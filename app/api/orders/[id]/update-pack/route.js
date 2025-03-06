@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../utils/supabase';
+import { supabase } from '../../../../utils/supabase-client';
 
 export async function POST(request, { params }) {
   try {
@@ -36,6 +36,14 @@ export async function POST(request, { params }) {
         { error: 'Failed to update order pack' },
         { status: 500 }
       );
+    }
+
+    // After updating the order pack, update the instruction
+    try {
+      await supabase.rpc('update_order_instruction', { order_id: id });
+    } catch (instructionError) {
+      console.error('Error updating order instruction:', instructionError);
+      // Continue even if instruction update fails
     }
 
     return NextResponse.json({ 
