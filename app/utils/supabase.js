@@ -64,7 +64,7 @@ export async function fetchOrderStats() {
 export async function fetchRecentActivity() {
   const { data, error } = await supabase
     .from('orders')
-    .select('id, status, created_at, updated_at')
+    .select('id, name, status, created_at, updated_at')
     .order('updated_at', { ascending: false })
     .limit(5);
   
@@ -74,20 +74,22 @@ export async function fetchRecentActivity() {
   }
   
   return data?.map(order => {
-    let activity = '';
+    let description = '';
     let time = new Date(order.updated_at || order.created_at);
     
     if (order.status === 'pending') {
-      activity = `New order created: ${order.id}`;
+      description = `New order created: ${order.id} for ${order.name || 'Unknown Customer'}`;
     } else if (order.status === 'shipped') {
-      activity = `Order ${order.id} marked as shipped`;
+      description = `Order ${order.id} for ${order.name || 'Unknown Customer'} marked as shipped`;
     } else if (order.status === 'delivered') {
-      activity = `Order ${order.id} marked as delivered`;
+      description = `Order ${order.id} for ${order.name || 'Unknown Customer'} marked as delivered`;
+    } else {
+      description = `Order ${order.id} for ${order.name || 'Unknown Customer'} updated to ${order.status}`;
     }
     
     return {
       id: order.id,
-      activity,
+      description,
       time
     };
   }) || [];
@@ -115,11 +117,30 @@ export async function updateOrderStatus(orderId, status) {
 }
 
 // Helper function to update payment status
-export async function updatePaymentStatus(orderId, isPaid) {
+export async function updatePaymentStatus(orderId, isPaid = null) {
   try {
+    // If isPaid is null, toggle the current value
+    if (isPaid === null) {
+      // First, get the current status
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('paid')
+        .eq('id', orderId)
+        .single();
+      
+      if (fetchError) {
+        console.error('Error fetching current payment status:', fetchError);
+        return { success: false, error: fetchError };
+      }
+      
+      // Toggle the value
+      isPaid = !currentOrder.paid;
+    }
+    
+    // Update the payment status
     const { data, error } = await supabase
       .from('orders')
-      .update({ is_paid: isPaid, updated_at: new Date().toISOString() })
+      .update({ paid: isPaid, updated_at: new Date().toISOString() })
       .eq('id', orderId)
       .select();
     
@@ -128,7 +149,7 @@ export async function updatePaymentStatus(orderId, isPaid) {
       return { success: false, error };
     }
     
-    return { success: true, data };
+    return { success: true, data, isPaid };
   } catch (e) {
     console.error('Exception updating payment status:', e);
     return { success: false, error: e };
@@ -136,8 +157,27 @@ export async function updatePaymentStatus(orderId, isPaid) {
 }
 
 // Helper function to update shipping status
-export async function updateShippingStatus(orderId, okToShip) {
+export async function updateShippingStatus(orderId, okToShip = null) {
   try {
+    // If okToShip is null, toggle the current value
+    if (okToShip === null) {
+      // First, get the current status
+      const { data: currentOrder, error: fetchError } = await supabase
+        .from('orders')
+        .select('ok_to_ship')
+        .eq('id', orderId)
+        .single();
+      
+      if (fetchError) {
+        console.error('Error fetching current shipping status:', fetchError);
+        return { success: false, error: fetchError };
+      }
+      
+      // Toggle the value
+      okToShip = !currentOrder.ok_to_ship;
+    }
+    
+    // Update the shipping status
     const { data, error } = await supabase
       .from('orders')
       .update({ ok_to_ship: okToShip, updated_at: new Date().toISOString() })
@@ -149,7 +189,7 @@ export async function updateShippingStatus(orderId, okToShip) {
       return { success: false, error };
     }
     
-    return { success: true, data };
+    return { success: true, data, okToShip };
   } catch (e) {
     console.error('Exception updating shipping status:', e);
     return { success: false, error: e };

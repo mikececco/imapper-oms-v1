@@ -3,20 +3,21 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../utils/supabase';
+import { ORDER_PACK_OPTIONS } from '../utils/constants';
 
 export default function NewOrderForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    customer_name: '',
-    customer_email: '',
-    customer_phone: '',
+    name: '',
+    email: '',
+    phone: '',
     shipping_address_line1: '',
     shipping_address_line2: '',
     shipping_address_city: '',
     shipping_address_postal_code: '',
     shipping_address_country: '',
-    order_notes: '',
+    instruction: '',
     order_pack: '',
   });
   const [error, setError] = useState('');
@@ -32,25 +33,20 @@ export default function NewOrderForm() {
     setError('');
 
     try {
-      // Combine shipping address fields into a single string
-      const shipping_address = [
-        formData.shipping_address_line1,
-        formData.shipping_address_line2,
-        formData.shipping_address_city,
-        formData.shipping_address_postal_code,
-        formData.shipping_address_country
-      ].filter(Boolean).join(', ');
-      
       // Insert the order into Supabase
       const { error } = await supabase.from('orders').insert({
-        customer_name: formData.customer_name,
-        customer_email: formData.customer_email,
-        customer_phone: formData.customer_phone,
-        shipping_address,
-        order_notes: formData.order_notes,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        shipping_address_city: formData.shipping_address_city,
+        shipping_address_line1: formData.shipping_address_line1,
+        shipping_address_line2: formData.shipping_address_line2,
+        shipping_address_postal_code: formData.shipping_address_postal_code,
+        shipping_address_country: formData.shipping_address_country,
+        instruction: formData.instruction,
         order_pack: formData.order_pack,
         status: 'pending',
-        is_paid: false,
+        paid: false,
         ok_to_ship: false
       });
 
@@ -76,42 +72,42 @@ export default function NewOrderForm() {
       )}
 
       <div className="form-group">
-        <label htmlFor="customer_name">Customer Name</label>
+        <label htmlFor="name">Customer Name</label>
         <input
           type="text"
-          id="customer_name"
-          name="customer_name"
+          id="name"
+          name="name"
           className="form-control"
           placeholder="Enter customer name"
-          value={formData.customer_name}
+          value={formData.name}
           onChange={handleChange}
           required
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="customer_email">Customer Email</label>
+        <label htmlFor="email">Customer Email</label>
         <input
           type="email"
-          id="customer_email"
-          name="customer_email"
+          id="email"
+          name="email"
           className="form-control"
           placeholder="Enter customer email"
-          value={formData.customer_email}
+          value={formData.email}
           onChange={handleChange}
           required
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="customer_phone">Customer Phone</label>
+        <label htmlFor="phone">Customer Phone</label>
         <input
           type="tel"
-          id="customer_phone"
-          name="customer_phone"
+          id="phone"
+          name="phone"
           className="form-control"
           placeholder="Enter customer phone"
-          value={formData.customer_phone}
+          value={formData.phone}
           onChange={handleChange}
         />
       </div>
@@ -189,27 +185,30 @@ export default function NewOrderForm() {
 
       <div className="form-group">
         <label htmlFor="order_pack">Order Package</label>
-        <input
-          type="text"
+        <select
           id="order_pack"
           name="order_pack"
           className="form-control"
-          placeholder="Enter package details"
           value={formData.order_pack}
           onChange={handleChange}
           required
-        />
+        >
+          <option value="" disabled>Select a package</option>
+          {ORDER_PACK_OPTIONS.map((option, index) => (
+            <option key={index} value={option}>{option}</option>
+          ))}
+        </select>
       </div>
 
       <div className="form-group">
-        <label htmlFor="order_notes">Order Instructions</label>
+        <label htmlFor="instruction">Order Instructions</label>
         <textarea
-          id="order_notes"
-          name="order_notes"
+          id="instruction"
+          name="instruction"
           className="form-control"
           rows={3}
           placeholder="Enter any additional instructions"
-          value={formData.order_notes}
+          value={formData.instruction}
           onChange={handleChange}
         ></textarea>
       </div>

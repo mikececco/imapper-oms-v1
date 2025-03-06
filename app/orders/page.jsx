@@ -71,11 +71,11 @@ export default async function Orders({ searchParams }) {
                     </Link>
                   </td>
                   <td>{order.id}</td>
-                  <td>{order.customer_name || 'N/A'}</td>
+                  <td>{order.name || 'N/A'}</td>
                   <td>{order.order_pack || 'Sample product'}</td>
                   <td>
                     <PaymentBadge 
-                      isPaid={order.is_paid} 
+                      isPaid={order.paid} 
                       orderId={order.id} 
                     />
                   </td>

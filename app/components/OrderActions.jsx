@@ -17,10 +17,9 @@ export function PaymentBadge({ isPaid, orderId }) {
 
   const handlePaymentUpdate = async () => {
     setIsUpdating(true);
-    const newStatus = !paid;
-    const result = await updatePaymentStatus(orderId, newStatus);
+    const result = await updatePaymentStatus(orderId);
     if (result.success) {
-      setPaid(newStatus);
+      setPaid(result.isPaid);
     } else {
       alert('Failed to update payment status');
     }
@@ -44,10 +43,9 @@ export function ShippingToggle({ okToShip, orderId }) {
 
   const handleToggle = async () => {
     setIsUpdating(true);
-    const newStatus = !isOkToShip;
-    const result = await updateShippingStatus(orderId, newStatus);
+    const result = await updateShippingStatus(orderId);
     if (result.success) {
-      setIsOkToShip(newStatus);
+      setIsOkToShip(result.okToShip);
     } else {
       alert('Failed to update shipping status');
     }

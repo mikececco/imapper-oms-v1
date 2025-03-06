@@ -1,14 +1,26 @@
 import Link from "next/link";
-import { fetchOrders } from "../utils/supabase";
+import { fetchOrders, fetchOrderStats, fetchRecentActivity } from "../utils/supabase";
 
 export default async function Dashboard() {
   // Fetch orders with error handling
   let orders = [];
+  let stats = { total: 0, pending: 0, shipped: 0, delivered: 0 };
+  let activities = [];
+
   try {
-    orders = await fetchOrders();
+    // Fetch data in parallel for better performance
+    const [ordersData, statsData, activitiesData] = await Promise.all([
+      fetchOrders(),
+      fetchOrderStats(),
+      fetchRecentActivity()
+    ]);
+    
+    orders = ordersData || [];
+    stats = statsData || { total: 0, pending: 0, shipped: 0, delivered: 0 };
+    activities = activitiesData || [];
   } catch (error) {
-    console.error("Error fetching orders:", error);
-    // Continue with empty orders array
+    console.error("Error fetching dashboard data:", error);
+    // Continue with default values
   }
 
   // Format date for display - using a simple, consistent approach
@@ -34,6 +46,27 @@ export default async function Dashboard() {
       </header>
 
       <main>
+        {/* Stats Overview */}
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-value">{stats.total}</div>
+            <div className="stat-label">Total Orders</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{stats.pending}</div>
+            <div className="stat-label">Pending</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{stats.shipped}</div>
+            <div className="stat-label">Shipped</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{stats.delivered}</div>
+            <div className="stat-label">Delivered</div>
+          </div>
+        </div>
+
+        {/* Recent Orders */}
         <div className="card">
           <h2>Recent Orders</h2>
           
@@ -52,16 +85,18 @@ export default async function Dashboard() {
                 <tr>
                   <th>Order ID</th>
                   <th>Customer</th>
+                  <th>Package</th>
                   <th>Status</th>
                   <th>Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {orders.slice(0, 10).map((order) => (
+                {orders.slice(0, 5).map((order) => (
                   <tr key={order.id}>
                     <td>{order.id}</td>
                     <td>{order.name || 'N/A'}</td>
+                    <td>{order.order_pack || 'N/A'}</td>
                     <td>
                       <span className={`status-badge status-${order.status || 'pending'}`}>
                         {order.status || 'Pending'}
@@ -84,6 +119,26 @@ export default async function Dashboard() {
           ) : (
             <div className="empty-state">
               <p>No orders found. Create your first order to get started.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity */}
+        <div className="card" style={{ marginTop: '2rem' }}>
+          <h2>Recent Activity</h2>
+          
+          {activities && activities.length > 0 ? (
+            <div className="activity-list">
+              {activities.map((activity, index) => (
+                <div className="activity-item" key={index}>
+                  <div className="activity-time">{formatDate(activity.time)}</div>
+                  <div className="activity-content">{activity.description}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>No recent activity.</p>
             </div>
           )}
         </div>
