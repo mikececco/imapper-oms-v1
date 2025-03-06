@@ -5,12 +5,16 @@ import { fetchOrders, searchOrders, filterOrders } from "../utils/supabase-clien
 import OrderSearch from "../components/OrderSearch";
 import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
 import OrderFilters from "../components/OrderFilters";
+import CountryTabs from "../components/CountryTabs";
+import { calculateOrderInstruction } from "../utils/order-instructions";
 import "./orders.css";
 
 export default function Orders({ searchParams }) {
   const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilters, setActiveFilters] = useState(null);
+  const [activeCountry, setActiveCountry] = useState('all');
 
   // Get search query from URL parameters - properly unwrapped with use()
   const unwrappedParams = use(searchParams);
@@ -33,12 +37,69 @@ export default function Orders({ searchParams }) {
         data = await fetchOrders();
       }
       
+      // Calculate instruction for each order
+      data = data.map(order => ({
+        ...order,
+        instruction: calculateOrderInstruction(order)
+      }));
+      
       setOrders(data);
+      filterOrdersByCountry(data, activeCountry);
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Filter orders by country
+  const filterOrdersByCountry = (ordersToFilter, country) => {
+    if (!ordersToFilter || ordersToFilter.length === 0) {
+      setFilteredOrders([]);
+      return;
+    }
+    
+    if (country === 'all') {
+      setFilteredOrders(ordersToFilter);
+      return;
+    }
+    
+    const filtered = ordersToFilter.filter(order => {
+      let orderCountry = 'Unknown';
+      
+      if (order.shipping_address_country) {
+        orderCountry = order.shipping_address_country.trim().toUpperCase();
+      } else if (order.shipping_address) {
+        // Try to extract from combined address
+        const parts = order.shipping_address.split(',');
+        if (parts.length >= 4) {
+          orderCountry = parts[3].trim().toUpperCase();
+        }
+      }
+      
+      // Normalize country name
+      if (orderCountry === 'USA' || orderCountry === 'US' || orderCountry === 'UNITED STATES') {
+        orderCountry = 'USA';
+      } else if (orderCountry === 'UK' || orderCountry === 'UNITED KINGDOM' || orderCountry === 'GREAT BRITAIN') {
+        orderCountry = 'UK';
+      } else if (orderCountry === 'FRANCE' || orderCountry === 'FR') {
+        orderCountry = 'FRANCE';
+      } else if (orderCountry === 'GERMANY' || orderCountry === 'DE') {
+        orderCountry = 'GERMANY';
+      } else if (orderCountry === 'NETHERLANDS' || orderCountry === 'NL') {
+        orderCountry = 'NETHERLANDS';
+      }
+      
+      return orderCountry === country;
+    });
+    
+    setFilteredOrders(filtered);
+  };
+
+  // Handle country tab change
+  const handleCountryChange = (country) => {
+    setActiveCountry(country);
+    filterOrdersByCountry(orders, country);
   };
 
   useEffect(() => {
@@ -55,16 +116,22 @@ export default function Orders({ searchParams }) {
         <h1 className="text-black">Order Management System</h1>
         <h2 className="text-black">
           {query ? `SEARCH RESULTS FOR "${query}"` : 
-           activeFilters ? 'FILTERED ORDERS' : 'ALL ORDERS'}
+           activeFilters ? 'FILTERED ORDERS' : 
+           activeCountry !== 'all' ? `ORDERS FROM ${activeCountry}` : 'ALL ORDERS'}
         </h2>
-        {query && orders.length > 0 && (
+        {query && filteredOrders.length > 0 && (
           <p className="text-sm text-gray-600 mt-1">
-            Found {orders.length} {orders.length === 1 ? 'order' : 'orders'} matching your search
+            Found {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} matching your search
           </p>
         )}
         {activeFilters && (
           <p className="text-sm text-gray-600 mt-1">
-            Showing {orders.length} {orders.length === 1 ? 'order' : 'orders'} matching your filters
+            Showing {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} matching your filters
+          </p>
+        )}
+        {activeCountry !== 'all' && !query && !activeFilters && (
+          <p className="text-sm text-gray-600 mt-1">
+            Showing {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} from {activeCountry}
           </p>
         )}
       </header>
@@ -76,8 +143,12 @@ export default function Orders({ searchParams }) {
           <OrderFilters onFilterChange={handleFilterChange} />
         </div>
         <div className="orders-content">
-          <EnhancedOrdersTable 
+          <CountryTabs 
             orders={orders} 
+            onCountryChange={handleCountryChange} 
+          />
+          <EnhancedOrdersTable 
+            orders={filteredOrders} 
             loading={loading} 
             onRefresh={loadOrders} 
           />
