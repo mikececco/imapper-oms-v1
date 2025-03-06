@@ -32,49 +32,96 @@ export async function POST(request) {
     // Log the event type
     console.log(`Received event: ${event.type}`);
 
-    // Store the event in Supabase for audit purposes
-    await supabase
-      .from('stripe_events')
-      .insert({
-        event_id: event.id,
-        event_type: event.type,
-        event_data: event.data.object,
-        processed: false,
-        created_at: new Date()
-      });
-
-    // Handle different event types
-    switch (event.type) {
-      case 'checkout.session.completed':
-        console.log('Processing checkout.session.completed event');
-        await handleCheckoutSessionCompleted(event);
-        break;
+    try {
+      // Store the event in Supabase for audit purposes
+      const { error: insertError } = await supabase
+        .from('stripe_events')
+        .insert({
+          event_id: event.id,
+          event_type: event.type,
+          event_data: event.data.object,
+          processed: false,
+          created_at: new Date()
+        });
         
-      case 'payment_intent.succeeded':
-        console.log('Processing payment_intent.succeeded event');
-        await handlePaymentIntentSucceeded(event);
-        break;
-        
-      case 'customer.created':
-        console.log('Processing customer.created event');
-        await handleCustomerCreated(event);
-        break;
-        
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
+      if (insertError) {
+        console.error('Error storing Stripe event:', insertError);
+      } else {
+        console.log(`Stored event ${event.id} in stripe_events table`);
+      }
+    } catch (storeError) {
+      console.error('Exception storing Stripe event:', storeError);
     }
 
-    // Mark the event as processed
-    await supabase
-      .from('stripe_events')
-      .update({ processed: true })
-      .eq('event_id', event.id);
+    let result = { success: false };
+    
+    // Handle different event types
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed':
+          console.log('Processing checkout.session.completed event');
+          result = await handleCheckoutSessionCompleted(event);
+          break;
+          
+        case 'payment_intent.succeeded':
+          console.log('Processing payment_intent.succeeded event');
+          result = await handlePaymentIntentSucceeded(event);
+          break;
+          
+        case 'customer.created':
+          console.log('Processing customer.created event');
+          result = await handleCustomerCreated(event);
+          break;
+          
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+          // For unhandled events, still create an order if possible
+          result = await createOrderFromAnyEvent(event);
+      }
+    } catch (handlerError) {
+      console.error(`Error in event handler for ${event.type}:`, handlerError);
+    }
+
+    try {
+      // Mark the event as processed
+      const { error: updateError } = await supabase
+        .from('stripe_events')
+        .update({ 
+          processed: true,
+          processed_at: new Date()
+        })
+        .eq('event_id', event.id);
+        
+      if (updateError) {
+        console.error('Error marking Stripe event as processed:', updateError);
+      }
+    } catch (updateError) {
+      console.error('Exception marking Stripe event as processed:', updateError);
+    }
 
     // Return a 200 response to acknowledge receipt of the event
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ received: true, result });
   } catch (error) {
     console.error('Error handling webhook:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+// Create an order from any event type
+async function createOrderFromAnyEvent(event) {
+  try {
+    const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
+    
+    if (success) {
+      console.log(`Successfully created order ${orderId} from ${event.type} event`);
+      return { success: true, orderId };
+    } else {
+      console.error(`Failed to create order from ${event.type} event:`, error);
+      return { success: false, error };
+    }
+  } catch (error) {
+    console.error(`Error creating order from ${event.type} event:`, error);
+    return { success: false, error };
   }
 }
 
@@ -88,11 +135,14 @@ async function handleCheckoutSessionCompleted(event) {
     
     if (success) {
       console.log(`Successfully created order ${orderId} from checkout session ${session.id}`);
+      return { success: true, orderId };
     } else {
       console.error(`Failed to create order from checkout session ${session.id}:`, error);
+      return { success: false, error };
     }
   } catch (error) {
     console.error('Error handling checkout.session.completed event:', error);
+    return { success: false, error };
   }
 }
 
@@ -106,11 +156,14 @@ async function handlePaymentIntentSucceeded(event) {
     
     if (success) {
       console.log(`Successfully created order ${orderId} from payment intent ${paymentIntent.id}`);
+      return { success: true, orderId };
     } else {
       console.error(`Failed to create order from payment intent ${paymentIntent.id}:`, error);
+      return { success: false, error };
     }
   } catch (error) {
     console.error('Error handling payment_intent.succeeded event:', error);
+    return { success: false, error };
   }
 }
 
@@ -119,19 +172,28 @@ async function handleCustomerCreated(event) {
   try {
     const customer = event.data.object;
     
-    // Only create an order if the customer has metadata indicating it should be created
-    if (customer.metadata && customer.metadata.create_order === 'true') {
-      const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
+    // Always create an order for any customer.created event
+    const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
+    
+    if (success) {
+      console.log(`Successfully created order ${orderId} from customer ${customer.id}`);
       
-      if (success) {
-        console.log(`Successfully created order ${orderId} from customer ${customer.id}`);
-      } else {
-        console.error(`Failed to create order from customer ${customer.id}:`, error);
-      }
+      // Mark the event as processed
+      await supabase
+        .from('stripe_events')
+        .update({ 
+          processed: true,
+          processed_at: new Date()
+        })
+        .eq('event_id', event.id);
+        
+      return { success: true, orderId };
     } else {
-      console.log(`Customer ${customer.id} created, but no order was created (no create_order metadata)`);
+      console.error(`Failed to create order from customer ${customer.id}:`, error);
+      return { success: false, error };
     }
   } catch (error) {
     console.error('Error handling customer.created event:', error);
+    return { success: false, error };
   }
 } 
