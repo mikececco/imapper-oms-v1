@@ -90,6 +90,46 @@ To test webhooks during development:
    stripe trigger payment_intent.succeeded
    ```
 
+## Stripe Webhook Configuration
+
+The application uses Stripe webhooks to process customer creation events. To set up webhooks:
+
+1. Go to the [Stripe Dashboard](https://dashboard.stripe.com/)
+2. Navigate to Developers > Webhooks
+3. Click "Add endpoint"
+4. Enter your webhook URL: `https://your-domain.com/api/webhook/stripe`
+5. Select only the following event to listen for:
+   - `customer.created`
+6. Click "Add endpoint"
+7. After creating the endpoint, you'll see a signing secret. Copy this value and add it as the `STRIPE_WEBHOOK_SECRET` environment variable in Vercel.
+
+### Testing Webhooks Locally
+
+To test webhooks during development:
+
+1. Install the [Stripe CLI](https://stripe.com/docs/stripe-cli)
+2. Run `stripe login` to authenticate
+3. Start your local server
+4. Run `stripe listen --forward-to http://localhost:3000/api/webhook/stripe`
+5. In another terminal, trigger a test event with:
+   ```
+   stripe trigger customer.created
+   ```
+6. Alternatively, you can use the test script provided:
+   ```
+   node src/utils/test_customer_webhook.js
+   ```
+
+### Troubleshooting Webhook Issues
+
+If you encounter a 405 (Method Not Allowed) error:
+
+1. Ensure your webhook endpoint is properly configured to accept POST requests
+2. Check that the route is correctly defined in your `vercel.json` file
+3. Verify that your API route is exporting a POST function
+4. Make sure CORS headers are properly set for the webhook endpoint
+5. Test with the Stripe CLI to see detailed error messages
+
 ## Database Setup
 
 Before your application will work correctly, you need to set up the database tables in Supabase:
@@ -185,12 +225,13 @@ If you encounter issues with your deployment:
    - The current setup uses plain CSS without dependencies on Tailwind CSS or other frameworks
 
 2. **Invalid Next.js configuration**:
-   - Error: `Invalid next.config.ts options detected: Unrecognized key(s) in object: 'swcMinify'`
-   - Solution: Remove the `swcMinify` option from your next.config.ts file as it's no longer supported in Next.js 15.
+   - Error: `Invalid next.config.js options detected: Unrecognized key(s) in object: 'swcMinify'`
+   - Solution: Remove the `swcMinify` option from your next.config.js file as it's no longer supported in Next.js 15.
    
-3. **NODE_ENV in next.config.ts**:
-   - Error: `The key "NODE_ENV" under "env" in next.config.ts is not allowed.`
-   - Solution: Remove `NODE_ENV` from the `env` section in next.config.ts. Next.js automatically handles this environment variable and doesn't allow it to be explicitly set.
+3. **JavaScript vs TypeScript**:
+   - The project has been converted from TypeScript to JavaScript to simplify development and avoid type-related errors
+   - All files now use .js and .jsx extensions instead of .ts and .tsx
+   - If you prefer TypeScript, you'll need to add type definitions and convert files back to TypeScript
 
 4. **Supabase Connection Issues**:
    - Error: "Missing Supabase environment variables" or "Error fetching data from Supabase"

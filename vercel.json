@@ -6,6 +6,16 @@
   "regions": ["cdg1"],
   "routes": [
     {
+      "src": "/api/webhook/stripe",
+      "methods": ["POST"],
+      "dest": "/api/webhook/stripe",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST",
+        "Access-Control-Allow-Headers": "Content-Type, stripe-signature"
+      }
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/$1"
     }
