@@ -111,7 +111,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
           </TableCaption>
           <TableHeader className="enhanced-table-header">
             <TableRow>
-              <TableHead className="text-black w-[80px]">Actions</TableHead>
+              <TableHead className="text-black w-[60px] sticky-col">Actions</TableHead>
               <TableHead className="text-black w-[60px]">ID</TableHead>
               <TableHead className="text-black w-[150px]">Name</TableHead>
               <TableHead className="text-black w-[180px]">Email</TableHead>

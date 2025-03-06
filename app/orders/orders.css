@@ -2,8 +2,8 @@
 .orders-layout {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  margin-top: 1.5rem;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 @media (min-width: 1024px) {
@@ -13,7 +13,7 @@
   }
   
   .filters-sidebar {
-    width: 300px;
+    width: 250px;
     flex-shrink: 0;
     position: sticky;
     top: 1rem;
@@ -21,6 +21,7 @@
   
   .orders-content {
     flex-grow: 1;
+    min-width: 0; /* Ensures the content can shrink below its min-content width */
   }
 }
 
