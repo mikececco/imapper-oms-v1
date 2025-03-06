@@ -39,5 +39,14 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body
-        className={`
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Navigation />
+        <div className="page-content">
+          <Providers>
+            {children}
+          </Providers>
+        </div>
+      </body>
+    </html>
+  );
+}

@@ -14,45 +14,87 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL === 'build-placeholder')
 
 // Create Supabase client with error handling
 let supabase;
-try {
-  // Only create the client if we're not in a build context and have valid values
-  if (!isBuildTime && SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL !== 'build-placeholder') {
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false }
-    });
-    
-    // Verify the client is working by testing a simple query
-    const testQuery = async () => {
-      try {
-        const { data, error } = await supabase.from('orders').select('id').limit(1);
-        if (error) {
-          console.error('Supabase client test query failed:', error);
+let isInitialized = false;
+
+function initializeSupabase(url, key) {
+  try {
+    // Only create the client if we have valid values
+    if (url && key && url !== 'build-placeholder') {
+      console.log('Initializing Supabase client with URL:', url);
+      
+      supabase = createClient(url, key, {
+        auth: { persistSession: false }
+      });
+      
+      isInitialized = true;
+      
+      // Verify the client is working by testing a simple query
+      const testQuery = async () => {
+        try {
+          const { data, error } = await supabase.from('orders').select('id').limit(1);
+          if (error) {
+            console.error('Supabase client test query failed:', error);
+            return false;
+          }
+          console.log('Supabase client test query succeeded');
+          return true;
+        } catch (e) {
+          console.error('Exception during Supabase client test:', e);
           return false;
         }
-        return true;
-      } catch (e) {
-        console.error('Exception during Supabase client test:', e);
-        return false;
+      };
+      
+      // If test fails, we'll recreate a dummy client
+      if (typeof window !== 'undefined') {
+        testQuery().then(success => {
+          if (!success) {
+            console.warn('Supabase client test failed, recreating dummy client');
+            createDummyClient();
+          } else {
+            console.log('Supabase client initialized successfully');
+          }
+        });
       }
-    };
-    
-    // If test fails, we'll recreate a dummy client
-    if (typeof window !== 'undefined') {
-      testQuery().then(success => {
-        if (!success) {
-          console.warn('Supabase client test failed, recreating dummy client');
-          createDummyClient();
-        } else {
-          console.log('Supabase client initialized successfully');
-        }
-      });
+      
+      return true;
+    } else {
+      console.warn('Invalid Supabase credentials, creating dummy client');
+      createDummyClient();
+      return false;
     }
-  } else {
+  } catch (error) {
+    console.error('Error initializing Supabase client:', error);
     createDummyClient();
+    return false;
   }
-} catch (error) {
-  console.error('Error initializing Supabase client:', error);
-  createDummyClient();
+}
+
+// Try to initialize with environment variables
+initializeSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Listen for environment variable updates
+if (typeof window !== 'undefined') {
+  window.addEventListener('supabase-env-ready', (event) => {
+    console.log('Received supabase-env-ready event');
+    const { url, key } = event.detail;
+    
+    // Only reinitialize if we haven't successfully initialized yet
+    if (!isInitialized && url && key) {
+      console.log('Reinitializing Supabase client with updated credentials');
+      initializeSupabase(url, key);
+    }
+  });
+  
+  // Also check if window.__ENV__ is already available
+  if (window.__ENV__ && window.__ENV__.NEXT_PUBLIC_SUPABASE_URL && window.__ENV__.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (!isInitialized) {
+      console.log('Found environment variables in window.__ENV__, initializing Supabase client');
+      initializeSupabase(
+        window.__ENV__.NEXT_PUBLIC_SUPABASE_URL,
+        window.__ENV__.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      );
+    }
+  }
 }
 
 // Function to create a dummy client
@@ -72,6 +114,7 @@ function createDummyClient() {
       delete: () => ({ data: null, error: new Error('Supabase client not initialized') }),
     })
   };
+  isInitialized = false;
 }
 
 export { supabase };
