@@ -28,6 +28,12 @@ export default function Navigation() {
             Orders
           </Link>
           <Link 
+            href="/customers" 
+            className={pathname.startsWith('/customers') ? 'active' : ''}
+          >
+            Customers
+          </Link>
+          <Link 
             href="/orders/new" 
             className={pathname === '/orders/new' ? 'active' : ''}
           >

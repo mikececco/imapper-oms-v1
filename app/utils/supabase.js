@@ -235,7 +235,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     let customerName = 'Unknown Customer';
     let customerEmail = '';
     let customerPhone = '';
-    let shippingAddress = '';
     let shippingAddressLine1 = '';
     let shippingAddressLine2 = '';
     let shippingAddressCity = '';
@@ -247,6 +246,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     let stripeCustomerId = '';
     let stripeInvoiceId = '';
     let stripePaymentIntentId = '';
+    let customerId = null;
     
     // Handle different event types
     if (stripeEvent.type === 'checkout.session.completed') {
@@ -266,15 +266,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressState = shipping.state || '';
         shippingAddressPostalCode = shipping.postal_code || '';
         shippingAddressCountry = shipping.country || '';
-        
-        shippingAddress = [
-          shippingAddressLine1,
-          shippingAddressLine2,
-          shippingAddressCity,
-          shippingAddressState,
-          shippingAddressPostalCode,
-          shippingAddressCountry
-        ].filter(Boolean).join(', ');
       } else if (session.customer_details && session.customer_details.address) {
         // Use customer address if shipping address is not available
         const address = session.customer_details.address;
@@ -284,21 +275,33 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressState = address.state || '';
         shippingAddressPostalCode = address.postal_code || '';
         shippingAddressCountry = address.country || '';
-        
-        shippingAddress = [
-          shippingAddressLine1,
-          shippingAddressLine2,
-          shippingAddressCity,
-          shippingAddressState,
-          shippingAddressPostalCode,
-          shippingAddressCountry
-        ].filter(Boolean).join(', ');
       }
       
       // Get metadata if available
       if (session.metadata) {
         orderPack = session.metadata.package || 'Standard Pack';
         orderNotes = session.metadata.notes || '';
+      }
+      
+      // Find or create customer
+      if (stripeCustomerId) {
+        const customerResult = await findOrCreateCustomer(stripeCustomerId, {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+          address_line1: shippingAddressLine1,
+          address_line2: shippingAddressLine2,
+          address_city: shippingAddressCity,
+          address_state: shippingAddressState,
+          address_postal_code: shippingAddressPostalCode,
+          address_country: shippingAddressCountry,
+          metadata: session.metadata || {}
+        });
+        
+        if (customerResult.success) {
+          customerId = customerResult.customerId;
+          console.log(`Associated order with customer ${customerId}`);
+        }
       }
     } else if (stripeEvent.type === 'payment_intent.succeeded') {
       // Extract data from payment intent
@@ -324,15 +327,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressState = shipping.state || '';
         shippingAddressPostalCode = shipping.postal_code || '';
         shippingAddressCountry = shipping.country || '';
-        
-        shippingAddress = [
-          shippingAddressLine1,
-          shippingAddressLine2,
-          shippingAddressCity,
-          shippingAddressState,
-          shippingAddressPostalCode,
-          shippingAddressCountry
-        ].filter(Boolean).join(', ');
       } else if (paymentIntent.billing_details && paymentIntent.billing_details.address) {
         // Use billing address if shipping address is not available
         const address = paymentIntent.billing_details.address;
@@ -342,21 +336,33 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressState = address.state || '';
         shippingAddressPostalCode = address.postal_code || '';
         shippingAddressCountry = address.country || '';
-        
-        shippingAddress = [
-          shippingAddressLine1,
-          shippingAddressLine2,
-          shippingAddressCity,
-          shippingAddressState,
-          shippingAddressPostalCode,
-          shippingAddressCountry
-        ].filter(Boolean).join(', ');
       }
       
       // Get metadata if available
       if (paymentIntent.metadata) {
         orderPack = paymentIntent.metadata.package || 'Standard Pack';
         orderNotes = paymentIntent.metadata.notes || '';
+      }
+      
+      // Find or create customer
+      if (stripeCustomerId) {
+        const customerResult = await findOrCreateCustomer(stripeCustomerId, {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+          address_line1: shippingAddressLine1,
+          address_line2: shippingAddressLine2,
+          address_city: shippingAddressCity,
+          address_state: shippingAddressState,
+          address_postal_code: shippingAddressPostalCode,
+          address_country: shippingAddressCountry,
+          metadata: paymentIntent.metadata || {}
+        });
+        
+        if (customerResult.success) {
+          customerId = customerResult.customerId;
+          console.log(`Associated order with customer ${customerId}`);
+        }
       }
     } else if (stripeEvent.type === 'customer.created') {
       // Extract data from customer object
@@ -378,15 +384,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressState = address.state || '';
         shippingAddressPostalCode = address.postal_code || '';
         shippingAddressCountry = address.country || '';
-        
-        shippingAddress = [
-          shippingAddressLine1,
-          shippingAddressLine2,
-          shippingAddressCity,
-          shippingAddressState,
-          shippingAddressPostalCode,
-          shippingAddressCountry
-        ].filter(Boolean).join(', ');
       } else if (customer.shipping && customer.shipping.address) {
         // Use shipping address if available
         const address = customer.shipping.address;
@@ -396,15 +393,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressState = address.state || '';
         shippingAddressPostalCode = address.postal_code || '';
         shippingAddressCountry = address.country || '';
-        
-        shippingAddress = [
-          shippingAddressLine1,
-          shippingAddressLine2,
-          shippingAddressCity,
-          shippingAddressState,
-          shippingAddressPostalCode,
-          shippingAddressCountry
-        ].filter(Boolean).join(', ');
       } else if (customer.metadata && customer.metadata.address) {
         // Try to parse address from metadata if it exists
         try {
@@ -418,15 +406,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
           shippingAddressState = address.state || '';
           shippingAddressPostalCode = address.postal_code || '';
           shippingAddressCountry = address.country || '';
-          
-          shippingAddress = [
-            shippingAddressLine1,
-            shippingAddressLine2,
-            shippingAddressCity,
-            shippingAddressState,
-            shippingAddressPostalCode,
-            shippingAddressCountry
-          ].filter(Boolean).join(', ');
         } catch (e) {
           console.error('Error parsing address from metadata:', e);
           // If parsing fails, leave address empty
@@ -440,6 +419,27 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       } else {
         orderPack = '(created by Stripe CLI)';
         orderNotes = `Stripe Customer: ${customer.id}`;
+      }
+      
+      // Find or create customer
+      if (stripeCustomerId) {
+        const customerResult = await findOrCreateCustomer(stripeCustomerId, {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+          address_line1: shippingAddressLine1,
+          address_line2: shippingAddressLine2,
+          address_city: shippingAddressCity,
+          address_state: shippingAddressState,
+          address_postal_code: shippingAddressPostalCode,
+          address_country: shippingAddressCountry,
+          metadata: customer.metadata || {}
+        });
+        
+        if (customerResult.success) {
+          customerId = customerResult.customerId;
+          console.log(`Associated order with customer ${customerId}`);
+        }
       }
     }
     
@@ -457,7 +457,8 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       instruction: orderNotes,
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
-      stripe_payment_intent_id: stripePaymentIntentId
+      stripe_payment_intent_id: stripePaymentIntentId,
+      customer_id: customerId
     });
     
     // Create the order in Supabase
@@ -478,7 +479,8 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       ok_to_ship: false,
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
-      stripe_payment_intent_id: stripePaymentIntentId
+      stripe_payment_intent_id: stripePaymentIntentId,
+      customer_id: customerId
     }).select();
     
     if (error) {
@@ -528,5 +530,175 @@ async function verifyStripeEventStored(stripeEvent) {
   } catch (e) {
     console.error('Error verifying Stripe event storage:', e);
     // Continue with order creation even if verification fails
+  }
+}
+
+// Helper function to find or create a customer from Stripe data
+export async function findOrCreateCustomer(stripeCustomerId, customerData) {
+  try {
+    if (!stripeCustomerId) {
+      console.log('No Stripe customer ID provided, skipping customer creation');
+      return { success: false, error: 'No Stripe customer ID provided' };
+    }
+
+    // Check if customer already exists
+    const { data: existingCustomer, error: findError } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('stripe_customer_id', stripeCustomerId)
+      .single();
+    
+    if (findError && findError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+      console.error('Error finding customer:', findError);
+      return { success: false, error: findError };
+    }
+    
+    if (existingCustomer) {
+      console.log(`Customer with Stripe ID ${stripeCustomerId} already exists`);
+      
+      // Update customer data if provided
+      if (customerData) {
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update({
+            name: customerData.name || existingCustomer.name,
+            email: customerData.email || existingCustomer.email,
+            phone: customerData.phone || existingCustomer.phone,
+            address_line1: customerData.address_line1 || existingCustomer.address_line1,
+            address_line2: customerData.address_line2 || existingCustomer.address_line2,
+            address_city: customerData.address_city || existingCustomer.address_city,
+            address_state: customerData.address_state || existingCustomer.address_state,
+            address_postal_code: customerData.address_postal_code || existingCustomer.address_postal_code,
+            address_country: customerData.address_country || existingCustomer.address_country,
+            metadata: customerData.metadata || existingCustomer.metadata,
+            updated_at: new Date()
+          })
+          .eq('id', existingCustomer.id);
+        
+        if (updateError) {
+          console.error('Error updating customer:', updateError);
+          return { success: false, error: updateError, customerId: existingCustomer.id };
+        }
+        
+        console.log(`Updated customer ${existingCustomer.id}`);
+      }
+      
+      return { success: true, customer: existingCustomer, customerId: existingCustomer.id, isNew: false };
+    }
+    
+    // Create new customer
+    console.log(`Creating new customer with Stripe ID ${stripeCustomerId}`);
+    const { data: newCustomer, error: createError } = await supabase
+      .from('customers')
+      .insert({
+        stripe_customer_id: stripeCustomerId,
+        name: customerData?.name || 'Unknown Customer',
+        email: customerData?.email || '',
+        phone: customerData?.phone || '',
+        address_line1: customerData?.address_line1 || '',
+        address_line2: customerData?.address_line2 || '',
+        address_city: customerData?.address_city || '',
+        address_state: customerData?.address_state || '',
+        address_postal_code: customerData?.address_postal_code || '',
+        address_country: customerData?.address_country || '',
+        metadata: customerData?.metadata || {},
+        created_at: new Date(),
+        updated_at: new Date()
+      })
+      .select();
+    
+    if (createError) {
+      console.error('Error creating customer:', createError);
+      return { success: false, error: createError };
+    }
+    
+    console.log(`Created new customer ${newCustomer[0].id}`);
+    return { success: true, customer: newCustomer[0], customerId: newCustomer[0].id, isNew: true };
+  } catch (e) {
+    console.error('Exception in findOrCreateCustomer:', e);
+    return { success: false, error: e };
+  }
+}
+
+// Helper function to fetch customers
+export async function fetchCustomers() {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching customers:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (e) {
+    console.error('Exception fetching customers:', e);
+    return [];
+  }
+}
+
+// Helper function to fetch a customer by ID
+export async function fetchCustomerById(customerId) {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', customerId)
+      .single();
+    
+    if (error) {
+      console.error(`Error fetching customer ${customerId}:`, error);
+      return null;
+    }
+    
+    return data;
+  } catch (e) {
+    console.error(`Exception fetching customer ${customerId}:`, e);
+    return null;
+  }
+}
+
+// Helper function to fetch a customer by Stripe ID
+export async function fetchCustomerByStripeId(stripeCustomerId) {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('stripe_customer_id', stripeCustomerId)
+      .single();
+    
+    if (error) {
+      console.error(`Error fetching customer with Stripe ID ${stripeCustomerId}:`, error);
+      return null;
+    }
+    
+    return data;
+  } catch (e) {
+    console.error(`Exception fetching customer with Stripe ID ${stripeCustomerId}:`, e);
+    return null;
+  }
+}
+
+// Helper function to fetch orders for a customer
+export async function fetchOrdersByCustomerId(customerId) {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error(`Error fetching orders for customer ${customerId}:`, error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (e) {
+    console.error(`Exception fetching orders for customer ${customerId}:`, e);
+    return [];
   }
 } 
