@@ -20,32 +20,56 @@ try {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false }
     });
-  } else {
-    // Provide a dummy client to prevent runtime errors
-    supabase = {
-      from: () => ({
-        select: () => ({ data: [], error: null }),
-        insert: () => ({ data: null, error: new Error('Supabase client not initialized') }),
-        update: () => ({ data: null, error: new Error('Supabase client not initialized') }),
-        delete: () => ({ data: null, error: new Error('Supabase client not initialized') }),
-        eq: () => ({ data: null, error: new Error('Supabase client not initialized') }),
-        order: () => ({ data: [], error: null }),
-        or: () => ({ data: [], error: null }),
-      })
+    
+    // Verify the client is working by testing a simple query
+    const testQuery = async () => {
+      try {
+        const { data, error } = await supabase.from('orders').select('id').limit(1);
+        if (error) {
+          console.error('Supabase client test query failed:', error);
+          return false;
+        }
+        return true;
+      } catch (e) {
+        console.error('Exception during Supabase client test:', e);
+        return false;
+      }
     };
+    
+    // If test fails, we'll recreate a dummy client
+    if (typeof window !== 'undefined') {
+      testQuery().then(success => {
+        if (!success) {
+          console.warn('Supabase client test failed, recreating dummy client');
+          createDummyClient();
+        } else {
+          console.log('Supabase client initialized successfully');
+        }
+      });
+    }
+  } else {
+    createDummyClient();
   }
 } catch (error) {
   console.error('Error initializing Supabase client:', error);
-  // Provide a dummy client to prevent runtime errors
+  createDummyClient();
+}
+
+// Function to create a dummy client
+function createDummyClient() {
+  console.warn('Creating dummy Supabase client due to initialization issues');
   supabase = {
     from: () => ({
-      select: () => ({ data: [], error: null }),
+      select: () => ({
+        data: [],
+        error: null,
+        order: () => ({ data: [], error: null }),
+        eq: () => ({ data: null, error: null }),
+        or: () => ({ data: [], error: null }),
+      }),
       insert: () => ({ data: null, error: new Error('Supabase client not initialized') }),
       update: () => ({ data: null, error: new Error('Supabase client not initialized') }),
       delete: () => ({ data: null, error: new Error('Supabase client not initialized') }),
-      eq: () => ({ data: null, error: new Error('Supabase client not initialized') }),
-      order: () => ({ data: [], error: null }),
-      or: () => ({ data: [], error: null }),
     })
   };
 }
@@ -55,6 +79,12 @@ export { supabase };
 // Fetch orders
 export async function fetchOrders() {
   try {
+    // Check if supabase client is properly initialized
+    if (!supabase || !supabase.from) {
+      console.error('Supabase client not properly initialized');
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('orders')
       .select('*')
