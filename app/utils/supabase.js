@@ -566,6 +566,45 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       ].filter(Boolean).join(', ');
     }
     
+    // If shipping address is still empty but we have a Stripe customer ID,
+    // try to fetch the customer's address from Stripe
+    if (!shippingAddress && stripeCustomerId) {
+      try {
+        // First check if we already have this customer in our database
+        const { data: existingCustomer, error: customerError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('stripe_customer_id', stripeCustomerId)
+          .single();
+        
+        if (!customerError && existingCustomer) {
+          // Use the customer's address from our database
+          const addressParts = [
+            existingCustomer.address_line1,
+            existingCustomer.address_city,
+            existingCustomer.address_postal_code,
+            existingCustomer.address_country
+          ].filter(Boolean);
+          
+          if (addressParts.length > 0) {
+            shippingAddress = addressParts.join(', ');
+            console.log(`Using customer address from database for order: ${shippingAddress}`);
+            
+            // Also update the individual address components
+            shippingAddressLine1 = existingCustomer.address_line1 || '';
+            shippingAddressLine2 = existingCustomer.address_line2 || '';
+            shippingAddressCity = existingCustomer.address_city || '';
+            shippingAddressState = existingCustomer.address_state || '';
+            shippingAddressPostalCode = existingCustomer.address_postal_code || '';
+            shippingAddressCountry = existingCustomer.address_country || '';
+          }
+        }
+      } catch (addressError) {
+        console.error('Error fetching customer address:', addressError);
+        // Continue with empty shipping address if there's an error
+      }
+    }
+    
     console.log(`Creating order from ${stripeEvent.type} event:`, {
       id: orderId,
       name: customerName,
