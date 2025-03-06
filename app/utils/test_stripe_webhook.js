@@ -1,7 +1,7 @@
 // Utility script to test the Stripe webhook with a customer creation event
-import fetch from 'node-fetch';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
+const fetch = require('node-fetch');
+const crypto = require('crypto');
+const dotenv = require('dotenv');
 
 // Load environment variables
 dotenv.config({ path: '.env.local' });
@@ -33,7 +33,8 @@ const customerObject = {
   },
   metadata: {
     notes: 'Test customer created via webhook test script',
-    package: 'Premium Pack'
+    package: 'Premium Pack',
+    invoice_id: `in_test_${Date.now()}`
   }
 };
 
@@ -118,4 +119,4 @@ async function testWebhook() {
 }
 
 // Run the test
-testWebhook().catch(console.error); 
+testWebhook(); 
