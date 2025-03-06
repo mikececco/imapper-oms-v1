@@ -100,7 +100,7 @@ export default async function OrderDetail({ params }) {
                     orderId={order.id} 
                   />
                 </p>
-                <p><strong>Shipping:</strong> 
+                <p><strong>INSTRUCTION:</strong> 
                   <ShippingToggle 
                     okToShip={order.ok_to_ship} 
                     orderId={order.id} 

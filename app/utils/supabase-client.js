@@ -183,4 +183,69 @@ export async function updateShippingStatus(orderId) {
     console.error('Error updating shipping status:', error);
     return { success: false, error };
   }
+}
+
+// Filter orders
+export async function filterOrders(filters) {
+  try {
+    let query = supabase
+      .from('orders')
+      .select('*');
+    
+    // Apply instruction filter
+    if (filters.instruction && filters.instruction !== 'all') {
+      // For 'unknown', we need to check for null or empty values
+      if (filters.instruction === 'unknown') {
+        query = query.or('shipping_instruction.is.null,shipping_instruction.eq.');
+      } else {
+        // Convert from kebab-case to the actual values stored in the database
+        const instructionMap = {
+          'to-ship': 'TO SHIP',
+          'do-not-ship': 'DO NOT SHIP',
+          'shipped': 'SHIPPED',
+          'delivered': 'DELIVERED',
+          'to-be-shipped-but-no-sticker': 'TO BE SHIPPED BUT NO STICKER',
+          'to-be-shipped-but-wrong-tracking-link': 'TO BE SHIPPED BUT WRONG TRACKING LINK'
+        };
+        
+        const instructionValue = instructionMap[filters.instruction] || filters.instruction;
+        query = query.eq('shipping_instruction', instructionValue);
+      }
+    }
+    
+    // Apply paid status filter
+    if (filters.paid && filters.paid !== 'all') {
+      query = query.eq('paid', filters.paid === 'paid');
+    }
+    
+    // Apply date range filter
+    if (filters.startDate) {
+      // Add time to make it the beginning of the day
+      const startDateTime = new Date(filters.startDate);
+      startDateTime.setUTCHours(0, 0, 0, 0);
+      query = query.gte('created_at', startDateTime.toISOString());
+    }
+    
+    if (filters.endDate) {
+      // Add time to make it the end of the day
+      const endDateTime = new Date(filters.endDate);
+      endDateTime.setUTCHours(23, 59, 59, 999);
+      query = query.lte('created_at', endDateTime.toISOString());
+    }
+    
+    // Order by created_at descending
+    query = query.order('created_at', { ascending: false });
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error filtering orders:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Exception filtering orders:', error);
+    return [];
+  }
 } 
