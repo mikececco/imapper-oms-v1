@@ -316,6 +316,12 @@ export default function OrderDetailModal({ children }) {
                         </button>
                       )}
                     </div>
+                    
+                    {order.weight && (
+                      <div className="mt-4">
+                        <span className="font-medium">Package Weight:</span> {order.weight} kg
+                      </div>
+                    )}
                   </div>
                 </div>
                 

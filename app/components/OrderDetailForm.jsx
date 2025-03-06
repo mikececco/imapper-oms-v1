@@ -16,6 +16,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     shipping_address_country: order.shipping_address_country || '',
     order_pack: order.order_pack || '',
     order_notes: order.order_notes || '',
+    weight: order.weight || '1.000',
     paid: order.paid || false,
   });
   
@@ -82,6 +83,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           shipping_address_country: formData.shipping_address_country,
           order_pack: formData.order_pack,
           order_notes: formData.order_notes,
+          weight: formData.weight,
           paid: formData.paid,
           instruction: instruction, // Use the calculated instruction
           updated_at: new Date().toISOString()
@@ -246,22 +248,42 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       <div className="space-y-2">
         <h3 className="font-medium text-black">Order Details</h3>
         
-        <div>
-          <label htmlFor="order_pack" className="text-sm font-medium block">
-            Package Type
-          </label>
-          <select
-            id="order_pack"
-            name="order_pack"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-            value={formData.order_pack}
-            onChange={handleChange}
-          >
-            <option value="">Select a package</option>
-            {orderPackOptions.map((option, index) => (
-              <option key={index} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="order_pack" className="text-sm font-medium block">
+              Package Type
+            </label>
+            <select
+              id="order_pack"
+              name="order_pack"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              value={formData.order_pack}
+              onChange={handleChange}
+            >
+              <option value="">Select a package</option>
+              {orderPackOptions.map((option, index) => (
+                <option key={index} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label htmlFor="weight" className="text-sm font-medium block">
+              Weight (kg)
+            </label>
+            <input
+              id="weight"
+              name="weight"
+              type="text"
+              placeholder="1.000"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              value={formData.weight}
+              onChange={handleChange}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Used for shipping label creation (e.g., 1.000 for 1kg)
+            </p>
+          </div>
         </div>
         
         <div>

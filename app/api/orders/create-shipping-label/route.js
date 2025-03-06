@@ -2,11 +2,24 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SENDCLOUD_API_KEY, SENDCLOUD_API_SECRET } from '../../../utils/env';
 
-// Initialize Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize Supabase client with fallback values for build time
+const supabaseUrl = SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+// Only create the client if we have the required values and we're not in a build context
+const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
+const supabase = (!isBuildTime && supabaseUrl && supabaseAnonKey) 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export async function POST(request) {
   try {
+    // Check if Supabase client is initialized
+    if (!supabase) {
+      console.error('Supabase client not initialized. Missing URL or API key.');
+      return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
+    }
+    
     const { orderId } = await request.json();
     
     if (!orderId) {
@@ -84,8 +97,19 @@ export async function POST(request) {
  */
 async function createSendCloudParcel(order) {
   try {
+    // Check if SendCloud API credentials are available
+    const sendCloudApiKey = SENDCLOUD_API_KEY || process.env.SENDCLOUD_API_KEY;
+    const sendCloudApiSecret = SENDCLOUD_API_SECRET || process.env.SENDCLOUD_API_SECRET;
+    
+    if (!sendCloudApiKey || !sendCloudApiSecret) {
+      throw new Error('SendCloud API credentials not available');
+    }
+    
     // Prepare the SendCloud API credentials
-    const auth = Buffer.from(`${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`).toString('base64');
+    const auth = Buffer.from(`${sendCloudApiKey}:${sendCloudApiSecret}`).toString('base64');
+    
+    // Ensure weight is in the correct format (string with 3 decimal places)
+    const weight = order.weight ? order.weight.toString() : '1.000';
     
     // Prepare the parcel data
     const parcelData = {
@@ -100,7 +124,7 @@ async function createSendCloudParcel(order) {
         email: order.email || '',
         telephone: order.phone || '',
         order_number: order.id,
-        weight: '1.000', // Default weight in kg
+        weight: weight, // Use the weight from the order
         request_label: true,
         apply_shipping_rules: true
       }

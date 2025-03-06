@@ -7,12 +7,16 @@ CREATE TABLE IF NOT EXISTS orders (
   shipping_address TEXT,
   order_pack TEXT,
   order_notes TEXT,
+  weight TEXT DEFAULT '1.000',
   status TEXT DEFAULT 'pending',
   is_paid BOOLEAN DEFAULT false,
   ok_to_ship BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add weight column if it doesn't exist
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS weight TEXT DEFAULT '1.000';
 
 -- Create index on customer_name for faster searches
 CREATE INDEX IF NOT EXISTS idx_orders_customer_name ON orders(customer_name);

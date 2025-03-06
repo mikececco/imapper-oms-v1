@@ -4,17 +4,28 @@ import Stripe from 'stripe';
 import { createOrderFromStripeEvent, findOrCreateCustomer } from '../../../utils/supabase';
 import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
 
-// Initialize Stripe with your secret key
-const stripe = new Stripe(STRIPE_SECRET_KEY);
+// Check if we're in a build context
+const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
 
-// Initialize Supabase client
-const supabase = createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY);
+// Initialize Stripe with your secret key (only if not in build time)
+const stripe = !isBuildTime && STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
+
+// Initialize Supabase client (only if not in build time)
+const supabase = !isBuildTime && SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY && SERVER_SUPABASE_URL !== 'build-placeholder'
+  ? createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY)
+  : null;
 
 // This is your Stripe webhook secret for testing
 const endpointSecret = STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request) {
   try {
+    // Check if we're in a build context or if clients aren't initialized
+    if (isBuildTime || !stripe || !supabase) {
+      console.error('Stripe or Supabase client not initialized');
+      return NextResponse.json({ error: 'Service unavailable during build or initialization' }, { status: 503 });
+    }
+    
     const body = await request.text();
     const sig = request.headers.get('stripe-signature');
 

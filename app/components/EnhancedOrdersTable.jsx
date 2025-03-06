@@ -146,6 +146,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
               <TableHead className="text-black w-[200px]">Address</TableHead>
               <TableHead className="text-black w-[120px]">Order Pack</TableHead>
               <TableHead className="text-black w-[150px]">Notes</TableHead>
+              <TableHead className="text-black w-[80px]">Weight</TableHead>
               <TableHead className="text-black w-[80px]">Paid?</TableHead>
               <TableHead className="text-black w-[100px]">Ok to Ship?</TableHead>
               <TableHead className="text-black w-[100px]">Status</TableHead>
@@ -199,6 +200,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                     />
                   </TableCell>
                   <TableCell className="enhanced-table-cell-truncate">{order.order_notes || 'N/A'}</TableCell>
+                  <TableCell>{order.weight || '1.000'}</TableCell>
                   <TableCell>
                     <PaymentBadge 
                       isPaid={order.paid} 

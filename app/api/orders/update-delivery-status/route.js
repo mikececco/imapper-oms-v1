@@ -3,8 +3,15 @@ import { batchUpdateDeliveryStatus, updateOrderDeliveryStatus } from '../../../u
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SENDCLOUD_API_KEY, SENDCLOUD_API_SECRET } from '../../../utils/env';
 
-// Initialize Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize Supabase client with fallback values for build time
+const supabaseUrl = SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+// Only create the client if we have the required values and we're not in a build context
+const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
+const supabase = (!isBuildTime && supabaseUrl && supabaseAnonKey && supabaseUrl !== 'build-placeholder') 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 /**
  * Update delivery status for a specific order or batch of orders
@@ -65,6 +72,12 @@ export async function POST(request) {
  */
 export async function GET(request) {
   try {
+    // Check if Supabase client is initialized
+    if (!supabase) {
+      console.error('Supabase client not initialized. Missing URL or API key.');
+      return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
+    }
+    
     // Get the order ID from the query parameters
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('orderId');
@@ -144,8 +157,16 @@ export async function GET(request) {
  */
 async function fetchSendCloudParcelStatus(trackingNumber) {
   try {
+    // Check if SendCloud API credentials are available
+    const sendCloudApiKey = SENDCLOUD_API_KEY || process.env.SENDCLOUD_API_KEY;
+    const sendCloudApiSecret = SENDCLOUD_API_SECRET || process.env.SENDCLOUD_API_SECRET;
+    
+    if (!sendCloudApiKey || !sendCloudApiSecret) {
+      throw new Error('SendCloud API credentials not available');
+    }
+    
     // Prepare the SendCloud API credentials
-    const auth = Buffer.from(`${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`).toString('base64');
+    const auth = Buffer.from(`${sendCloudApiKey}:${sendCloudApiSecret}`).toString('base64');
     
     // Fetch the parcel from SendCloud
     const response = await fetch(`https://panel.sendcloud.sc/api/v2/parcels?tracking_number=${trackingNumber}`, {

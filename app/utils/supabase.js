@@ -2,16 +2,43 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY } from './env';
 
-if (!SERVER_SUPABASE_URL || !SERVER_SUPABASE_ANON_KEY) {
+// Check if we're in a build context
+const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
+
+if (!SERVER_SUPABASE_URL || !SERVER_SUPABASE_ANON_KEY || SERVER_SUPABASE_URL === 'build-placeholder') {
   console.warn('Missing Supabase environment variables. Using fallback values.');
 }
 
 // Create Supabase client with error handling
 let supabase;
 try {
-  supabase = createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, {
-    auth: { persistSession: false }
-  });
+  // Only create the client if we're not in a build context
+  if (!isBuildTime && SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY && SERVER_SUPABASE_URL !== 'build-placeholder') {
+    supabase = createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, {
+      auth: { persistSession: false }
+    });
+  } else {
+    // Create a mock client for build time
+    supabase = {
+      from: () => ({
+        select: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+        insert: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+        update: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+        delete: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+        eq: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+        order: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+        limit: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+        single: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+        or: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+        not: () => ({ data: null, error: new Error('Supabase client not available during build') }),
+      }),
+      auth: {
+        signIn: () => Promise.resolve({ user: null, error: new Error('Supabase client not available during build') }),
+        signOut: () => Promise.resolve({ error: null }),
+        onAuthStateChange: () => ({ data: null, error: null, unsubscribe: () => {} }),
+      },
+    };
+  }
 } catch (error) {
   console.error('Error initializing Supabase client:', error);
   throw new Error('Failed to initialize Supabase client. Check your environment variables.');
