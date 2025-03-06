@@ -39,6 +39,9 @@ export default function OrderDetailModalFixed() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [creatingLabel, setCreatingLabel] = useState(false);
+  const [labelMessage, setLabelMessage] = useState(null);
+  const [migrationNeeded, setMigrationNeeded] = useState(false);
 
   const openModal = (orderId) => {
     setSelectedOrderId(orderId);
@@ -50,6 +53,7 @@ export default function OrderDetailModalFixed() {
     setTimeout(() => {
       setSelectedOrderId(null);
       setOrder(null);
+      setLabelMessage(null);
     }, 300); // Wait for the animation to complete
   };
 
@@ -71,6 +75,17 @@ export default function OrderDetailModalFixed() {
       }
       
       setOrder(data);
+      
+      // Check if migration is needed
+      if (data && (
+        typeof data.tracking_number === 'undefined' || 
+        typeof data.label_url === 'undefined'
+      )) {
+        setMigrationNeeded(true);
+      } else {
+        setMigrationNeeded(false);
+      }
+      
       setLoading(false);
     } catch (err) {
       console.error('Error fetching order:', err);
@@ -90,6 +105,54 @@ export default function OrderDetailModalFixed() {
     fetchOrder();
   };
 
+  // Function to create a shipping label
+  const createShippingLabel = async () => {
+    if (!order || !order.id) return;
+    
+    setCreatingLabel(true);
+    setLabelMessage(null);
+    
+    try {
+      const response = await fetch('/api/orders/create-shipping-label', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create shipping label');
+      }
+      
+      if (data.warning) {
+        setLabelMessage({
+          type: 'warning',
+          text: data.message || 'Shipping label created with warnings. Some features may be limited.'
+        });
+      } else {
+        setLabelMessage({
+          type: 'success',
+          text: 'Shipping label created successfully!'
+        });
+      }
+      
+      // Refresh order data to show updated tracking info
+      refreshOrder();
+      
+    } catch (error) {
+      console.error('Error creating shipping label:', error);
+      setLabelMessage({
+        type: 'error',
+        text: error.message || 'Failed to create shipping label'
+      });
+    } finally {
+      setCreatingLabel(false);
+    }
+  };
+
   // Expose the openModal function to the window object so it can be called from anywhere
   useEffect(() => {
     window.openOrderDetail = openModal;
@@ -97,6 +160,19 @@ export default function OrderDetailModalFixed() {
       delete window.openOrderDetail;
     };
   }, []);
+
+  // Parse shipping address for display
+  const parseShippingAddress = (address) => {
+    if (!address) return { street: 'N/A', city: 'N/A', postalCode: 'N/A', country: 'N/A' };
+    
+    const parts = address.split(',').map(part => part.trim());
+    return {
+      street: parts[0] || 'N/A',
+      city: parts[1] || 'N/A',
+      postalCode: parts[2] || 'N/A',
+      country: parts[3] || 'NL'
+    };
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -134,6 +210,16 @@ export default function OrderDetailModalFixed() {
           </div>
         ) : order ? (
           <>
+            {migrationNeeded && (
+              <div className="mb-4 p-3 bg-yellow-100 border border-yellow-400 rounded text-yellow-800">
+                <p className="font-medium">Database Migration Required</p>
+                <p className="text-sm">Some shipping label features may be limited. Please run the shipping label migration script:</p>
+                <code className="block mt-1 p-2 bg-gray-100 text-xs overflow-x-auto">
+                  node app/utils/run_shipping_label_migration.js
+                </code>
+              </div>
+            )}
+            
             <div className="mt-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-black">{order.name || 'N/A'}</h2>
@@ -157,7 +243,24 @@ export default function OrderDetailModalFixed() {
 
                   <div className="bg-gray-50 p-4 rounded border border-black">
                     <h3 className="font-medium mb-2 text-black">Shipping Information</h3>
-                    <p className="text-black"><span className="font-medium">Address:</span> {order.shipping_address || 'N/A'}</p>
+                    {order.shipping_address ? (
+                      <>
+                        {/* Parse and display formatted address */}
+                        {(() => {
+                          const address = parseShippingAddress(order.shipping_address);
+                          return (
+                            <div className="space-y-1">
+                              <p className="text-black"><span className="font-medium">Street:</span> {address.street}</p>
+                              <p className="text-black"><span className="font-medium">City:</span> {address.city}</p>
+                              <p className="text-black"><span className="font-medium">Postal Code:</span> {address.postalCode}</p>
+                              <p className="text-black"><span className="font-medium">Country:</span> {address.country}</p>
+                            </div>
+                          );
+                        })()}
+                      </>
+                    ) : (
+                      <p className="text-black">No shipping address provided</p>
+                    )}
                   </div>
                 </div>
 
@@ -195,6 +298,13 @@ export default function OrderDetailModalFixed() {
                       </div>
                     )}
                     <p className="text-black mt-2"><span className="font-medium">Delivery Status:</span> {order.delivery_status || 'Not tracked'}</p>
+                    
+                    {/* Tracking information - only show if available */}
+                    {order.tracking_number && (
+                      <p className="text-black mt-2">
+                        <span className="font-medium">Tracking Number:</span> {order.tracking_number}
+                      </p>
+                    )}
                     {order.tracking_link && (
                       <p className="text-black mt-2">
                         <span className="font-medium">Tracking Link:</span>{' '}
@@ -203,24 +313,65 @@ export default function OrderDetailModalFixed() {
                         </a>
                       </p>
                     )}
+                    
+                    {/* Shipping label - only show if available */}
+                    {order.label_url && (
+                      <p className="text-black mt-2">
+                        <span className="font-medium">Shipping Label:</span>{' '}
+                        <a href={order.label_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          View Label
+                        </a>
+                      </p>
+                    )}
+                    
                     {order.last_delivery_status_check && (
                       <p className="text-black mt-2"><span className="font-medium">Last Status Check:</span> {formatDate(order.last_delivery_status_check)}</p>
                     )}
-                    <button 
-                      onClick={async () => {
-                        try {
-                          const response = await fetch(`/api/orders/update-delivery-status?orderId=${order.id}`);
-                          if (response.ok) {
-                            refreshOrder();
+                    
+                    {/* Action buttons */}
+                    <div className="flex space-x-2 mt-3">
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`/api/orders/update-delivery-status?orderId=${order.id}`);
+                            if (response.ok) {
+                              refreshOrder();
+                            }
+                          } catch (error) {
+                            console.error('Error updating delivery status:', error);
                           }
-                        } catch (error) {
-                          console.error('Error updating delivery status:', error);
-                        }
-                      }}
-                      className="mt-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
-                    >
-                      Update Delivery Status
-                    </button>
+                        }}
+                        className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                      >
+                        Update Status
+                      </button>
+                      
+                      {/* Create shipping label button */}
+                      {!order.label_url && (
+                        <button 
+                          onClick={createShippingLabel}
+                          disabled={creatingLabel || !order.shipping_address}
+                          className={`px-3 py-1 text-white text-sm rounded ${
+                            creatingLabel || !order.shipping_address 
+                              ? 'bg-gray-400 cursor-not-allowed' 
+                              : 'bg-green-500 hover:bg-green-600'
+                          }`}
+                        >
+                          {creatingLabel ? 'Creating...' : 'Create Shipping Label'}
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* Label creation message */}
+                    {labelMessage && (
+                      <div className={`mt-2 p-2 rounded text-sm ${
+                        labelMessage.type === 'success' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {labelMessage.text}
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded border border-black">

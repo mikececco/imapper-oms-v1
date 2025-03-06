@@ -60,6 +60,27 @@ export default function Orders({ searchParams }) {
     }
   };
 
+  // Parse shipping address for display
+  const parseShippingAddress = (address) => {
+    if (!address) return { street: 'N/A', city: 'N/A', postalCode: 'N/A', country: 'N/A' };
+    
+    const parts = address.split(',').map(part => part.trim());
+    return {
+      street: parts[0] || 'N/A',
+      city: parts[1] || 'N/A',
+      postalCode: parts[2] || 'N/A',
+      country: parts[3] || 'NL'
+    };
+  };
+
+  // Format address for display in table
+  const formatAddressForTable = (address) => {
+    if (!address) return 'N/A';
+    
+    const parsedAddress = parseShippingAddress(address);
+    return `${parsedAddress.city}, ${parsedAddress.country}`;
+  };
+
   const openOrderDetail = (orderId) => {
     // Use the global function if it exists (from the fixed modal)
     if (window.openOrderDetail) {
@@ -74,6 +95,34 @@ export default function Orders({ searchParams }) {
   const closeOrderDetail = () => {
     setIsModalOpen(false);
     setSelectedOrderId(null);
+  };
+
+  // Create shipping label
+  const createShippingLabel = async (orderId) => {
+    try {
+      const response = await fetch('/api/orders/create-shipping-label', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create shipping label');
+      }
+      
+      // Refresh orders to show updated tracking info
+      const updatedOrders = await fetchOrders();
+      setOrders(updatedOrders);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error creating shipping label:', error);
+      alert(`Error: ${error.message}`);
+      return { success: false, error };
+    }
   };
 
   return (
@@ -97,11 +146,13 @@ export default function Orders({ searchParams }) {
                 <th className="text-black">Actions</th>
                 <th className="text-black">ID</th>
                 <th className="text-black">Name</th>
+                <th className="text-black">Address</th>
                 <th className="text-black">Order Pack</th>
                 <th className="text-black">Paid?</th>
                 <th className="text-black">Ok to Ship?</th>
                 <th className="text-black">Status</th>
-                <th className="text-black">Shipping Instruction</th>
+                <th className="text-black">Shipping</th>
+                <th className="text-black">Label</th>
                 <th className="text-black">Created At</th>
               </tr>
             </thead>
@@ -130,6 +181,7 @@ export default function Orders({ searchParams }) {
                     </td>
                     <td>{order.id}</td>
                     <td>{order.name || 'N/A'}</td>
+                    <td>{formatAddressForTable(order.shipping_address)}</td>
                     <td>
                       <OrderPackDropdown 
                         currentPack={order.order_pack} 
@@ -159,12 +211,35 @@ export default function Orders({ searchParams }) {
                         {order.shipping_instruction || 'UNKNOWN'}
                       </div>
                     </td>
+                    <td>
+                      {order.label_url ? (
+                        <a 
+                          href={order.label_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          View
+                        </a>
+                      ) : (
+                        order.ok_to_ship && order.paid && order.shipping_address ? (
+                          <button
+                            onClick={() => createShippingLabel(order.id)}
+                            className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
+                          >
+                            Create
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        )
+                      )}
+                    </td>
                     <td>{formatDate(order.created_at)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="empty-state text-black">
+                  <td colSpan="11" className="empty-state text-black">
                     {query ? `No results found for "${query}"` : 'No orders available'}
                   </td>
                 </tr>

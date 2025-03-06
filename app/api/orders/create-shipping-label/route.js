@@ -87,34 +87,65 @@ export async function POST(request) {
     const labelUrl = parcel.label.label_printer;
     
     // Update order in Supabase with tracking information
-    const { data: updatedOrder, error: updateError } = await supabase
-      .from('orders')
-      .update({
-        tracking_number: trackingNumber,
-        tracking_link: trackingUrl,
-        label_url: labelUrl,
-        shipping_instruction: 'SHIPPED',
-        status: 'shipped',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderId)
-      .select();
-    
-    if (updateError) {
+    try {
+      // First try with all fields
+      const { data: updatedOrder, error: updateError } = await supabase
+        .from('orders')
+        .update({
+          tracking_number: trackingNumber,
+          tracking_link: trackingUrl,
+          label_url: labelUrl,
+          shipping_instruction: 'SHIPPED',
+          status: 'shipped',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select();
+      
+      if (!updateError) {
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Shipping label created successfully',
+          parcel: parcel,
+          order: updatedOrder[0]
+        });
+      }
+      
+      // If there was an error, it might be because some columns don't exist
+      // Try with a minimal update that should work regardless
+      console.warn('First update attempt failed, trying with minimal fields:', updateError);
+      
+      const { data: minimalUpdate, error: minimalError } = await supabase
+        .from('orders')
+        .update({
+          shipping_instruction: 'SHIPPED',
+          status: 'shipped',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select();
+      
+      if (minimalError) {
+        throw minimalError;
+      }
+      
+      return NextResponse.json({ 
+        success: true, 
+        warning: 'Shipping label created but could not save all tracking information',
+        message: 'Some tracking information may not be displayed. Please run the shipping label migration.',
+        parcel: parcel,
+        order: minimalUpdate[0]
+      });
+      
+    } catch (updateError) {
       console.error('Error updating order with tracking info:', updateError);
       return NextResponse.json({ 
         success: true, 
         warning: 'Shipping label created but failed to update order',
-        parcel: parcel
+        parcel: parcel,
+        error: updateError.message
       });
     }
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Shipping label created successfully',
-      parcel: parcel,
-      order: updatedOrder[0]
-    });
     
   } catch (error) {
     console.error('Error creating shipping label:', error);

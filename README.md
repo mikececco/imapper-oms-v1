@@ -13,6 +13,7 @@ This project uses the Next.js App Router structure:
       /stripe         # Stripe webhook handler
     /orders           # Order-related API endpoints
       /update-delivery-status # Endpoint to update delivery status
+      /create-shipping-label  # Endpoint to create shipping labels
     /scheduled-tasks  # Scheduled tasks API endpoint
   /components         # React components
     Navigation.jsx    # Navigation component
@@ -67,6 +68,7 @@ This project uses the Next.js App Router structure:
 - Supabase database integration
 - Automated delivery tracking with SendCloud integration
 - Shipping instruction system based on order status, payment, and tracking
+- Shipping label creation via SendCloud API
 
 ## Environment Variables
 
@@ -97,6 +99,11 @@ Before your application will work correctly, you need to set up the database tab
    node app/utils/run_delivery_tracking_migration.js
    ```
 
+4. To set up shipping label fields, run:
+   ```bash
+   node app/utils/run_shipping_label_migration.js
+   ```
+
 ## Delivery Tracking
 
 The system includes automated delivery tracking with SendCloud integration:
@@ -115,6 +122,28 @@ Shipping instructions include:
 - TO SHIP: Order is ready to be shipped
 - DO NOT SHIP: Order should not be shipped (payment issues)
 - UNKNOWN: Status cannot be determined
+
+## Shipping Label Creation
+
+The system includes integration with SendCloud for creating shipping labels:
+
+1. Labels can be created directly from the orders table or order detail view
+2. Requirements for creating a label:
+   - Order must have a shipping address
+   - Order must be marked as "Ok to Ship"
+   - Order must be marked as "Paid"
+
+3. The shipping label creation process:
+   - Sends order details to SendCloud API
+   - Receives tracking number and label URL in response
+   - Updates the order with tracking information
+   - Sets shipping instruction to "SHIPPED"
+   - Sets order status to "shipped"
+
+4. After label creation:
+   - The label can be viewed and printed from the order detail view
+   - Tracking information is displayed in the order detail view
+   - Delivery status is automatically updated via the tracking system
 
 ## Scheduled Tasks
 
