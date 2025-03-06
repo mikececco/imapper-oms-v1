@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogFooter
 } from './ui/dialog';
+import { VisuallyHidden } from './ui/visually-hidden';
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from "./OrderActions";
 import OrderDetailForm from "./OrderDetailForm";
 import { ORDER_PACK_OPTIONS } from "../utils/constants";
@@ -32,13 +33,28 @@ const formatDate = (dateString) => {
   }
 };
 
-export default function OrderDetailModal({ orderId, onClose }) {
+export default function OrderDetailModalFixed() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const openModal = (orderId) => {
+    setSelectedOrderId(orderId);
+    setIsOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsOpen(false);
+    setTimeout(() => {
+      setSelectedOrderId(null);
+      setOrder(null);
+    }, 300); // Wait for the animation to complete
+  };
+
   const fetchOrder = useCallback(async () => {
-    if (!orderId) return;
+    if (!selectedOrderId) return;
     
     setLoading(true);
     setError(null);
@@ -47,7 +63,7 @@ export default function OrderDetailModal({ orderId, onClose }) {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('id', orderId)
+        .eq('id', selectedOrderId)
         .single();
         
       if (error) {
@@ -61,20 +77,46 @@ export default function OrderDetailModal({ orderId, onClose }) {
       setError('Could not load order details. Please try again.');
       setLoading(false);
     }
-  }, [orderId]);
+  }, [selectedOrderId]);
 
   useEffect(() => {
-    fetchOrder();
-  }, [fetchOrder]);
+    if (isOpen && selectedOrderId) {
+      fetchOrder();
+    }
+  }, [isOpen, selectedOrderId, fetchOrder]);
 
   // Function to refresh order data after actions
   const refreshOrder = () => {
     fetchOrder();
   };
 
+  // Expose the openModal function to the window object so it can be called from anywhere
+  useEffect(() => {
+    window.openOrderDetail = openModal;
+    return () => {
+      delete window.openOrderDetail;
+    };
+  }, []);
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) closeModal();
+    }}>
       <DialogContent className="max-w-3xl overflow-y-auto">
+        {/* Always include a DialogTitle for accessibility */}
+        <DialogHeader>
+          {loading ? (
+            <DialogTitle>Loading Order Details</DialogTitle>
+          ) : error ? (
+            <DialogTitle>Error Loading Order</DialogTitle>
+          ) : !order ? (
+            <DialogTitle>Order Not Found</DialogTitle>
+          ) : (
+            <DialogTitle className="text-xl">Order Details</DialogTitle>
+          )}
+          {order && <p className="text-sm text-black">Order ID: {order.id}</p>}
+        </DialogHeader>
+
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
@@ -84,7 +126,7 @@ export default function OrderDetailModal({ orderId, onClose }) {
             <h3 className="text-lg font-semibold text-black">Error</h3>
             <p className="mt-2 text-black">{error}</p>
             <button 
-              onClick={onClose}
+              onClick={closeModal}
               className="mt-4 px-4 py-2 bg-black text-white rounded hover:opacity-90"
             >
               Close
@@ -92,11 +134,6 @@ export default function OrderDetailModal({ orderId, onClose }) {
           </div>
         ) : order ? (
           <>
-            <DialogHeader>
-              <DialogTitle className="text-xl">Order Details</DialogTitle>
-              <p className="text-sm text-black">Order ID: {order.id}</p>
-            </DialogHeader>
-
             <div className="mt-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-black">{order.name || 'N/A'}</h2>
@@ -216,7 +253,7 @@ export default function OrderDetailModal({ orderId, onClose }) {
 
             <DialogFooter className="mt-6">
               <button 
-                onClick={onClose}
+                onClick={closeModal}
                 className="px-4 py-2 bg-black text-white rounded hover:opacity-90"
               >
                 Close
@@ -228,7 +265,7 @@ export default function OrderDetailModal({ orderId, onClose }) {
             <h3 className="text-lg font-semibold text-black">Order Not Found</h3>
             <p className="mt-2 text-black">The order you're looking for doesn't exist or you don't have permission to view it.</p>
             <button 
-              onClick={onClose}
+              onClick={closeModal}
               className="mt-4 px-4 py-2 bg-black text-white rounded hover:opacity-90"
             >
               Close

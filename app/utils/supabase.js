@@ -41,31 +41,43 @@ export async function fetchOrders() {
 
 // Helper function to fetch order statistics
 export async function fetchOrderStats() {
-  const { data: orders, error } = await supabase
-    .from('orders')
-    .select('status');
-  
-  if (error) {
-    console.error('Error fetching order statistics:', error);
-    return {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('status, count(*)')
+      .group('status');
+    
+    if (error) {
+      console.error('Error fetching order stats:', error);
+      return { total: 0, pending: 0, shipped: 0, delivered: 0 };
+    }
+    
+    // Calculate stats
+    const stats = {
       total: 0,
       pending: 0,
       shipped: 0,
       delivered: 0
     };
+    
+    data.forEach(item => {
+      const count = parseInt(item.count, 10);
+      stats.total += count;
+      
+      if (item.status === 'pending') {
+        stats.pending += count;
+      } else if (item.status === 'shipped') {
+        stats.shipped += count;
+      } else if (item.status === 'delivered') {
+        stats.delivered += count;
+      }
+    });
+    
+    return stats;
+  } catch (error) {
+    console.error('Exception fetching order stats:', error);
+    return { total: 0, pending: 0, shipped: 0, delivered: 0 };
   }
-  
-  const total = orders?.length || 0;
-  const pending = orders?.filter(order => order.status === 'pending').length || 0;
-  const shipped = orders?.filter(order => order.status === 'shipped').length || 0;
-  const delivered = orders?.filter(order => order.status === 'delivered').length || 0;
-  
-  return {
-    total,
-    pending,
-    shipped,
-    delivered
-  };
 }
 
 // Helper function to fetch recent activity
@@ -708,5 +720,87 @@ export async function fetchOrdersByCustomerId(customerId) {
   } catch (e) {
     console.error(`Exception fetching orders for customer ${customerId}:`, e);
     return [];
+  }
+}
+
+/**
+ * Fetch delivery status statistics
+ * @returns {Promise<Object>} Delivery status statistics
+ */
+export async function fetchDeliveryStats() {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('delivery_status, shipping_instruction, count(*)')
+      .not('delivery_status', 'is', null)
+      .group('delivery_status, shipping_instruction');
+    
+    if (error) {
+      console.error('Error fetching delivery stats:', error);
+      return {
+        total_tracked: 0,
+        delivered: 0,
+        in_transit: 0,
+        to_ship: 0,
+        do_not_ship: 0,
+        unknown: 0,
+        by_instruction: {}
+      };
+    }
+    
+    // Count orders by delivery status
+    const stats = {
+      total_tracked: 0,
+      delivered: 0,
+      in_transit: 0,
+      to_ship: 0,
+      do_not_ship: 0,
+      unknown: 0,
+      by_instruction: {}
+    };
+    
+    // Process the data
+    data.forEach(item => {
+      const count = parseInt(item.count, 10);
+      stats.total_tracked += count;
+      
+      // Count by delivery status
+      if (item.delivery_status?.toLowerCase().includes('delivered')) {
+        stats.delivered += count;
+      } else if (item.delivery_status?.toLowerCase().includes('transit') || 
+                item.delivery_status?.toLowerCase().includes('shipped')) {
+        stats.in_transit += count;
+      }
+      
+      // Count by shipping instruction
+      if (item.shipping_instruction) {
+        if (!stats.by_instruction[item.shipping_instruction]) {
+          stats.by_instruction[item.shipping_instruction] = 0;
+        }
+        stats.by_instruction[item.shipping_instruction] += count;
+        
+        // Also update the summary counts
+        if (item.shipping_instruction === 'TO SHIP') {
+          stats.to_ship += count;
+        } else if (item.shipping_instruction === 'DO NOT SHIP') {
+          stats.do_not_ship += count;
+        } else if (item.shipping_instruction === 'UNKNOWN') {
+          stats.unknown += count;
+        }
+      }
+    });
+    
+    return stats;
+  } catch (error) {
+    console.error('Exception fetching delivery stats:', error);
+    return {
+      total_tracked: 0,
+      delivered: 0,
+      in_transit: 0,
+      to_ship: 0,
+      do_not_ship: 0,
+      unknown: 0,
+      by_instruction: {}
+    };
   }
 } 

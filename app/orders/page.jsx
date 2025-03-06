@@ -4,7 +4,7 @@ import { useState, useEffect, use } from "react";
 import { fetchOrders, searchOrders } from "../utils/supabase-client";
 import OrderSearch from "../components/OrderSearch";
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector, OrderPackDropdown } from "../components/OrderActions";
-import OrderDetailModal from "../components/OrderDetailModal";
+import OrderDetailModalFixed from "../components/OrderDetailModalFixed";
 
 export default function Orders({ searchParams }) {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -61,8 +61,14 @@ export default function Orders({ searchParams }) {
   };
 
   const openOrderDetail = (orderId) => {
-    setSelectedOrderId(orderId);
-    setIsModalOpen(true);
+    // Use the global function if it exists (from the fixed modal)
+    if (window.openOrderDetail) {
+      window.openOrderDetail(orderId);
+    } else {
+      // Fallback to the old method
+      setSelectedOrderId(orderId);
+      setIsModalOpen(true);
+    }
   };
 
   const closeOrderDetail = () => {
@@ -95,6 +101,7 @@ export default function Orders({ searchParams }) {
                 <th className="text-black">Paid?</th>
                 <th className="text-black">Ok to Ship?</th>
                 <th className="text-black">Status</th>
+                <th className="text-black">Shipping Instruction</th>
                 <th className="text-black">Created At</th>
               </tr>
             </thead>
@@ -147,6 +154,11 @@ export default function Orders({ searchParams }) {
                         orderId={order.id} 
                       />
                     </td>
+                    <td>
+                      <div className={`shipping-instruction ${order.shipping_instruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
+                        {order.shipping_instruction || 'UNKNOWN'}
+                      </div>
+                    </td>
                     <td>{formatDate(order.created_at)}</td>
                   </tr>
                 ))
@@ -162,12 +174,8 @@ export default function Orders({ searchParams }) {
         )}
       </div>
 
-      {isModalOpen && (
-        <OrderDetailModal
-          orderId={selectedOrderId}
-          onClose={closeOrderDetail}
-        />
-      )}
+      {/* Include the fixed modal component */}
+      <OrderDetailModalFixed />
     </div>
   );
 }

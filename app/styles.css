@@ -555,4 +555,49 @@ input:checked + .toggle-slider:before {
     width: 100%;
     justify-content: space-between;
   }
+}
+
+/* Shipping Instruction Styles */
+.shipping-instruction {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
+  text-align: center;
+  min-width: 120px;
+}
+
+.shipping-instruction.delivered {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.shipping-instruction.shipped {
+  background-color: #2196F3;
+  color: white;
+}
+
+.shipping-instruction.to-be-shipped-but-no-sticker {
+  background-color: #FF9800;
+  color: white;
+}
+
+.shipping-instruction.to-be-shipped-but-wrong-tracking-link {
+  background-color: #FF5722;
+  color: white;
+}
+
+.shipping-instruction.to-ship {
+  background-color: #9C27B0;
+  color: white;
+}
+
+.shipping-instruction.do-not-ship {
+  background-color: #F44336;
+  color: white;
+}
+
+.shipping-instruction.unknown {
+  background-color: #9E9E9E;
+  color: white;
 } 
