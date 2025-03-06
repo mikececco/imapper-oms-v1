@@ -54,18 +54,37 @@ export async function fetchOrders() {
 
 // Search orders
 export async function searchOrders(query) {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .or(`id.ilike.%${query}%,name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%,order_pack.ilike.%${query}%`)
-    .order('created_at', { ascending: false });
-  
-  if (error) {
-    console.error('Error searching orders:', error);
-    throw error;
+  try {
+    // Clean the query to prevent SQL injection
+    const cleanQuery = query.replace(/[%_]/g, '\\$&');
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .or(
+        `id.ilike.%${cleanQuery}%,` +
+        `name.ilike.%${cleanQuery}%,` +
+        `email.ilike.%${cleanQuery}%,` +
+        `phone.ilike.%${cleanQuery}%,` +
+        `shipping_address.ilike.%${cleanQuery}%,` +
+        `order_pack.ilike.%${cleanQuery}%,` +
+        `order_notes.ilike.%${cleanQuery}%,` +
+        `status.ilike.%${cleanQuery}%,` +
+        `shipping_instruction.ilike.%${cleanQuery}%,` +
+        `tracking_number.ilike.%${cleanQuery}%`
+      )
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error searching orders:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Exception searching orders:', error);
+    return [];
   }
-  
-  return data || [];
 }
 
 // Update order status

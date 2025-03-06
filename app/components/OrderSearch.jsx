@@ -1,14 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 export default function OrderSearch() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [isHovered, setIsHovered] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Initialize search term from URL on component mount
+  useEffect(() => {
+    const query = searchParams.get('q');
+    if (query) {
+      setSearchTerm(query);
+    }
+  }, [searchParams]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -16,9 +23,9 @@ export default function OrderSearch() {
     // Create new URLSearchParams object
     const params = new URLSearchParams(searchParams);
     
-    // Update or remove the 'q' parameter based on searchQuery
-    if (searchQuery) {
-      params.set('q', searchQuery);
+    // Update or remove the 'q' parameter based on searchTerm
+    if (searchTerm) {
+      params.set('q', searchTerm);
     } else {
       params.delete('q');
     }
@@ -27,29 +34,48 @@ export default function OrderSearch() {
     router.push(`${pathname}?${params.toString()}`);
   };
 
+  const handleClear = () => {
+    setSearchTerm('');
+    
+    // Create new URLSearchParams object
+    const params = new URLSearchParams(searchParams);
+    
+    // Remove the 'q' parameter
+    params.delete('q');
+    
+    // Navigate to the same page without the query parameter
+    router.push(pathname);
+  };
+
   return (
-    <div className="search-container">
-      <form onSubmit={handleSearch}>
+    <div className="search-container mb-6">
+      <form onSubmit={handleSearch} className="flex items-center gap-2">
         <input
           type="text"
-          className="search-input"
-          placeholder="Search orders by ID or customer name..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          style={{
-            backgroundColor: isHovered ? '#e0e0e0' : '#f5f5f5',
-            color: '#000000',
-            border: '1px solid #000000',
-            padding: '0.5rem',
-            borderRadius: '4px',
-            width: '100%',
-            maxWidth: '500px',
-            transition: 'all 0.2s ease'
-          }}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search orders by name, email, address, status..."
+          className="search-input flex-grow p-2 border border-gray-300 rounded"
         />
+        <button 
+          type="submit" 
+          className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+        >
+          Search
+        </button>
+        {searchTerm && (
+          <button 
+            type="button" 
+            onClick={handleClear}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >
+            Clear
+          </button>
+        )}
       </form>
+      <p className="text-sm text-gray-500 mt-1">
+        Search across all fields: name, email, address, order pack, status, etc.
+      </p>
     </div>
   );
 } 

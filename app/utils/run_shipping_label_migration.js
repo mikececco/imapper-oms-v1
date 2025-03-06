@@ -1,6 +1,6 @@
 /**
  * Script to run the shipping label migration
- * This adds tracking_number and label_url fields to the orders table
+ * This adds tracking_link, tracking_number, and label_url fields to the orders table
  */
 
 const fs = require('fs');
@@ -52,6 +52,19 @@ async function runMigration() {
       }
     }
     
+    // Check if shipping_instruction column exists, add it if it doesn't
+    console.log('Checking for shipping_instruction column...');
+    const hasShippingInstruction = await checkColumnExists('orders', 'shipping_instruction');
+    
+    if (!hasShippingInstruction) {
+      console.log('shipping_instruction column does not exist, adding it...');
+      await executeSql('ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_instruction TEXT;');
+      await executeSql("COMMENT ON COLUMN orders.shipping_instruction IS 'Shipping instruction for the order';");
+      console.log('Added shipping_instruction column.');
+    } else {
+      console.log('shipping_instruction column already exists.');
+    }
+    
     // Add columns directly with individual statements
     console.log('Adding tracking_link column...');
     await executeSql('ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_link TEXT;');
@@ -75,16 +88,26 @@ async function runMigration() {
     await executeSql(`
       DO $$
       BEGIN
+        -- First check if shipping_instruction column exists
         IF EXISTS (
           SELECT 1 
           FROM information_schema.columns 
           WHERE table_name = 'orders' 
-          AND column_name = 'tracking_link'
+          AND column_name = 'shipping_instruction'
         ) THEN
-          UPDATE orders 
-          SET shipping_instruction = 'SHIPPED' 
-          WHERE tracking_link IS NOT NULL 
-            AND shipping_instruction IS NULL;
+          -- Then check if tracking_link column exists
+          IF EXISTS (
+            SELECT 1 
+            FROM information_schema.columns 
+            WHERE table_name = 'orders' 
+            AND column_name = 'tracking_link'
+          ) THEN
+            -- Update existing orders with shipping instruction if they have a tracking link but no shipping instruction
+            UPDATE orders 
+            SET shipping_instruction = 'SHIPPED' 
+            WHERE tracking_link IS NOT NULL 
+              AND (shipping_instruction IS NULL OR shipping_instruction = '');
+          END IF;
         END IF;
       END $$;
     `);
@@ -93,19 +116,14 @@ async function runMigration() {
     
     // Verify the migration
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('tracking_number, label_url, tracking_link')
-        .limit(1);
+      // Check each column individually to provide better feedback
+      console.log('Migration verification:');
       
-      if (error) {
-        console.warn('Warning: Error verifying migration:', error);
-      } else {
-        console.log('Migration verification successful. New columns are available:');
-        console.log('- tracking_link');
-        console.log('- tracking_number');
-        console.log('- label_url');
-      }
+      await checkColumn('shipping_instruction');
+      await checkColumn('tracking_link');
+      await checkColumn('tracking_number');
+      await checkColumn('label_url');
+      
     } catch (verifyError) {
       console.warn('Warning: Error verifying migration:', verifyError);
     }
@@ -113,6 +131,42 @@ async function runMigration() {
   } catch (error) {
     console.error('Migration failed:', error);
     process.exit(1);
+  }
+}
+
+async function checkColumnExists(tableName, columnName) {
+  try {
+    const { data, error } = await supabase.rpc('exec_sql', {
+      sql: `
+        SELECT EXISTS (
+          SELECT 1 
+          FROM information_schema.columns 
+          WHERE table_name = '${tableName}' 
+          AND column_name = '${columnName}'
+        ) as exists;
+      `
+    });
+    
+    if (error) {
+      console.warn(`Warning: Error checking if ${columnName} exists:`, error);
+      return false;
+    }
+    
+    return data && data[0] && data[0].exists;
+  } catch (err) {
+    console.warn(`Warning: Exception checking if ${columnName} exists:`, err);
+    return false;
+  }
+}
+
+async function checkColumn(columnName) {
+  try {
+    const exists = await checkColumnExists('orders', columnName);
+    console.log(`- ${columnName}: ${exists ? 'Added successfully' : 'Failed to add'}`);
+    return exists;
+  } catch (err) {
+    console.warn(`Warning: Exception checking ${columnName} column:`, err);
+    return false;
   }
 }
 
@@ -130,11 +184,13 @@ async function executeSql(sql) {
       
       if (directError) {
         console.warn('Warning: Direct SQL execution also failed:', directError);
+        console.log('SQL statement that failed:', sql);
         console.log('Continuing with migration...');
       }
     }
   } catch (error) {
     console.warn('Warning: Exception executing SQL:', error);
+    console.log('SQL statement that failed:', sql);
     console.log('Continuing with migration...');
   }
 }

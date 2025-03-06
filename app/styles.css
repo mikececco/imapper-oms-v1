@@ -600,4 +600,65 @@ input:checked + .toggle-slider:before {
 .shipping-instruction.unknown {
   background-color: #9E9E9E;
   color: white;
+}
+
+/* Enhanced Table Styles */
+.enhanced-table-container {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.enhanced-table-scrollable {
+  overflow-x: auto;
+  max-height: 70vh;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+
+.enhanced-table-scrollable::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.enhanced-table-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.enhanced-table-scrollable::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.enhanced-table-scrollable::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.enhanced-table-header {
+  position: sticky;
+  top: 0;
+  background-color: #f9fafb;
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.enhanced-table-cell-truncate {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.enhanced-table-monospace {
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .enhanced-table-scrollable {
+    max-height: 50vh;
+  }
 } 
