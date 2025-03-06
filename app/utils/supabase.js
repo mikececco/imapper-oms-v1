@@ -614,7 +614,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_country: shippingAddressCountry,
       order_pack: '', // Empty by default, to be filled by admin
       order_notes: orderNotes,
-      instruction: 'TO SHIP', // Default shipping instruction
+      instruction: 'ACTION REQUIRED', // Default shipping instruction
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
       stripe_payment_intent_id: stripePaymentIntentId,

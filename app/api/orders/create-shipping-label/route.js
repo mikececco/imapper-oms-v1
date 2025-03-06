@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
-import { SENDCLOUD_API_KEY, SENDCLOUD_API_SECRET } from '../../../utils/env';
-import { supabase } from '../../../utils/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SENDCLOUD_API_KEY, SENDCLOUD_API_SECRET } from '../../../utils/env';
+
+// Initialize Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export async function POST(request) {
   try {
     const { orderId } = await request.json();
     
     if (!orderId) {
-      return NextResponse.json({ success: false, error: 'Order ID is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
     
-    // Fetch order details from Supabase
+    // Fetch the order from Supabase
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('*')
@@ -19,140 +22,112 @@ export async function POST(request) {
     
     if (orderError) {
       console.error('Error fetching order:', orderError);
-      return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
     }
     
-    // Check if order has required shipping information
-    if (!order.name || !order.shipping_address) {
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    
+    // Check if the order has the required shipping address information
+    if (!order.shipping_address_line1 || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country) {
+      return NextResponse.json({ error: 'Shipping address is incomplete' }, { status: 400 });
+    }
+    
+    // Create a parcel in SendCloud
+    const parcel = await createSendCloudParcel(order);
+    
+    if (!parcel || !parcel.id) {
+      return NextResponse.json({ error: 'Failed to create parcel in SendCloud' }, { status: 500 });
+    }
+    
+    // Update the order with the tracking information
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        tracking_number: parcel.tracking_number || '',
+        tracking_link: parcel.tracking_url || '',
+        label_url: parcel.label.normal_printer || '',
+        delivery_status: 'Ready to send',
+        status: 'processing',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+    
+    if (updateError) {
+      console.error('Error updating order with tracking info:', updateError);
       return NextResponse.json({ 
-        success: false, 
-        error: 'Order is missing required shipping information (name or address)' 
-      }, { status: 400 });
+        warning: true,
+        message: 'Shipping label created but failed to update order',
+        parcel
+      }, { status: 200 });
     }
     
-    // Parse shipping address (assuming format: street, city, postal_code, country)
-    const addressParts = (order.shipping_address || '').split(',').map(part => part.trim());
-    const street = addressParts[0] || '';
-    const city = addressParts[1] || '';
-    const postalCode = addressParts[2] || '';
-    const country = addressParts[3] || 'NL'; // Default to Netherlands if not specified
+    return NextResponse.json({ 
+      success: true,
+      message: 'Shipping label created successfully',
+      tracking_number: parcel.tracking_number,
+      tracking_link: parcel.tracking_url,
+      label_url: parcel.label.normal_printer
+    });
     
-    // Create parcel data for SendCloud API
+  } catch (error) {
+    console.error('Error creating shipping label:', error);
+    return NextResponse.json({ error: error.message || 'Failed to create shipping label' }, { status: 500 });
+  }
+}
+
+/**
+ * Create a parcel in SendCloud
+ * @param {Object} order - The order object
+ * @returns {Promise<Object>} - The created parcel object
+ */
+async function createSendCloudParcel(order) {
+  try {
+    // Prepare the SendCloud API credentials
+    const auth = Buffer.from(`${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`).toString('base64');
+    
+    // Prepare the parcel data
     const parcelData = {
       parcel: {
-        name: order.name,
-        address: street,
-        city: city,
-        postal_code: postalCode,
-        country: country,
+        name: order.name || 'Customer',
+        company_name: '',
+        address: order.shipping_address_line1,
+        address_2: order.shipping_address_line2 || '',
+        city: order.shipping_address_city,
+        postal_code: order.shipping_address_postal_code,
+        country: order.shipping_address_country,
         email: order.email || '',
         telephone: order.phone || '',
         order_number: order.id,
-        weight: "1.000", // Default weight in kg
+        weight: '1.000', // Default weight in kg
         request_label: true,
-        shipment: {
-          id: 8, // Standard shipment method ID (adjust based on your SendCloud account)
-        }
+        apply_shipping_rules: true
       }
     };
     
-    // Make request to SendCloud API
-    const sendcloudUrl = 'https://panel.sendcloud.sc/api/v2/parcels';
-    const auth = Buffer.from(`${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`).toString('base64');
-    
-    const response = await fetch(sendcloudUrl, {
+    // Send the request to SendCloud API
+    const response = await fetch('https://panel.sendcloud.sc/api/v2/parcels', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${auth}`
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(parcelData)
     });
     
-    const responseData = await response.json();
+    const data = await response.json();
     
     if (!response.ok) {
-      console.error('SendCloud API error:', responseData);
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to create shipping label',
-        details: responseData
-      }, { status: response.status });
+      console.error('SendCloud API error:', data);
+      throw new Error(data.error?.message || 'Failed to create parcel in SendCloud');
     }
     
-    // Extract tracking information from response
-    const parcel = responseData.parcel;
-    const trackingNumber = parcel.tracking_number;
-    const trackingUrl = parcel.tracking_url;
-    const labelUrl = parcel.label.label_printer;
-    
-    // Update order in Supabase with tracking information
-    try {
-      // First try with all fields
-      const { data: updatedOrder, error: updateError } = await supabase
-        .from('orders')
-        .update({
-          tracking_number: trackingNumber,
-          tracking_link: trackingUrl,
-          label_url: labelUrl,
-          shipping_instruction: 'SHIPPED',
-          status: 'shipped',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .select();
-      
-      if (!updateError) {
-        return NextResponse.json({ 
-          success: true, 
-          message: 'Shipping label created successfully',
-          parcel: parcel,
-          order: updatedOrder[0]
-        });
-      }
-      
-      // If there was an error, it might be because some columns don't exist
-      // Try with a minimal update that should work regardless
-      console.warn('First update attempt failed, trying with minimal fields:', updateError);
-      
-      const { data: minimalUpdate, error: minimalError } = await supabase
-        .from('orders')
-        .update({
-          shipping_instruction: 'SHIPPED',
-          status: 'shipped',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .select();
-      
-      if (minimalError) {
-        throw minimalError;
-      }
-      
-      return NextResponse.json({ 
-        success: true, 
-        warning: 'Shipping label created but could not save all tracking information',
-        message: 'Some tracking information may not be displayed. Please run the shipping label migration.',
-        parcel: parcel,
-        order: minimalUpdate[0]
-      });
-      
-    } catch (updateError) {
-      console.error('Error updating order with tracking info:', updateError);
-      return NextResponse.json({ 
-        success: true, 
-        warning: 'Shipping label created but failed to update order',
-        parcel: parcel,
-        error: updateError.message
-      });
-    }
+    // Return the created parcel
+    return data.parcel;
     
   } catch (error) {
-    console.error('Error creating shipping label:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Internal server error',
-      details: error.message
-    }, { status: 500 });
+    console.error('Error creating SendCloud parcel:', error);
+    throw error;
   }
 } 

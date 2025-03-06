@@ -636,6 +636,12 @@ input:checked + .toggle-slider:before {
   }
 }
 
+.shipping-instruction.empty {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
 /* Enhanced Table Styles */
 .enhanced-table-container {
   width: 100%;
@@ -887,4 +893,89 @@ input:checked + .toggle-slider:before {
   z-index: 10;
   background-color: white;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Address tooltip styles */
+.address-tooltip {
+  position: absolute;
+  z-index: 50;
+  visibility: hidden;
+  background-color: #333;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  max-width: 300px;
+  white-space: normal;
+  word-break: break-word;
+  left: 0;
+  margin-top: 0.25rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: opacity 0.2s ease-in-out;
+  opacity: 0;
+}
+
+.address-container:hover .address-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+.address-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+  display: inline-block;
+}
+
+/* Order Status Styles */
+.order-status {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  text-align: center;
+  width: 100%;
+}
+
+.order-status.empty {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.order-status.pending {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+
+.order-status.ready-to-send {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #60a5fa;
+}
+
+.order-status.in-transit {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #38bdf8;
+}
+
+.order-status.delivered {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #34d399;
+}
+
+.order-status.returned {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #f87171;
+}
+
+.order-status.unknown {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
 } 

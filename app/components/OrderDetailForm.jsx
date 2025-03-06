@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase-client';
+import { calculateOrderInstruction, calculateOrderStatus } from '../utils/order-instructions';
 
 export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   const [formData, setFormData] = useState({
@@ -15,11 +16,29 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     shipping_address_country: order.shipping_address_country || '',
     order_pack: order.order_pack || '',
     order_notes: order.order_notes || '',
-    instruction: order.instruction || 'TO SHIP',
+    paid: order.paid || false,
   });
   
+  const [calculatedInstruction, setCalculatedInstruction] = useState(order.instruction || 'ACTION REQUIRED');
+  const [calculatedStatus, setCalculatedStatus] = useState(calculateOrderStatus(order));
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState({ text: '', type: '' });
+
+  // Calculate the instruction and status whenever relevant order data changes
+  useEffect(() => {
+    // Create a temporary order object with the current form data and original order data
+    const tempOrder = {
+      ...order,
+      ...formData,
+    };
+    
+    // Calculate the instruction and status
+    const instruction = calculateOrderInstruction(tempOrder);
+    const status = calculateOrderStatus(tempOrder);
+    
+    setCalculatedInstruction(instruction);
+    setCalculatedStatus(status);
+  }, [order, formData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,12 +48,27 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     }));
   };
 
+  const handleCheckboxChange = (e) => {
+    const { name, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: checked
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
     setUpdateMessage({ text: '', type: '' });
 
     try {
+      // Calculate the instruction one more time before saving
+      const tempOrder = {
+        ...order,
+        ...formData,
+      };
+      const instruction = calculateOrderInstruction(tempOrder);
+
       const { data, error } = await supabase
         .from('orders')
         .update({ 
@@ -48,7 +82,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           shipping_address_country: formData.shipping_address_country,
           order_pack: formData.order_pack,
           order_notes: formData.order_notes,
-          instruction: formData.instruction,
+          paid: formData.paid,
+          instruction: instruction, // Use the calculated instruction
           updated_at: new Date().toISOString()
         })
         .eq('id', order.id)
@@ -243,24 +278,44 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           ></textarea>
         </div>
         
-        <div>
-          <label htmlFor="instruction" className="text-sm font-medium block">
-            Shipping Instruction
+        <div className="flex items-center space-x-2 mt-4">
+          <input
+            type="checkbox"
+            id="paid"
+            name="paid"
+            checked={formData.paid}
+            onChange={handleCheckboxChange}
+            className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+          />
+          <label htmlFor="paid" className="text-sm font-medium">
+            Payment Received
           </label>
-          <select
-            id="instruction"
-            name="instruction"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-            value={formData.instruction}
-            onChange={handleChange}
-          >
-            <option value="TO SHIP">TO SHIP</option>
-            <option value="TO SHIP BUT NO STICKERS">TO SHIP BUT NO STICKERS</option>
-            <option value="TO SHIP BUT WRONG TRACKING LINK">TO SHIP BUT WRONG TRACKING LINK</option>
-            <option value="SHIPPED">SHIPPED</option>
-            <option value="DELIVERED">DELIVERED</option>
-            <option value="DO NOT SHIP">DO NOT SHIP</option>
-          </select>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label htmlFor="instruction" className="text-sm font-medium block">
+              Shipping Instruction (Auto-calculated)
+            </label>
+            <div className={`shipping-instruction ${calculatedInstruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'} p-2 rounded`}>
+              {calculatedInstruction || 'ACTION REQUIRED'}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Based on order status, payment, and tracking information.
+            </p>
+          </div>
+          
+          <div>
+            <label htmlFor="status" className="text-sm font-medium block">
+              Order Status (From SendCloud)
+            </label>
+            <div className={`order-status ${calculatedStatus?.toLowerCase().replace(/\s+/g, '-') || 'unknown'} p-2 rounded`}>
+              {calculatedStatus || 'EMPTY'}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Status from SendCloud when tracking link is present.
+            </p>
+          </div>
         </div>
       </div>
 

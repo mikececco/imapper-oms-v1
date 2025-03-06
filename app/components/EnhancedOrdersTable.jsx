@@ -46,12 +46,40 @@ const parseShippingAddress = (address) => {
   };
 };
 
-// Format address for display in table
-const formatAddressForTable = (address) => {
-  if (!address) return 'N/A';
+// Format address for display in table with truncation
+const formatAddressForTable = (order) => {
+  if (!order) return 'N/A';
   
-  const parsedAddress = parseShippingAddress(address);
-  return `${parsedAddress.street}, ${parsedAddress.city}, ${parsedAddress.postalCode}, ${parsedAddress.country}`;
+  let fullAddress = '';
+  
+  // Check if we have individual address components
+  if (order.shipping_address_line1 || order.shipping_address_city || order.shipping_address_postal_code || order.shipping_address_country) {
+    const addressParts = [
+      order.shipping_address_line1,
+      order.shipping_address_line2,
+      order.shipping_address_city,
+      order.shipping_address_postal_code,
+      order.shipping_address_country
+    ].filter(Boolean);
+    
+    fullAddress = addressParts.join(', ') || 'N/A';
+  }
+  // Fallback to legacy shipping_address field if it exists
+  else if (order.shipping_address) {
+    const parsedAddress = parseShippingAddress(order.shipping_address);
+    fullAddress = `${parsedAddress.street}, ${parsedAddress.city}, ${parsedAddress.postalCode}, ${parsedAddress.country}`;
+  }
+  else {
+    return 'N/A';
+  }
+  
+  return fullAddress;
+};
+
+// Truncate text with ellipsis if it exceeds maxLength
+const truncateText = (text, maxLength = 30) => {
+  if (!text || text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
 };
 
 export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
@@ -155,7 +183,14 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                   <TableCell className="enhanced-table-cell-truncate">{order.name || 'N/A'}</TableCell>
                   <TableCell className="enhanced-table-cell-truncate">{order.email || 'N/A'}</TableCell>
                   <TableCell>{order.phone || 'N/A'}</TableCell>
-                  <TableCell className="enhanced-table-cell-wrap">{formatAddressForTable(order.shipping_address)}</TableCell>
+                  <TableCell className="address-container">
+                    <span className="address-text">
+                      {truncateText(formatAddressForTable(order), 25)}
+                    </span>
+                    <div className="address-tooltip">
+                      {formatAddressForTable(order)}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <OrderPackDropdown 
                       currentPack={order.order_pack} 

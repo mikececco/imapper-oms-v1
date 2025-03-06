@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { batchUpdateDeliveryStatus, updateOrderDeliveryStatus } from '../../../utils/sendcloud';
+import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SENDCLOUD_API_KEY, SENDCLOUD_API_SECRET } from '../../../utils/env';
+
+// Initialize Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /**
  * Update delivery status for a specific order or batch of orders
@@ -60,35 +65,115 @@ export async function POST(request) {
  */
 export async function GET(request) {
   try {
+    // Get the order ID from the query parameters
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('orderId');
     
     if (!orderId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Order ID is required' 
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
     
-    const result = await updateOrderDeliveryStatus(orderId);
+    // Fetch the order from Supabase
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
     
-    if (!result.success) {
-      return NextResponse.json({ 
-        success: false, 
-        error: result.error 
-      }, { status: 400 });
+    if (orderError) {
+      console.error('Error fetching order:', orderError);
+      return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
     }
     
-    return NextResponse.json({
-      success: true,
-      order: result.order,
-      deliveryStatus: result.deliveryStatus
-    });
-  } catch (error) {
-    console.error('Error getting delivery status:', error);
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+    
+    // Check if the order has a tracking number
+    if (!order.tracking_number) {
+      return NextResponse.json({ 
+        message: 'Order does not have a tracking number',
+        status: 'EMPTY'
+      });
+    }
+    
+    // Fetch the parcel status from SendCloud
+    const status = await fetchSendCloudParcelStatus(order.tracking_number);
+    
+    if (!status) {
+      return NextResponse.json({ 
+        message: 'Failed to fetch parcel status from SendCloud',
+        status: 'UNKNOWN'
+      });
+    }
+    
+    // Update the order with the delivery status
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        delivery_status: status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+    
+    if (updateError) {
+      console.error('Error updating order with delivery status:', updateError);
+      return NextResponse.json({ 
+        warning: true,
+        message: 'Delivery status fetched but failed to update order',
+        status
+      }, { status: 200 });
+    }
+    
     return NextResponse.json({ 
-      success: false, 
-      error: error.message 
-    }, { status: 500 });
+      success: true,
+      message: 'Delivery status updated successfully',
+      status
+    });
+    
+  } catch (error) {
+    console.error('Error updating delivery status:', error);
+    return NextResponse.json({ error: error.message || 'Failed to update delivery status' }, { status: 500 });
+  }
+}
+
+/**
+ * Fetch the parcel status from SendCloud
+ * @param {string} trackingNumber - The tracking number
+ * @returns {Promise<string|null>} - The parcel status or null if not found
+ */
+async function fetchSendCloudParcelStatus(trackingNumber) {
+  try {
+    // Prepare the SendCloud API credentials
+    const auth = Buffer.from(`${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`).toString('base64');
+    
+    // Fetch the parcel from SendCloud
+    const response = await fetch(`https://panel.sendcloud.sc/api/v2/parcels?tracking_number=${trackingNumber}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error('SendCloud API error:', data);
+      return null;
+    }
+    
+    // Check if parcels were found
+    if (!data.parcels || data.parcels.length === 0) {
+      return null;
+    }
+    
+    // Get the status of the first parcel
+    const parcel = data.parcels[0];
+    return parcel.status.message || 'Unknown';
+    
+  } catch (error) {
+    console.error('Error fetching SendCloud parcel status:', error);
+    return null;
   }
 } 

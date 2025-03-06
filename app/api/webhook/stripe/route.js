@@ -300,41 +300,13 @@ async function handleInvoicePaid(event) {
       }
     }
     
-    // If we still haven't found any orders, create a new one from the invoice
-    console.log(`No existing orders found for invoice ${stripeInvoiceId}, creating a new order`);
+    // If we still haven't found any orders, log a message but don't create a new one
+    console.log(`No existing orders found for invoice ${stripeInvoiceId}, skipping order creation`);
     
-    // Add the invoice ID to the event data for order creation
-    const modifiedEvent = {
-      ...event,
-      data: {
-        ...event.data,
-        object: {
-          ...event.data.object,
-          stripe_invoice_id: stripeInvoiceId
-        }
-      }
+    return { 
+      success: true, 
+      message: 'No existing orders found for this invoice, skipping order creation'
     };
-    
-    const { success, data, orderId, error } = await createOrderFromStripeEvent(modifiedEvent);
-    
-    if (success) {
-      console.log(`Successfully created order ${orderId} from invoice ${stripeInvoiceId}`);
-      
-      // Make sure the order is marked as paid
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ paid: true })
-        .eq('id', orderId);
-      
-      if (updateError) {
-        console.error(`Error marking order ${orderId} as paid:`, updateError);
-      }
-      
-      return { success: true, orderId, message: 'Created new order from invoice' };
-    } else {
-      console.error(`Failed to create order from invoice ${stripeInvoiceId}:`, error);
-      return { success: false, error };
-    }
   } catch (error) {
     console.error('Error handling invoice.paid event:', error);
     return { success: false, error };

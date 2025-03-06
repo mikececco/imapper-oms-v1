@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { supabase } from '../utils/supabase-client';
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from './OrderActions';
 import OrderDetailForm from './OrderDetailForm';
+import PaymentStatusEditor from './PaymentStatusEditor';
 import { ORDER_PACK_OPTIONS } from '../utils/constants';
 
 // Create context for the OrderDetailModal
@@ -38,6 +39,31 @@ const formatDate = (dateString) => {
   } catch (e) {
     return 'Invalid date';
   }
+};
+
+// Format address for display
+const formatCombinedAddress = (order) => {
+  if (!order) return 'N/A';
+  
+  // Check if we have individual address components
+  if (order.shipping_address_line1 || order.shipping_address_city || order.shipping_address_postal_code || order.shipping_address_country) {
+    const addressParts = [
+      order.shipping_address_line1,
+      order.shipping_address_line2,
+      order.shipping_address_city,
+      order.shipping_address_postal_code,
+      order.shipping_address_country
+    ].filter(Boolean);
+    
+    return addressParts.join(', ') || 'N/A';
+  }
+  
+  // Fallback to legacy shipping_address field if it exists
+  if (order.shipping_address) {
+    return order.shipping_address;
+  }
+  
+  return 'N/A';
 };
 
 // Provider component for the OrderDetailModal
@@ -145,7 +171,7 @@ export default function OrderDetailModal({ children }) {
         });
       }
       
-      // Refresh order data to show updated tracking info
+      // Refresh the order to show the updated tracking information
       refreshOrder();
       
     } catch (error) {
@@ -159,6 +185,26 @@ export default function OrderDetailModal({ children }) {
     }
   };
 
+  // Function to update delivery status
+  const updateDeliveryStatus = async () => {
+    if (!order || !order.id) return;
+    
+    try {
+      const response = await fetch(`/api/orders/update-delivery-status?orderId=${order.id}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update delivery status');
+      }
+      
+      // Refresh the order to show the updated status
+      refreshOrder();
+      
+    } catch (error) {
+      console.error('Error updating delivery status:', error);
+    }
+  };
+
   // Expose the openModal function to the window object so it can be called from anywhere
   useEffect(() => {
     window.openOrderDetail = openModal;
@@ -166,19 +212,6 @@ export default function OrderDetailModal({ children }) {
       delete window.openOrderDetail;
     };
   }, []);
-
-  // Parse shipping address for display
-  const parseShippingAddress = (address) => {
-    if (!address) return { street: 'N/A', city: 'N/A', postalCode: 'N/A', country: 'N/A' };
-    
-    const parts = address.split(',').map(part => part.trim());
-    return {
-      street: parts[0] || 'N/A',
-      city: parts[1] || 'N/A',
-      postalCode: parts[2] || 'N/A',
-      country: parts[3] || 'NL'
-    };
-  };
 
   return (
     <>
@@ -219,18 +252,28 @@ export default function OrderDetailModal({ children }) {
                     <p className="mb-2"><span className="font-medium">Updated:</span> {formatDate(order.updated_at)}</p>
                     <div className="flex items-center mt-2">
                       <span className="font-medium mr-2">Payment Status:</span>
-                      <PaymentBadge paid={order.paid} orderId={order.id} onUpdate={refreshOrder} />
+                      <PaymentStatusEditor 
+                        orderId={order.id} 
+                        currentStatus={order.paid} 
+                        onUpdate={refreshOrder} 
+                      />
+                    </div>
+                    <div className="mt-2">
+                      <span className="font-medium block mb-1">Shipping Address:</span>
+                      <div className="break-words bg-gray-50 p-2 rounded text-sm max-w-full overflow-hidden">
+                        {formatCombinedAddress(order)}
+                      </div>
                     </div>
                   </div>
                   
                   <div>
                     {order.tracking_number && (
-                      <p className="mb-2">
+                      <div className="mb-2">
                         <span className="font-medium">Tracking Number:</span> {order.tracking_number}
-                      </p>
+                      </div>
                     )}
                     {order.tracking_link && (
-                      <p className="mb-2">
+                      <div className="mb-2">
                         <span className="font-medium">Tracking Link:</span> 
                         <a 
                           href={order.tracking_link} 
@@ -240,10 +283,10 @@ export default function OrderDetailModal({ children }) {
                         >
                           View Tracking
                         </a>
-                      </p>
+                      </div>
                     )}
                     {order.label_url && (
-                      <p className="mb-2">
+                      <div className="mb-2">
                         <span className="font-medium">Shipping Label:</span> 
                         <a 
                           href={order.label_url} 
@@ -253,8 +296,26 @@ export default function OrderDetailModal({ children }) {
                         >
                           View Label
                         </a>
-                      </p>
+                      </div>
                     )}
+                    
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Delivery Status:</span>
+                        <div className={`order-status ${(order.delivery_status || 'empty').toLowerCase().replace(/\s+/g, '-')} px-2 py-1 rounded text-sm`}>
+                          {order.delivery_status || 'EMPTY'}
+                        </div>
+                      </div>
+                      
+                      {order.tracking_number && (
+                        <button
+                          onClick={updateDeliveryStatus}
+                          className="mt-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                        >
+                          Update Status from SendCloud
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -263,14 +324,13 @@ export default function OrderDetailModal({ children }) {
                   <div className="mt-4">
                     <button
                       onClick={createShippingLabel}
-                      disabled={creatingLabel || !order.ok_to_ship || !order.paid || !order.shipping_address_line1}
+                      disabled={creatingLabel || !order.shipping_address_line1}
                       className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
                     >
                       {creatingLabel ? 'Creating Label...' : 'Create Shipping Label'}
                     </button>
-                    {!order.ok_to_ship && <p className="text-sm text-red-600 mt-1">Order is not ready to ship</p>}
-                    {!order.paid && <p className="text-sm text-red-600 mt-1">Order is not paid</p>}
                     {!order.shipping_address_line1 && <p className="text-sm text-red-600 mt-1">Missing shipping address</p>}
+                    {!order.paid && <p className="text-sm text-yellow-600 mt-1">Note: Order is not marked as paid</p>}
                   </div>
                 )}
                 
@@ -288,14 +348,14 @@ export default function OrderDetailModal({ children }) {
                   </div>
                 )}
                 
-                {migrationNeeded && (
+                {/* {migrationNeeded && (
                   <div className="mt-4 p-2 rounded text-sm bg-yellow-100 text-yellow-800">
                     <p className="text-sm">Some shipping label features may be limited. Please run the shipping label migration script:</p>
                     <pre className="bg-gray-800 text-white p-2 rounded mt-1 overflow-x-auto">
                       node app/utils/run_shipping_label_migration.js
                     </pre>
                   </div>
-                )}
+                )} */}
               </div>
               
               {/* Stripe Information */}
