@@ -386,12 +386,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       
       // Get metadata if available
       if (customer.metadata) {
-        // Extract order pack from metadata
-        orderPack = customer.metadata.package || 
-                   customer.metadata.order_pack || 
-                   customer.metadata.pack || 
-                   'Basic Pack';
-        
         // Extract order notes from metadata
         orderNotes = customer.metadata.notes || 
                     customer.metadata.order_notes || 
@@ -403,7 +397,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
           customerPhone = customer.metadata.phone;
         }
       } else {
-        orderPack = 'Basic Pack';
         orderNotes = `Stripe Customer: ${customer.id}`;
       }
       
@@ -471,7 +464,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       }
       
       // Set order details
-      orderPack = 'Invoice Order';
       orderNotes = `Created from invoice ${stripeInvoiceId}`;
       
       // Find or create customer
@@ -622,7 +614,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_city: shippingAddressCity,
       shipping_address_postal_code: shippingAddressPostalCode,
       shipping_address_country: shippingAddressCountry,
-      order_pack: orderPack,
+      order_pack: '', // Empty by default, to be filled by admin
       order_notes: orderNotes,
       instruction: 'TO SHIP', // Default shipping instruction
       stripe_customer_id: stripeCustomerId,
@@ -642,7 +634,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_city: shippingAddressCity,
       shipping_address_postal_code: shippingAddressPostalCode,
       shipping_address_country: shippingAddressCountry,
-      order_pack: orderPack || 'Standard Pack', // Default value
+      order_pack: '', // Empty by default, to be filled by admin
       order_notes: orderNotes,
       instruction: 'TO SHIP', // Default shipping instruction for new orders
       status: 'pending',
