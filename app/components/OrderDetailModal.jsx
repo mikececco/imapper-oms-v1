@@ -1,18 +1,11 @@
-"use client"
+'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogFooter
-} from './ui/dialog';
-import { VisuallyHidden } from './ui/visually-hidden';
-import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from "./OrderActions";
-import OrderDetailForm from "./OrderDetailForm";
-import { ORDER_PACK_OPTIONS } from "../utils/constants";
-import { supabase } from "../utils/supabase-client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { supabase } from '../utils/supabase-client';
+import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from './OrderActions';
+import OrderDetailForm from './OrderDetailForm';
+import { ORDER_PACK_OPTIONS } from '../utils/constants';
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -33,7 +26,7 @@ const formatDate = (dateString) => {
   }
 };
 
-export default function OrderDetailModalFixed() {
+export default function OrderDetailModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [order, setOrder] = useState(null);
@@ -69,27 +62,18 @@ export default function OrderDetailModalFixed() {
         .select('*')
         .eq('id', selectedOrderId)
         .single();
-        
-      if (error) {
-        throw error;
-      }
+      
+      if (error) throw error;
       
       setOrder(data);
       
       // Check if migration is needed
-      if (data && (
-        typeof data.tracking_number === 'undefined' || 
-        typeof data.label_url === 'undefined'
-      )) {
-        setMigrationNeeded(true);
-      } else {
-        setMigrationNeeded(false);
-      }
+      setMigrationNeeded(!data.label_url && !data.tracking_number && !data.tracking_link);
       
-      setLoading(false);
     } catch (err) {
       console.error('Error fetching order:', err);
-      setError('Could not load order details. Please try again.');
+      setError('Failed to load order details. Please try again.');
+    } finally {
       setLoading(false);
     }
   }, [selectedOrderId]);
@@ -100,7 +84,6 @@ export default function OrderDetailModalFixed() {
     }
   }, [isOpen, selectedOrderId, fetchOrder]);
 
-  // Function to refresh order data after actions
   const refreshOrder = () => {
     fetchOrder();
   };
@@ -188,14 +171,14 @@ export default function OrderDetailModalFixed() {
           ) : !order ? (
             <DialogTitle>Order Not Found</DialogTitle>
           ) : (
-            <DialogTitle className="text-xl">Order Details</DialogTitle>
+            <DialogTitle>Order #{order.id}</DialogTitle>
           )}
-          {order && <p className="text-sm text-black">Order ID: {order.id}</p>}
         </DialogHeader>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+          <div className="text-center p-6">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+            <p className="mt-2 text-black">Loading order details...</p>
           </div>
         ) : error ? (
           <div className="text-center p-6">
@@ -456,7 +439,7 @@ export default function OrderDetailModalFixed() {
         ) : (
           <div className="text-center p-6">
             <h3 className="text-lg font-semibold text-black">Order Not Found</h3>
-            <p className="mt-2 text-black">The order you're looking for doesn't exist or you don't have permission to view it.</p>
+            <p className="mt-2 text-black">The order you're looking for doesn't exist or has been deleted.</p>
             <button 
               onClick={closeModal}
               className="mt-4 px-4 py-2 bg-black text-white rounded hover:opacity-90"

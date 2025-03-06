@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react';
-import OrderDetailModalFixed from './OrderDetailModalFixed';
+import OrderDetailModal from './OrderDetailModal';
 import { Button } from './ui/button';
 
 export default function TestOrderModal() {
@@ -34,11 +34,11 @@ export default function TestOrderModal() {
       </div>
       
       <p className="text-sm text-gray-500">
-        Enter an order ID and click the button to test the fixed order detail modal.
+        Enter an order ID and click the button to test the order detail modal.
       </p>
       
       {/* This component manages its own state and renders the Dialog */}
-      <OrderDetailModalFixed />
+      <OrderDetailModal />
     </div>
   );
 } 
