@@ -185,11 +185,11 @@ export async function searchOrders(query) {
 export async function createOrderFromStripeEvent(stripeEvent) {
   try {
     // Generate a unique ID for the order
-    const orderId = crypto.randomUUID();
+    const orderId = `ord_${crypto.randomBytes(6).toString('hex')}`;
     
     // Extract customer information from the event
     const eventData = stripeEvent.data.object;
-    let customerName = '';
+    let customerName = 'Unknown Customer';
     let customerEmail = '';
     let customerPhone = '';
     let shippingAddress = '';
@@ -200,7 +200,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     if (stripeEvent.type === 'checkout.session.completed') {
       // Extract data from checkout session
       const session = eventData;
-      customerName = session.customer_details?.name || '';
+      customerName = session.customer_details?.name || 'Unknown Customer';
       customerEmail = session.customer_details?.email || '';
       
       // Get shipping details if available
@@ -219,7 +219,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       
       // Get metadata if available
       if (session.metadata) {
-        orderPack = session.metadata.package || '';
+        orderPack = session.metadata.package || 'Standard Pack';
         orderNotes = session.metadata.notes || '';
       }
     } else if (stripeEvent.type === 'payment_intent.succeeded') {
@@ -235,7 +235,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       
       // Get shipping details if available
       if (paymentIntent.shipping) {
-        customerName = paymentIntent.shipping.name || '';
+        customerName = paymentIntent.shipping.name || 'Unknown Customer';
         customerPhone = paymentIntent.shipping.phone || '';
         const shipping = paymentIntent.shipping.address;
         shippingAddress = [
@@ -250,22 +250,35 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       
       // Get metadata if available
       if (paymentIntent.metadata) {
-        orderPack = paymentIntent.metadata.package || '';
+        orderPack = paymentIntent.metadata.package || 'Standard Pack';
         orderNotes = paymentIntent.metadata.notes || '';
       }
     } else if (stripeEvent.type === 'customer.created') {
       // Extract data from customer object
       const customer = eventData;
-      customerName = customer.name || '';
+      customerName = customer.name || 'New Customer';
       customerEmail = customer.email || '';
       customerPhone = customer.phone || '';
       
       // Get metadata if available
       if (customer.metadata) {
-        orderPack = customer.metadata.package || '';
-        orderNotes = customer.metadata.notes || '';
+        orderPack = customer.metadata.package || 'Basic Pack';
+        orderNotes = customer.metadata.notes || `Customer created via Stripe: ${customer.id}`;
+      } else {
+        orderPack = '(created by Stripe CLI)';
+        orderNotes = `Stripe Customer: ${customer.id}`;
       }
     }
+    
+    console.log(`Creating order from ${stripeEvent.type} event:`, {
+      id: orderId,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      shipping_address: shippingAddress,
+      order_pack: orderPack,
+      order_notes: orderNotes
+    });
     
     // Create the order in Supabase
     const { data, error } = await supabase.from('orders').insert({
@@ -277,7 +290,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       order_pack: orderPack || 'Standard Pack', // Default value
       order_notes: orderNotes,
       status: 'pending',
-      is_paid: true, // Since this came from a payment, mark as paid
+      is_paid: stripeEvent.type === 'payment_intent.succeeded', // Only mark as paid for payment_intent.succeeded
       ok_to_ship: false
     }).select();
     
