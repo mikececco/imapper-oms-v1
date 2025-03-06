@@ -8,15 +8,15 @@ export default function NewOrderForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    customer_name: '',
+    customer_email: '',
+    customer_phone: '',
     shipping_address_line1: '',
     shipping_address_line2: '',
     shipping_address_city: '',
     shipping_address_postal_code: '',
     shipping_address_country: '',
-    instruction: '',
+    order_notes: '',
     order_pack: '',
   });
   const [error, setError] = useState('');
@@ -32,26 +32,26 @@ export default function NewOrderForm() {
     setError('');
 
     try {
-      // Generate a unique ID for the order
-      const id = `ORD-${Date.now().toString().slice(-6)}`;
+      // Combine shipping address fields into a single string
+      const shipping_address = [
+        formData.shipping_address_line1,
+        formData.shipping_address_line2,
+        formData.shipping_address_city,
+        formData.shipping_address_postal_code,
+        formData.shipping_address_country
+      ].filter(Boolean).join(', ');
       
       // Insert the order into Supabase
       const { error } = await supabase.from('orders').insert({
-        id,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        shipping_address_line1: formData.shipping_address_line1,
-        shipping_address_line2: formData.shipping_address_line2,
-        shipping_address_city: formData.shipping_address_city,
-        shipping_address_postal_code: formData.shipping_address_postal_code,
-        shipping_address_country: formData.shipping_address_country,
-        instruction: formData.instruction,
+        customer_name: formData.customer_name,
+        customer_email: formData.customer_email,
+        customer_phone: formData.customer_phone,
+        shipping_address,
+        order_notes: formData.order_notes,
         order_pack: formData.order_pack,
         status: 'pending',
-        paid: false,
-        ok_to_ship: false,
-        package_prepared: false,
+        is_paid: false,
+        ok_to_ship: false
       });
 
       if (error) throw error;
@@ -76,42 +76,42 @@ export default function NewOrderForm() {
       )}
 
       <div className="form-group">
-        <label htmlFor="name">Customer Name</label>
+        <label htmlFor="customer_name">Customer Name</label>
         <input
           type="text"
-          id="name"
-          name="name"
+          id="customer_name"
+          name="customer_name"
           className="form-control"
           placeholder="Enter customer name"
-          value={formData.name}
+          value={formData.customer_name}
           onChange={handleChange}
           required
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="email">Customer Email</label>
+        <label htmlFor="customer_email">Customer Email</label>
         <input
           type="email"
-          id="email"
-          name="email"
+          id="customer_email"
+          name="customer_email"
           className="form-control"
           placeholder="Enter customer email"
-          value={formData.email}
+          value={formData.customer_email}
           onChange={handleChange}
           required
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="phone">Customer Phone</label>
+        <label htmlFor="customer_phone">Customer Phone</label>
         <input
           type="tel"
-          id="phone"
-          name="phone"
+          id="customer_phone"
+          name="customer_phone"
           className="form-control"
           placeholder="Enter customer phone"
-          value={formData.phone}
+          value={formData.customer_phone}
           onChange={handleChange}
         />
       </div>
@@ -202,14 +202,14 @@ export default function NewOrderForm() {
       </div>
 
       <div className="form-group">
-        <label htmlFor="instruction">Order Instructions</label>
+        <label htmlFor="order_notes">Order Instructions</label>
         <textarea
-          id="instruction"
-          name="instruction"
+          id="order_notes"
+          name="order_notes"
           className="form-control"
           rows={3}
           placeholder="Enter any additional instructions"
-          value={formData.instruction}
+          value={formData.order_notes}
           onChange={handleChange}
         ></textarea>
       </div>

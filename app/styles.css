@@ -140,29 +140,29 @@ main {
 .status-badge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
-  border-radius: 9999px;
+  border-radius: 4px;
+  font-weight: bold;
   font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: capitalize;
+  text-transform: uppercase;
 }
 
 .status-pending {
-  background-color: var(--warning);
+  background-color: #6c757d;
   color: white;
 }
 
 .status-shipped {
-  background-color: var(--primary);
+  background-color: #007bff;
   color: white;
 }
 
 .status-delivered {
-  background-color: var(--success);
+  background-color: #28a745;
   color: white;
 }
 
 .status-cancelled {
-  background-color: var(--danger);
+  background-color: #dc3545;
   color: white;
 }
 
@@ -274,4 +274,153 @@ footer {
   border-top: 1px solid var(--gray-200);
   margin-top: 2rem;
   color: var(--gray-800);
+}
+
+/* Orders page specific styles */
+.orders-header {
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+.orders-header h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  text-align: left;
+}
+
+.orders-header h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-top: 0;
+  text-align: left;
+}
+
+.search-container {
+  margin-bottom: 1.5rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.orders-table-container {
+  overflow-x: auto;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.orders-table th,
+.orders-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.orders-table th {
+  background-color: var(--gray-100);
+  font-weight: bold;
+}
+
+.orders-table tr:hover {
+  background-color: var(--gray-100);
+}
+
+.open-btn {
+  display: inline-block;
+  background-color: #4285f4;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: bold;
+  text-align: center;
+}
+
+.open-btn:hover {
+  background-color: #3367d6;
+}
+
+.paid-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.paid-yes {
+  background-color: var(--success);
+  color: white;
+}
+
+.paid-no {
+  background-color: var(--danger);
+  color: white;
+}
+
+/* Toggle switch for "Ok to Ship" */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--gray-300);
+  transition: .4s;
+  border-radius: 20px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--success);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .orders-table-container {
+    overflow-x: auto;
+  }
+  
+  .orders-table {
+    min-width: 800px;
+  }
 } 

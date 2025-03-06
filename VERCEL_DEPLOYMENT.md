@@ -55,18 +55,19 @@ Before deploying, you need to set up environment variables in Vercel:
 
 ## Stripe Webhook Configuration
 
-The application uses Stripe webhooks to process payments and create orders. To set up webhooks:
+The application uses Stripe webhooks to process payments and create orders automatically. To set up webhooks:
 
 1. Go to the [Stripe Dashboard](https://dashboard.stripe.com/)
 2. Navigate to Developers > Webhooks
 3. Click "Add endpoint"
 4. Enter your webhook URL: `https://your-domain.com/api/webhook/stripe`
 5. Select the following events to listen for:
-   - `invoice.created`
+   - `checkout.session.completed` - Creates an order when a checkout is completed
+   - `payment_intent.succeeded` - Creates an order when a payment is successful
+   - `customer.created` - Creates an order when a customer is created (if metadata includes create_order=true)
    - `invoice.paid`
    - `invoice.payment_failed`
    - `invoice.finalized`
-   - `payment_intent.succeeded`
    - `payment_intent.payment_failed`
    - `charge.succeeded`
    - `charge.failed`
@@ -76,6 +77,30 @@ The application uses Stripe webhooks to process payments and create orders. To s
 6. Click "Add endpoint"
 7. After creating the endpoint, you'll see a signing secret. Copy this value and add it as the `STRIPE_WEBHOOK_SECRET` environment variable in Vercel.
 
+### Order Creation from Stripe Events
+
+The system automatically creates orders from Stripe events:
+
+1. **Checkout Session Completed**: When a customer completes checkout, an order is created with:
+   - Customer details from the session
+   - Shipping information if provided
+   - Payment marked as completed
+
+2. **Payment Intent Succeeded**: When a payment succeeds, an order is created with:
+   - Customer details from the payment intent
+   - Shipping information if provided
+   - Payment marked as completed
+
+3. **Customer Created**: When a customer is created with specific metadata:
+   - Only creates an order if `create_order: 'true'` is in the metadata
+   - Uses customer information to populate the order
+   - Additional order details can be included in metadata (package, notes)
+
+To include additional information in orders, add metadata to your Stripe objects:
+- `package`: The order package type
+- `notes`: Any special instructions for the order
+- `create_order`: Set to 'true' to create an order from a customer object
+
 ### Testing Webhooks Locally
 
 To test webhooks during development:
@@ -83,12 +108,44 @@ To test webhooks during development:
 1. Install the [Stripe CLI](https://stripe.com/docs/stripe-cli)
 2. Run `stripe login` to authenticate
 3. Start your local server
-4. Run `stripe listen --forward-to http://localhost:5000/api/webhook/stripe`
+4. Run `stripe listen --forward-to http://localhost:3000/api/webhook/stripe`
 5. In another terminal, trigger test events with commands like:
    ```
-   stripe trigger invoice.created
+   stripe trigger checkout.session.completed
    stripe trigger payment_intent.succeeded
+   stripe trigger customer.created
    ```
+
+Alternatively, you can use the included test script:
+
+1. Make sure your local server is running
+2. Install the required dependencies:
+   ```
+   npm install node-fetch
+   ```
+3. Run the test script with:
+   ```
+   node app/utils/test_stripe_webhook.js [eventType]
+   ```
+   
+   Where `[eventType]` is one of:
+   - `checkoutSessionCompleted` (default)
+   - `paymentIntentSucceeded`
+   - `customerCreated`
+
+4. Check your server logs to see the webhook processing and order creation
+
+The test script simulates Stripe webhook events with realistic data and proper signature verification, making it easier to test the order creation process without needing a real Stripe account.
+
+### Troubleshooting Webhook Issues
+
+If you encounter a 405 (Method Not Allowed) error:
+
+1. Ensure your webhook endpoint is properly configured to accept POST requests
+2. Check that the route is correctly defined in your `vercel.json` file
+3. Verify that your API route is exporting a POST function
+4. Make sure CORS headers are properly set for the webhook endpoint
+5. Test with the Stripe CLI to see detailed error messages
 
 ## Stripe Webhook Configuration
 
@@ -132,12 +189,71 @@ If you encounter a 405 (Method Not Allowed) error:
 
 ## Database Setup
 
-Before your application will work correctly, you need to set up the database tables in Supabase:
+Before your application will work correctly, you need to set up the database tables in Supabase. There are two ways to do this:
+
+### Option 1: Using the Migration Script (Recommended)
+
+1. Make sure your `.env.development` file contains the following variables:
+   ```
+   NEXT_SUPABASE_URL=your_supabase_url
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   ```
+   
+   > **Important**: You need the **Service Role Key** (not the anon key) to run migrations. You can find it in your Supabase dashboard under Project Settings > API.
+
+2. Run the migration script:
+   ```bash
+   node app/utils/push_migration.js
+   ```
+   
+   This script will:
+   - Set up the required SQL functions in Supabase
+   - Run all SQL migration files in the `migrations` directory
+   - Provide detailed output about the migration process
+   
+3. To run a specific migration file only:
+   ```bash
+   node app/utils/push_migration.js stripe_events_table.sql
+   ```
+
+### Option 2: Using the Supabase Dashboard
 
 1. Go to your Supabase dashboard
 2. Navigate to the SQL Editor
-3. Run the database migration script from `src/utils/database_migration.sql`
-4. Verify that the tables have been created correctly
+3. Run the following database migration scripts:
+   - `migrations/orders_table.sql` - Creates the orders table for storing order information
+   - `migrations/stripe_events_table.sql` - Creates the stripe_events table for storing Stripe webhook events
+4. Verify that the tables have been created correctly by checking the Table Editor
+
+The migration scripts will:
+- Create the necessary tables if they don't exist
+- Set up appropriate indexes for performance
+- Configure default values and constraints
+
+### Orders Table
+
+The `orders` table stores all order information, including:
+- Customer details (name, email, phone)
+- Shipping address
+- Order package and notes
+- Status information (pending, shipped, delivered, etc.)
+- Payment status (is_paid)
+- Shipping status (ok_to_ship)
+- Creation and update timestamps
+
+### Stripe Events Table
+
+The `stripe_events` table stores all incoming Stripe webhook events, including:
+- Event ID and type
+- Complete event data as JSON
+- Processing status
+- Creation and processing timestamps
+
+This table helps with:
+- Auditing webhook events
+- Debugging webhook processing issues
+- Preventing duplicate event processing
+- Tracking event history
 
 For more detailed instructions, see the [Database Migration Guide](src/utils/MIGRATION_README.md).
 

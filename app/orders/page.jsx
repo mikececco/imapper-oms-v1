@@ -1,26 +1,35 @@
 import Link from "next/link";
-import { fetchOrders } from "../utils/supabase";
+import { fetchOrders, searchOrders } from "../utils/supabase";
+import OrderSearch from "../components/OrderSearch";
+import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from "../components/OrderActions";
 
-export default async function Orders() {
-  // Fetch orders with error handling
+export default async function Orders({ searchParams }) {
+  // Get search query from URL parameters
+  const query = searchParams?.q || '';
+  
+  // Fetch orders with search functionality
   let orders = [];
   try {
-    orders = await fetchOrders();
+    orders = query ? await searchOrders(query) : await fetchOrders();
   } catch (error) {
     console.error("Error fetching orders:", error);
     // Continue with empty orders array
   }
 
-  // Format date for display - using a simple, consistent approach
+  // Format date for display - using a detailed format matching the image
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
+      return date.toLocaleString('en-US', {
+        day: '2-digit',
+        month: '2-digit',
         year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).replace(',', '');
     } catch (e) {
       return 'Invalid date';
     }
@@ -28,68 +37,74 @@ export default async function Orders() {
 
   return (
     <div className="container">
-      <header>
-        <h1>Orders</h1>
-        <p>View and manage your orders</p>
+      <header className="orders-header">
+        <h1>Order Management System</h1>
+        <h2>ALL ORDERS</h2>
       </header>
 
-      <main>
-        <div className="card">
-          <div className="actions" style={{ marginBottom: '1rem' }}>
-            <Link href="/dashboard" className="btn">
-              Back to Dashboard
-            </Link>
-            <Link href="/orders/new" className="btn">
-              Create New Order
-            </Link>
-          </div>
+      <OrderSearch />
 
-          {orders && orders.length > 0 ? (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Actions</th>
+      <div className="orders-table-container">
+        <table className="orders-table">
+          <thead>
+            <tr>
+              <th>Actions</th>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Order Pack</th>
+              <th>Paid?</th>
+              <th>Ok to Ship?</th>
+              <th>Status</th>
+              <th>Created At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders && orders.length > 0 ? (
+              orders.map((order) => (
+                <tr key={order.id}>
+                  <td>
+                    <Link 
+                      href={`/orders/${order.id}`} 
+                      className="open-btn"
+                    >
+                      Open
+                    </Link>
+                  </td>
+                  <td>{order.id}</td>
+                  <td>{order.customer_name || 'N/A'}</td>
+                  <td>{order.order_pack || 'Sample product'}</td>
+                  <td>
+                    <PaymentBadge 
+                      isPaid={order.is_paid} 
+                      orderId={order.id} 
+                    />
+                  </td>
+                  <td>
+                    <ShippingToggle 
+                      okToShip={order.ok_to_ship} 
+                      orderId={order.id} 
+                    />
+                  </td>
+                  <td>
+                    <StatusSelector 
+                      currentStatus={order.status || 'pending'} 
+                      orderId={order.id} 
+                    />
+                  </td>
+                  <td>{formatDate(order.created_at)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id}>
-                    <td>{order.id}</td>
-                    <td>{order.name || 'N/A'}</td>
-                    <td>
-                      <span className={`status-badge status-${order.status || 'pending'}`}>
-                        {order.status || 'Pending'}
-                      </span>
-                    </td>
-                    <td>{formatDate(order.created_at)}</td>
-                    <td>
-                      <Link 
-                        href={`/orders/${order.id}`} 
-                        className="btn" 
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="empty-state">
-              <p>No orders found. Create your first order to get started.</p>
-            </div>
-          )}
-        </div>
-      </main>
-
-      <footer>
-        <p>Order Management System &copy; {new Date().getFullYear()}</p>
-      </footer>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="8" className="empty-state">
+                  {query ? `No orders found matching "${query}". Try a different search term.` : 
+                    'No orders found. Create your first order to get started.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 } 
