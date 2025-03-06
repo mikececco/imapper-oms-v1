@@ -116,13 +116,13 @@ export default function OrderFilters({ onFilterChange }) {
           onClick={clearFilters}
           className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
         >
-          Clear Filters
+          Clear
         </button>
         <button
           onClick={handleFilterChange}
           className="px-4 py-2 bg-black text-white rounded hover:opacity-90"
         >
-          Apply Filters
+          Apply
         </button>
       </div>
     </div>

@@ -6,6 +6,7 @@ import OrderSearch from "../components/OrderSearch";
 import OrderDetailModal from "../components/OrderDetailModal";
 import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
 import OrderFilters from "../components/OrderFilters";
+import "./orders.css";
 
 export default function Orders({ searchParams }) {
   const [orders, setOrders] = useState([]);
@@ -51,8 +52,6 @@ export default function Orders({ searchParams }) {
 
   return (
     <div className="container">
-      <OrderFilters onFilterChange={handleFilterChange} />
-      
       <header className="orders-header">
         <h1 className="text-black">Order Management System</h1>
         <h2 className="text-black">
@@ -73,11 +72,18 @@ export default function Orders({ searchParams }) {
 
       <OrderSearch />
 
-      <EnhancedOrdersTable 
-        orders={orders} 
-        loading={loading} 
-        onRefresh={loadOrders} 
-      />
+      <div className="orders-layout">
+        <div className="filters-sidebar">
+          <OrderFilters onFilterChange={handleFilterChange} />
+        </div>
+        <div className="orders-content">
+          <EnhancedOrdersTable 
+            orders={orders} 
+            loading={loading} 
+            onRefresh={loadOrders} 
+          />
+        </div>
+      </div>
       
       {/* Include the OrderDetailModal component */}
       {/* This is the single order detail modal used throughout the application */}

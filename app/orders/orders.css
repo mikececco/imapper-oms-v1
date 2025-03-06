@@ -1,0 +1,34 @@
+/* Orders Layout with Sidebar */
+.orders-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .orders-layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  
+  .filters-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 1rem;
+  }
+  
+  .orders-content {
+    flex-grow: 1;
+  }
+}
+
+/* Update Order Filters for Sidebar */
+.filters-sidebar .order-filters {
+  margin-bottom: 0;
+}
+
+.filters-sidebar .filters-grid {
+  grid-template-columns: 1fr;
+} 
