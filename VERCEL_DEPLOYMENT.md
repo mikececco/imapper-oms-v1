@@ -288,11 +288,21 @@ The `vercel.json` file in your project contains the configuration for your Verce
 ```json
 {
   "version": 2,
-  "buildCommand": "npm run build:next",
+  "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
   "regions": ["cdg1"],
   "routes": [
+    {
+      "src": "/api/webhook/stripe",
+      "methods": ["POST"],
+      "dest": "/api/webhook/stripe",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST",
+        "Access-Control-Allow-Headers": "Content-Type, stripe-signature"
+      }
+    },
     {
       "src": "/api/(.*)",
       "dest": "/api/$1"
@@ -300,6 +310,8 @@ The `vercel.json` file in your project contains the configuration for your Verce
   ]
 }
 ```
+
+Note that the `buildCommand` is set to `npm run build`, which corresponds to the build script in your `package.json` file.
 
 ## CSS Configuration
 
