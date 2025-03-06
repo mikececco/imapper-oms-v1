@@ -32,6 +32,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   const [shippingMethods, setShippingMethods] = useState(DEFAULT_SHIPPING_METHODS);
   const [loadingShippingMethods, setLoadingShippingMethods] = useState(false); // Start with false to match server rendering
   const [syncingShippingMethods, setSyncingShippingMethods] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Only run this effect after the component has mounted on the client
   useEffect(() => {
@@ -114,7 +115,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   // Calculate the instruction and status whenever relevant order data changes
   useEffect(() => {
     // Skip this effect during server-side rendering
-    if (!hasMounted.current) return;
+    if (!isMounted) return;
     
     // Create a temporary order object with the current form data and original order data
     const tempOrder = {
@@ -128,7 +129,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     
     setCalculatedInstruction(instruction);
     setCalculatedStatus(status);
-  }, [order, formData, hasMounted]);
+  }, [order, formData, isMounted]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -199,6 +200,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
 
   // Ensure we always have at least one shipping method
   const displayMethods = shippingMethods.length > 0 ? shippingMethods : DEFAULT_SHIPPING_METHODS;
+
+  useEffect(() => {
+    // This will only run on the client, after the component has mounted
+    setIsMounted(true);
+  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
