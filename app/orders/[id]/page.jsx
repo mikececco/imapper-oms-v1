@@ -57,7 +57,7 @@ export default async function OrderDetail({ params }) {
         <p>Order ID: {order.id}</p>
       </header>
 
-      <main>
+      <main className="single-column">
         <div className="card">
           <div className="actions" style={{ marginBottom: '1rem' }}>
             <Link href="/orders" className="btn">
@@ -84,9 +84,10 @@ export default async function OrderDetail({ params }) {
               <div className="info-group">
                 <h3>Shipping Information</h3>
                 <p><strong>Address:</strong> {order.shipping_address_line1 || 'N/A'}</p>
-                {order.shipping_address_line2 && <p>{order.shipping_address_line2}</p>}
-                <p>{order.shipping_address_city || 'N/A'}, {order.shipping_address_postal_code || 'N/A'}</p>
-                <p>{order.shipping_address_country || 'N/A'}</p>
+                {order.shipping_address_line2 && <p><strong>Address Line 2:</strong> {order.shipping_address_line2}</p>}
+                <p><strong>City:</strong> {order.shipping_address_city || 'N/A'}</p>
+                <p><strong>Postal Code:</strong> {order.shipping_address_postal_code || 'N/A'}</p>
+                <p><strong>Country:</strong> {order.shipping_address_country || 'N/A'}</p>
               </div>
 
               <div className="info-group">

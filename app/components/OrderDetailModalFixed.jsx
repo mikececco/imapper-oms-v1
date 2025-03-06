@@ -178,7 +178,7 @@ export default function OrderDetailModalFixed() {
     <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open) closeModal();
     }}>
-      <DialogContent className="max-w-3xl overflow-y-auto">
+      <DialogContent className="max-w-2xl overflow-y-auto">
         {/* Always include a DialogTitle for accessibility */}
         <DialogHeader>
           {loading ? (
@@ -233,121 +233,119 @@ export default function OrderDetailModalFixed() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded border border-black">
-                    <h3 className="font-medium mb-2 text-black">Customer Information</h3>
-                    <p className="text-black"><span className="font-medium">Email:</span> {order.email || 'N/A'}</p>
-                    <p className="text-black"><span className="font-medium">Phone:</span> {order.phone || 'N/A'}</p>
-                  </div>
+              <div className="space-y-4">
+                <div className="bg-gray-50 p-4 rounded border border-black">
+                  <h3 className="font-medium mb-2 text-black">Customer Information</h3>
+                  <p className="text-black"><span className="font-medium">Email:</span> {order.email || 'N/A'}</p>
+                  <p className="text-black"><span className="font-medium">Phone:</span> {order.phone || 'N/A'}</p>
+                </div>
 
-                  <div className="bg-gray-50 p-4 rounded border border-black">
-                    <h3 className="font-medium mb-2 text-black">Shipping Information</h3>
-                    {order.shipping_address ? (
-                      <>
-                        {/* Parse and display formatted address */}
-                        {(() => {
-                          const address = parseShippingAddress(order.shipping_address);
-                          return (
-                            <div className="space-y-1">
-                              <p className="text-black"><span className="font-medium">Street:</span> {address.street}</p>
-                              <p className="text-black"><span className="font-medium">City:</span> {address.city}</p>
-                              <p className="text-black"><span className="font-medium">Postal Code:</span> {address.postalCode}</p>
-                              <p className="text-black"><span className="font-medium">Country:</span> {address.country}</p>
-                            </div>
-                          );
-                        })()}
-                      </>
-                    ) : (
-                      <p className="text-black">No shipping address provided</p>
-                    )}
+                <div className="bg-gray-50 p-4 rounded border border-black">
+                  <h3 className="font-medium mb-2 text-black">Shipping Information</h3>
+                  {order.shipping_address ? (
+                    <>
+                      {/* Parse and display formatted address */}
+                      {(() => {
+                        const address = parseShippingAddress(order.shipping_address);
+                        return (
+                          <div className="space-y-1">
+                            <p className="text-black"><span className="font-medium">Street:</span> {address.street}</p>
+                            <p className="text-black"><span className="font-medium">City:</span> {address.city}</p>
+                            <p className="text-black"><span className="font-medium">Postal Code:</span> {address.postalCode}</p>
+                            <p className="text-black"><span className="font-medium">Country:</span> {address.country}</p>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <p className="text-black">No shipping address provided</p>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded border border-black">
+                  <h3 className="font-medium mb-2 text-black">Order Information</h3>
+                  <p className="text-black"><span className="font-medium">Created:</span> {formatDate(order.created_at)}</p>
+                  <p className="text-black"><span className="font-medium">Updated:</span> {formatDate(order.updated_at)}</p>
+                  <div className="flex items-center mt-2">
+                    <span className="font-medium mr-2 text-black">Status:</span>
+                    <StatusSelector 
+                      currentStatus={order.status || 'pending'} 
+                      orderId={order.id}
+                      onUpdate={refreshOrder}
+                    />
+                  </div>
+                  <div className="flex items-center mt-2">
+                    <span className="font-medium mr-2 text-black">Shipping:</span>
+                    <ShippingToggle 
+                      okToShip={order.ok_to_ship} 
+                      orderId={order.id}
+                      onUpdate={refreshOrder}
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded border border-black">
-                    <h3 className="font-medium mb-2 text-black">Order Information</h3>
-                    <p className="text-black"><span className="font-medium">Created:</span> {formatDate(order.created_at)}</p>
-                    <p className="text-black"><span className="font-medium">Updated:</span> {formatDate(order.updated_at)}</p>
-                    <div className="flex items-center mt-2">
-                      <span className="font-medium mr-2 text-black">Status:</span>
-                      <StatusSelector 
-                        currentStatus={order.status || 'pending'} 
-                        orderId={order.id}
-                        onUpdate={refreshOrder}
-                      />
-                    </div>
-                    <div className="flex items-center mt-2">
-                      <span className="font-medium mr-2 text-black">Shipping:</span>
-                      <ShippingToggle 
-                        okToShip={order.ok_to_ship} 
-                        orderId={order.id}
-                        onUpdate={refreshOrder}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 p-4 rounded border border-black">
-                    <h3 className="font-medium mb-2 text-black">Delivery Information</h3>
-                    {order.shipping_instruction && (
-                      <div className="mb-2">
-                        <span className="font-medium text-black">Shipping Instruction: </span>
-                        <div className={`shipping-instruction ${order.shipping_instruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
-                          {order.shipping_instruction || 'UNKNOWN'}
-                        </div>
+                <div className="bg-gray-50 p-4 rounded border border-black">
+                  <h3 className="font-medium mb-2 text-black">Delivery Information</h3>
+                  {order.shipping_instruction && (
+                    <div className="mb-2">
+                      <span className="font-medium text-black">Shipping Instruction: </span>
+                      <div className={`shipping-instruction ${order.shipping_instruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
+                        {order.shipping_instruction || 'UNKNOWN'}
                       </div>
-                    )}
-                    <p className="text-black mt-2"><span className="font-medium">Delivery Status:</span> {order.delivery_status || 'Not tracked'}</p>
-                    
-                    {/* Tracking information - only show if available */}
-                    {order.tracking_number && (
-                      <p className="text-black mt-2">
-                        <span className="font-medium">Tracking Number:</span> {order.tracking_number}
-                      </p>
-                    )}
-                    {order.tracking_link && (
-                      <p className="text-black mt-2">
-                        <span className="font-medium">Tracking Link:</span>{' '}
-                        <a href={order.tracking_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          {order.tracking_link}
-                        </a>
-                      </p>
-                    )}
-                    
-                    {/* Shipping label - only show if available */}
-                    {order.label_url && (
-                      <p className="text-black mt-2">
-                        <span className="font-medium">Shipping Label:</span>{' '}
-                        <a href={order.label_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          View Label
-                        </a>
-                      </p>
-                    )}
-                    
-                    {order.last_delivery_status_check && (
-                      <p className="text-black mt-2"><span className="font-medium">Last Status Check:</span> {formatDate(order.last_delivery_status_check)}</p>
-                    )}
-                    
-                    {/* Action buttons */}
-                    <div className="flex space-x-2 mt-3">
-                      <button 
-                        onClick={async () => {
-                          try {
-                            const response = await fetch(`/api/orders/update-delivery-status?orderId=${order.id}`);
-                            if (response.ok) {
-                              refreshOrder();
-                            }
-                          } catch (error) {
-                            console.error('Error updating delivery status:', error);
+                    </div>
+                  )}
+                  <p className="text-black mt-2"><span className="font-medium">Delivery Status:</span> {order.delivery_status || 'Not tracked'}</p>
+                  
+                  {/* Tracking information - only show if available */}
+                  {order.tracking_number && (
+                    <p className="text-black mt-2">
+                      <span className="font-medium">Tracking Number:</span> {order.tracking_number}
+                    </p>
+                  )}
+                  {order.tracking_link && (
+                    <p className="text-black mt-2">
+                      <span className="font-medium">Tracking Link:</span>{' '}
+                      <a href={order.tracking_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {order.tracking_link}
+                      </a>
+                    </p>
+                  )}
+                  
+                  {/* Shipping label - only show if available */}
+                  {order.label_url && (
+                    <p className="text-black mt-2">
+                      <span className="font-medium">Shipping Label:</span>{' '}
+                      <a href={order.label_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        View Label
+                      </a>
+                    </p>
+                  )}
+                  
+                  {order.last_delivery_status_check && (
+                    <p className="text-black mt-2"><span className="font-medium">Last Status Check:</span> {formatDate(order.last_delivery_status_check)}</p>
+                  )}
+                  
+                  {/* Action buttons */}
+                  <div className="flex space-x-2 mt-3">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`/api/orders/update-delivery-status?orderId=${order.id}`);
+                          if (response.ok) {
+                            refreshOrder();
                           }
-                        }}
-                        className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
-                      >
-                        Update Status
-                      </button>
-                      
-                      {/* Create shipping label button */}
-                      {!order.label_url && (
+                        } catch (error) {
+                          console.error('Error updating delivery status:', error);
+                        }
+                      }}
+                      className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                    >
+                      Update Status
+                    </button>
+                    
+                    {/* Create shipping label button */}
+                    {!order.label_url && (
+                      <div className="relative inline-block tooltip-container">
                         <button 
                           onClick={createShippingLabel}
                           disabled={creatingLabel || !order.shipping_address}
@@ -359,29 +357,38 @@ export default function OrderDetailModalFixed() {
                         >
                           {creatingLabel ? 'Creating...' : 'Create Shipping Label'}
                         </button>
-                      )}
-                    </div>
-                    
-                    {/* Label creation message */}
-                    {labelMessage && (
-                      <div className={`mt-2 p-2 rounded text-sm ${
-                        labelMessage.type === 'success' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {labelMessage.text}
+                        {(!order.shipping_address || creatingLabel) && (
+                          <div className="tooltip">
+                            {creatingLabel 
+                              ? "Creating shipping label..." 
+                              : !order.shipping_address 
+                                ? "Missing shipping address" 
+                                : ""}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
+                  
+                  {/* Label creation message */}
+                  {labelMessage && (
+                    <div className={`mt-2 p-2 rounded text-sm ${
+                      labelMessage.type === 'success' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {labelMessage.text}
+                    </div>
+                  )}
+                </div>
 
-                  <div className="bg-gray-50 p-4 rounded border border-black">
-                    <h3 className="font-medium mb-2 text-black">Package Information</h3>
-                    <OrderDetailForm 
-                      order={order} 
-                      orderPackOptions={ORDER_PACK_OPTIONS}
-                      onUpdate={refreshOrder}
-                    />
-                  </div>
+                <div className="bg-gray-50 p-4 rounded border border-black">
+                  <h3 className="font-medium mb-2 text-black">Package Information</h3>
+                  <OrderDetailForm 
+                    order={order} 
+                    orderPackOptions={ORDER_PACK_OPTIONS}
+                    onUpdate={refreshOrder}
+                  />
                 </div>
               </div>
 

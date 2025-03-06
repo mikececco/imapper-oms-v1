@@ -217,7 +217,15 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                           Create
                         </button>
                       ) : (
-                        <span className="text-gray-400">N/A</span>
+                        <div className="relative tooltip-container">
+                          <span className="text-gray-400 cursor-help">N/A</span>
+                          <div className="tooltip">
+                            {!order.ok_to_ship ? "Not ready to ship" : 
+                             !order.paid ? "Order not paid" : 
+                             !order.shipping_address ? "Missing shipping address" : 
+                             "Cannot create label"}
+                          </div>
+                        </div>
                       )
                     )}
                   </TableCell>
