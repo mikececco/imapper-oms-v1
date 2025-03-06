@@ -1,7 +1,0 @@
-{
-  "name": "oms-utils",
-  "version": "1.0.0",
-  "description": "Utilities for the Order Management System",
-  "type": "module",
-  "private": true
-} 
