@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { fetchOrders, searchOrders } from "../utils/supabase-client";
 import OrderSearch from "../components/OrderSearch";
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector, OrderPackDropdown } from "../components/OrderActions";
@@ -11,21 +11,28 @@ export default function Orders({ searchParams }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hoveredButtonId, setHoveredButtonId] = useState(null);
 
-  // Get search query from URL parameters
-  const query = searchParams?.q || '';
+  // Get search query from URL parameters - properly unwrapped with use()
+  const unwrappedParams = use(searchParams);
+  const query = unwrappedParams?.q || '';
   
   // Fetch orders with search functionality
   useEffect(() => {
     async function loadOrders() {
       try {
-        const fetchedOrders = query 
-          ? await searchOrders(query) 
-          : await fetchOrders();
-        setOrders(fetchedOrders);
+        setLoading(true);
+        let data;
+        
+        if (query) {
+          data = await searchOrders(query);
+        } else {
+          data = await fetchOrders();
+        }
+        
+        setOrders(data);
       } catch (error) {
-        console.error("Error fetching orders:", error);
-        // Continue with empty orders array
+        console.error('Error loading orders:', error);
       } finally {
         setLoading(false);
       }
@@ -99,13 +106,16 @@ export default function Orders({ searchParams }) {
                       <button 
                         onClick={() => openOrderDetail(order.id)}
                         className="open-btn"
+                        onMouseEnter={() => setHoveredButtonId(order.id)}
+                        onMouseLeave={() => setHoveredButtonId(null)}
                         style={{
-                          backgroundColor: '#000000',
+                          backgroundColor: hoveredButtonId === order.id ? '#333333' : '#000000',
                           color: '#ffffff',
                           border: 'none',
                           padding: '0.25rem 0.5rem',
                           borderRadius: '4px',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
                         }}
                       >
                         Open
@@ -143,8 +153,7 @@ export default function Orders({ searchParams }) {
               ) : (
                 <tr>
                   <td colSpan="8" className="empty-state text-black">
-                    {query ? `No orders found matching "${query}". Try a different search term.` : 
-                      'No orders found. Create your first order to get started.'}
+                    {query ? `No results found for "${query}"` : 'No orders available'}
                   </td>
                 </tr>
               )}
@@ -153,11 +162,12 @@ export default function Orders({ searchParams }) {
         )}
       </div>
 
-      <OrderDetailModal 
-        isOpen={isModalOpen} 
-        onClose={closeOrderDetail} 
-        orderId={selectedOrderId} 
-      />
+      {isModalOpen && (
+        <OrderDetailModal
+          orderId={selectedOrderId}
+          onClose={closeOrderDetail}
+        />
+      )}
     </div>
   );
-} 
+}

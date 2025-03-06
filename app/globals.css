@@ -13,6 +13,8 @@
   --ring: #000000;
   --success: #000000;
   --error: #000000;
+  --hover-background: #e0e0e0;
+  --hover-foreground: #333333;
 }
 
 /* Apply black and white styles to all elements */
@@ -28,6 +30,13 @@ textarea {
   background-color: var(--input);
   color: var(--foreground);
   border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+button:hover,
+select:hover,
+input[type="submit"]:hover {
+  background-color: var(--hover-background);
 }
 
 .btn, 
@@ -35,11 +44,13 @@ textarea {
   background-color: var(--foreground) !important;
   color: var(--background) !important;
   border: 1px solid var(--foreground) !important;
+  transition: all 0.2s ease !important;
 }
 
 .btn:hover, 
 .open-btn:hover {
-  opacity: 0.9;
+  background-color: var(--hover-foreground) !important;
+  color: var(--background) !important;
 }
 
 .card, 
@@ -53,6 +64,22 @@ textarea {
 .paid-badge {
   background-color: var(--foreground) !important;
   color: var(--background) !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer;
+}
+
+.status-badge:hover, 
+.paid-badge:hover {
+  background-color: var(--hover-foreground) !important;
+}
+
+/* Table row hover effect */
+.orders-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.orders-table tbody tr:hover {
+  background-color: var(--hover-background);
 }
 
 /* Animation utilities */

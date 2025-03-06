@@ -7,6 +7,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   const [orderPack, setOrderPack] = useState(order.order_pack || '');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState({ text: '', type: '' });
+  const [isSelectHovered, setIsSelectHovered] = useState(false);
+  const [isButtonHovered, setIsButtonHovered] = useState(false);
 
   const handleOrderPackChange = (e) => {
     setOrderPack(e.target.value);
@@ -63,14 +65,18 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           value={orderPack}
           onChange={handleOrderPackChange}
           required
+          onMouseEnter={() => setIsSelectHovered(true)}
+          onMouseLeave={() => setIsSelectHovered(false)}
           style={{
-            backgroundColor: '#f5f5f5',
+            backgroundColor: isSelectHovered ? '#e0e0e0' : '#f5f5f5',
             color: '#000000',
             border: '1px solid #000000',
             padding: '0.5rem',
             borderRadius: '4px',
             width: '100%',
-            marginTop: '0.25rem'
+            marginTop: '0.25rem',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer'
           }}
         >
           <option value="" disabled>Select a package</option>
@@ -98,15 +104,18 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         type="submit" 
         className="btn" 
         disabled={isUpdating}
+        onMouseEnter={() => setIsButtonHovered(true)}
+        onMouseLeave={() => setIsButtonHovered(false)}
         style={{ 
           marginTop: '0.5rem',
-          backgroundColor: '#000000',
+          backgroundColor: isButtonHovered ? '#333333' : '#000000',
           color: '#ffffff',
           border: 'none',
           padding: '0.5rem 1rem',
           borderRadius: '4px',
           cursor: isUpdating ? 'wait' : 'pointer',
-          opacity: isUpdating ? 0.7 : 1
+          opacity: isUpdating ? 0.7 : 1,
+          transition: 'all 0.2s ease'
         }}
       >
         {isUpdating ? 'Updating...' : 'Update Package'}

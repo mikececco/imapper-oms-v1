@@ -15,6 +15,7 @@ export function StatusBadge({ status }) {
 export function PaymentBadge({ isPaid, orderId, onUpdate }) {
   const [paid, setPaid] = useState(isPaid);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handlePaymentUpdate = async () => {
     setIsUpdating(true);
@@ -32,7 +33,16 @@ export function PaymentBadge({ isPaid, orderId, onUpdate }) {
     <span 
       className="paid-badge"
       onClick={handlePaymentUpdate}
-      style={{ cursor: isUpdating ? 'wait' : 'pointer' }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{ 
+        cursor: isUpdating ? 'wait' : 'pointer',
+        backgroundColor: isHovered ? '#333333' : '#000000',
+        color: '#ffffff',
+        padding: '0.25rem 0.5rem',
+        borderRadius: '4px',
+        transition: 'all 0.2s ease'
+      }}
     >
       {isUpdating ? '...' : (paid ? 'PAID' : 'UNPAID')}
     </span>
@@ -42,6 +52,7 @@ export function PaymentBadge({ isPaid, orderId, onUpdate }) {
 export function ShippingToggle({ okToShip, orderId, onUpdate }) {
   const [isOkToShip, setIsOkToShip] = useState(okToShip);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleToggle = async () => {
     setIsUpdating(true);
@@ -56,14 +67,27 @@ export function ShippingToggle({ okToShip, orderId, onUpdate }) {
   };
 
   return (
-    <label className="toggle-switch" style={{ opacity: isUpdating ? 0.5 : 1 }}>
+    <label 
+      className="toggle-switch" 
+      style={{ opacity: isUpdating ? 0.5 : 1 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <input 
         type="checkbox" 
         checked={isOkToShip} 
         onChange={handleToggle}
         disabled={isUpdating}
       />
-      <span className="toggle-slider" style={{ backgroundColor: isOkToShip ? '#000000' : '#cccccc' }}></span>
+      <span 
+        className="toggle-slider" 
+        style={{ 
+          backgroundColor: isOkToShip 
+            ? (isHovered ? '#333333' : '#000000') 
+            : (isHovered ? '#bbbbbb' : '#cccccc'),
+          transition: 'all 0.2s ease'
+        }}
+      ></span>
     </label>
   );
 }
@@ -71,6 +95,7 @@ export function ShippingToggle({ okToShip, orderId, onUpdate }) {
 export function StatusSelector({ currentStatus, orderId, onUpdate }) {
   const [status, setStatus] = useState(currentStatus);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleStatusChange = async (e) => {
     const newStatus = e.target.value;
@@ -91,13 +116,17 @@ export function StatusSelector({ currentStatus, orderId, onUpdate }) {
       onChange={handleStatusChange}
       disabled={isUpdating}
       className="status-select"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{ 
         padding: '0.25rem', 
         borderRadius: '4px', 
         opacity: isUpdating ? 0.5 : 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: isHovered ? '#e0e0e0' : '#f5f5f5',
         color: '#000000',
-        border: '1px solid #000000'
+        border: '1px solid #000000',
+        transition: 'all 0.2s ease',
+        cursor: isUpdating ? 'wait' : 'pointer'
       }}
     >
       <option value="pending">Pending</option>
@@ -111,6 +140,7 @@ export function StatusSelector({ currentStatus, orderId, onUpdate }) {
 export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [orderPack, setOrderPack] = useState(currentPack || '');
+  const [isHovered, setIsHovered] = useState(false);
   
   const handleChange = async (e) => {
     const newValue = e.target.value;
@@ -148,15 +178,18 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
         onChange={handleChange}
         disabled={isUpdating}
         className="form-control form-control-sm"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         style={{
           padding: '4px 8px',
           fontSize: '0.875rem',
           width: '100%',
           maxWidth: '180px',
-          backgroundColor: isUpdating ? '#f0f0f0' : '#f5f5f5',
+          backgroundColor: isHovered ? '#e0e0e0' : '#f5f5f5',
           color: '#000000',
           border: '1px solid #000000',
-          cursor: isUpdating ? 'wait' : 'pointer'
+          cursor: isUpdating ? 'wait' : 'pointer',
+          transition: 'all 0.2s ease'
         }}
       >
         <option value="" disabled>Select package</option>
