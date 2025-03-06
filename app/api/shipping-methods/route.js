@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
 import { SHIPPING_OPTIONS } from '../../utils/constants';
 import { createClient } from '@supabase/supabase-js';
-
-// Get environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY } from '../../utils/env';
 
 // Create a server-side Supabase client
-const serverSupabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
+const serverSupabase = SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY 
+  ? createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY)
   : null;
 
 // Force dynamic rendering to ensure this route is not statically optimized

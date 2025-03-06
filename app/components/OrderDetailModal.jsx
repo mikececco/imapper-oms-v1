@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { supabase } from '../utils/supabase-client';
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from './OrderActions';
@@ -76,6 +77,7 @@ export function OrderDetailModalProvider({ children }) {
 }
 
 export default function OrderDetailModal({ children }) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [order, setOrder] = useState(null);
@@ -135,6 +137,21 @@ export default function OrderDetailModal({ children }) {
 
   const refreshOrder = () => {
     fetchOrder();
+  };
+
+  // Handle order updates from child components
+  const handleOrderUpdate = (updatedOrderData) => {
+    if (!order) return;
+    
+    // Update the local order state with the new data
+    setOrder(prevOrder => ({
+      ...prevOrder,
+      ...updatedOrderData,
+      updated_at: new Date().toISOString()
+    }));
+    
+    // Update the router cache without navigating
+    router.refresh();
   };
 
   // Function to create a shipping label
@@ -239,7 +256,7 @@ export default function OrderDetailModal({ children }) {
                 <OrderDetailForm 
                   order={order} 
                   orderPackOptions={ORDER_PACK_OPTIONS}
-                  onUpdate={refreshOrder}
+                  onUpdate={handleOrderUpdate}
                 />
               </div>
               
@@ -255,7 +272,7 @@ export default function OrderDetailModal({ children }) {
                       <PaymentStatusEditor 
                         orderId={order.id} 
                         currentStatus={order.paid} 
-                        onUpdate={refreshOrder} 
+                        onUpdate={handleOrderUpdate} 
                       />
                     </div>
                     <div className="flex items-center mt-2">
@@ -263,7 +280,7 @@ export default function OrderDetailModal({ children }) {
                       <ShippingToggle 
                         okToShip={order.ok_to_ship} 
                         orderId={order.id}
-                        onUpdate={refreshOrder}
+                        onUpdate={handleOrderUpdate}
                       />
                     </div>
                     <div className="mt-2">
@@ -369,62 +386,7 @@ export default function OrderDetailModal({ children }) {
                     {labelMessage.text}
                   </div>
                 )}
-                
-                {/* {migrationNeeded && (
-                  <div className="mt-4 p-2 rounded text-sm bg-yellow-100 text-yellow-800">
-                    <p className="text-sm">Some shipping label features may be limited. Please run the shipping label migration script:</p>
-                    <pre className="bg-gray-800 text-white p-2 rounded mt-1 overflow-x-auto">
-                      node app/utils/run_shipping_label_migration.js
-                    </pre>
-                  </div>
-                )} */}
               </div>
-              
-              {/* Stripe Information */}
-              {(order.stripe_customer_id || order.stripe_invoice_id || order.stripe_payment_intent_id) && (
-                <div className="bg-white p-4 rounded border border-gray-200">
-                  <h2 className="text-lg font-semibold mb-4">Stripe Information</h2>
-                  {order.stripe_customer_id && (
-                    <p className="mb-2">
-                      <span className="font-medium">Customer ID:</span>{' '}
-                      <a 
-                        href={`https://dashboard.stripe.com/customers/${order.stripe_customer_id}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-blue-600 hover:underline"
-                      >
-                        {order.stripe_customer_id}
-                      </a>
-                    </p>
-                  )}
-                  {order.stripe_invoice_id && (
-                    <p className="mb-2">
-                      <span className="font-medium">Invoice ID:</span>{' '}
-                      <a 
-                        href={`https://dashboard.stripe.com/invoices/${order.stripe_invoice_id}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-blue-600 hover:underline"
-                      >
-                        {order.stripe_invoice_id}
-                      </a>
-                    </p>
-                  )}
-                  {order.stripe_payment_intent_id && (
-                    <p className="mb-2">
-                      <span className="font-medium">Payment Intent ID:</span>{' '}
-                      <a 
-                        href={`https://dashboard.stripe.com/payments/${order.stripe_payment_intent_id}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-blue-600 hover:underline"
-                      >
-                        {order.stripe_payment_intent_id}
-                      </a>
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           ) : (
             <div className="p-4 text-center">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import {
   Table,
@@ -85,7 +86,8 @@ const truncateText = (text, maxLength = 30) => {
   return text.substring(0, maxLength) + '...';
 };
 
-export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
+export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrderUpdate }) {
+  const router = useRouter();
   // Use useRef to track client-side rendering
   const hasMounted = useRef(false);
   const [hoveredButtonId, setHoveredButtonId] = useState(null);
@@ -93,6 +95,12 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
   const query = searchParams.get('q') || '';
   const { openModal } = useOrderDetailModal();
   const [isMounted, setIsMounted] = useState(false);
+  const [localOrders, setLocalOrders] = useState([]);
+
+  // Initialize localOrders with the provided orders
+  useEffect(() => {
+    setLocalOrders(orders);
+  }, [orders]);
 
   // Only run this effect after the component has mounted on the client
   useEffect(() => {
@@ -106,6 +114,26 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
 
   const openOrderDetail = (orderId) => {
     openModal(orderId);
+  };
+
+  // Handle optimistic updates for order changes
+  const handleOrderUpdate = (updatedOrder) => {
+    // Update the local orders state with the updated order
+    setLocalOrders(prevOrders => 
+      prevOrders.map(order => 
+        order.id === updatedOrder.id 
+          ? { ...order, ...updatedOrder, instruction: calculateOrderInstruction({ ...order, ...updatedOrder }) } 
+          : order
+      )
+    );
+    
+    // Call the parent's onOrderUpdate if provided
+    if (onOrderUpdate) {
+      onOrderUpdate(updatedOrder);
+    } else {
+      // If no parent handler, update the router cache
+      router.refresh();
+    }
   };
 
   // Create shipping label
@@ -171,8 +199,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
       <div className="enhanced-table-scrollable">
         <Table>
           <TableCaption>
-            {orders.length > 0 
-              ? `Showing ${orders.length} order${orders.length === 1 ? '' : 's'}.` 
+            {localOrders.length > 0 
+              ? `Showing ${localOrders.length} order${localOrders.length === 1 ? '' : 's'}.` 
               : 'No orders found.'}
           </TableCaption>
           <TableHeader className="enhanced-table-header">
@@ -198,8 +226,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders && orders.length > 0 ? (
-              orders.map((order) => {
+            {localOrders && localOrders.length > 0 ? (
+              localOrders.map((order) => {
                 // Only calculate instruction on the client side after mounting
                 // Use the stored instruction during server-side rendering
                 const calculatedInstruction = isMounted
@@ -243,7 +271,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                       <OrderPackDropdown 
                         currentPack={order.order_pack} 
                         orderId={order.id}
-                        onUpdate={onRefresh}
+                        onUpdate={handleOrderUpdate}
                       />
                     </TableCell>
                     <TableCell className="enhanced-table-cell-truncate">{order.order_notes || 'N/A'}</TableCell>
@@ -252,27 +280,25 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                       <ShippingMethodDropdown
                         currentMethod={order.shipping_method}
                         orderId={order.id}
-                        onUpdate={onRefresh}
+                        onUpdate={handleOrderUpdate}
                       />
                     </TableCell>
                     <TableCell>
                       <PaymentBadge 
                         isPaid={order.paid} 
                         orderId={order.id}
-                        onUpdate={onRefresh}
+                        onUpdate={handleOrderUpdate}
                       />
                     </TableCell>
                     <TableCell>
                       <ShippingToggle 
                         okToShip={order.ok_to_ship} 
                         orderId={order.id}
-                        onUpdate={onRefresh}
+                        onUpdate={handleOrderUpdate}
                       />
                     </TableCell>
-                    <TableCell>
-                      <div className={`shipping-instruction ${calculatedInstruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
-                        {calculatedInstruction || 'ACTION REQUIRED'}
-                      </div>
+                    <TableCell className="enhanced-table-cell-truncate">
+                      {calculatedInstruction}
                     </TableCell>
                     <TableCell className="enhanced-table-cell-truncate">
                       {order.tracking_number || 'N/A'}
@@ -333,10 +359,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan="16" className="h-24 text-center">
-                  {query 
-                    ? `No results found for "${query}". Try a different search term.` 
-                    : 'No orders available. Create your first order to get started.'}
+                <TableCell colSpan={18} className="text-center py-8">
+                  No orders found.
                 </TableCell>
               </TableRow>
             )}

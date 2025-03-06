@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../utils/supabase-client';
 
 export default function PaymentStatusEditor({ orderId, currentStatus, onUpdate }) {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(currentStatus ? 'paid' : 'unpaid');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -30,18 +32,30 @@ export default function PaymentStatusEditor({ orderId, currentStatus, onUpdate }
     try {
       const isPaid = selectedStatus === 'paid';
       
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('orders')
         .update({ 
           paid: isPaid,
           updated_at: new Date().toISOString()
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select();
 
       if (updateError) throw updateError;
 
       // Call the onUpdate callback if provided
-      if (onUpdate) onUpdate();
+      if (onUpdate) {
+        const updatedOrder = {
+          id: orderId,
+          paid: isPaid,
+          updated_at: new Date().toISOString()
+        };
+        
+        onUpdate(updatedOrder);
+      }
+      
+      // Update the router cache without navigating
+      router.refresh();
       
       // Close the editor
       setIsEditing(false);

@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-
-// Get environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY } from '../../../../utils/env';
 
 // Create a server-side Supabase client
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY);
 
 export async function POST(request) {
   try {

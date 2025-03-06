@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../utils/supabase-client';
 import { calculateOrderInstruction, calculateOrderStatus } from '../utils/order-instructions';
 import { fetchShippingMethods, DEFAULT_SHIPPING_METHODS } from '../utils/shipping-methods';
 
 export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
+  const router = useRouter();
   // Use useRef to track client-side rendering
   const hasMounted = useRef(false);
   
@@ -181,7 +183,10 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       });
       
       // Call the onUpdate callback if provided
-      if (onUpdate) onUpdate();
+      if (onUpdate) onUpdate(data[0]);
+      
+      // Update the router cache without navigating
+      router.refresh();
       
       // Clear success message after 3 seconds
       setTimeout(() => {

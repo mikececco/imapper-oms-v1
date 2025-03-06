@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
 import { fetchOrders, searchOrders, filterOrders } from "../utils/supabase-client";
 import OrderSearch from "../components/OrderSearch";
 import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
@@ -10,6 +11,7 @@ import { calculateOrderInstruction } from "../utils/order-instructions";
 import "./orders.css";
 
 export default function Orders({ searchParams }) {
+  const router = useRouter();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,6 +112,22 @@ export default function Orders({ searchParams }) {
     setActiveFilters(filters);
   };
 
+  // Handle order updates from child components
+  const handleOrderUpdate = (updatedOrder) => {
+    // Update the orders state with the updated order
+    const updatedOrders = orders.map(order => 
+      order.id === updatedOrder.id 
+        ? { ...order, ...updatedOrder, instruction: calculateOrderInstruction({ ...order, ...updatedOrder }) } 
+        : order
+    );
+    
+    setOrders(updatedOrders);
+    filterOrdersByCountry(updatedOrders, activeCountry);
+    
+    // Update the router cache without navigating
+    router.refresh();
+  };
+
   return (
     <div className="container">
       <header className="orders-header">
@@ -150,7 +168,8 @@ export default function Orders({ searchParams }) {
           <EnhancedOrdersTable 
             orders={filteredOrders} 
             loading={loading} 
-            onRefresh={loadOrders} 
+            onRefresh={loadOrders}
+            onOrderUpdate={handleOrderUpdate}
           />
         </div>
       </div>

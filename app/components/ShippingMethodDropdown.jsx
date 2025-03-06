@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { fetchShippingMethods, DEFAULT_SHIPPING_METHODS } from '../utils/shipping-methods';
 
 export default function ShippingMethodDropdown({ currentMethod, orderId, onUpdate }) {
+  const router = useRouter();
   // Use useRef to track client-side rendering
   const hasMounted = useRef(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -89,6 +91,9 @@ export default function ShippingMethodDropdown({ currentMethod, orderId, onUpdat
   
   const handleChange = async (e) => {
     const newValue = e.target.value;
+    const previousValue = shippingMethod;
+    
+    // Optimistic update - immediately update the UI
     setShippingMethod(newValue);
     setIsUpdating(true);
     
@@ -101,15 +106,32 @@ export default function ShippingMethodDropdown({ currentMethod, orderId, onUpdat
         body: JSON.stringify({ shipping_method: newValue }),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Failed to update shipping method');
+        throw new Error(data.error || 'Failed to update shipping method');
       }
       
-      if (onUpdate) onUpdate();
+      // If onUpdate is provided, call it with the updated order data
+      // This allows parent components to update their state without a full refresh
+      if (onUpdate) {
+        // Create an updated order object with the new shipping method
+        const updatedOrder = {
+          id: orderId,
+          shipping_method: newValue,
+          // Include any other fields that might be needed by the parent component
+          updated_at: new Date().toISOString()
+        };
+        
+        onUpdate(updatedOrder);
+      }
+      
+      // Update the router cache without navigating
+      router.refresh();
     } catch (error) {
       console.error('Error updating shipping method:', error);
       // Revert to the previous value on error
-      setShippingMethod(currentMethod || 'standard');
+      setShippingMethod(previousValue);
       alert('Failed to update shipping method. Please try again.');
     } finally {
       setIsUpdating(false);
