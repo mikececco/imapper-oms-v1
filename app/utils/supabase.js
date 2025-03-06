@@ -510,9 +510,70 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       ].filter(Boolean).join(', ');
     }
     
+    // If shipping address components are still empty but we have a customer address, use it
+    if (!shippingAddressLine1 && !shippingAddressCity && !shippingAddressPostalCode) {
+      console.log('Shipping address is empty, checking for customer address in the event');
+      
+      // For customer.created events, check the customer object directly
+      if (stripeEvent.type === 'customer.created') {
+        const customer = eventData;
+        
+        // First check shipping address
+        if (customer.shipping && customer.shipping.address) {
+          console.log('Using customer shipping address from event');
+          const address = customer.shipping.address;
+          shippingAddressLine1 = address.line1 || '';
+          shippingAddressLine2 = address.line2 || '';
+          shippingAddressCity = address.city || '';
+          shippingAddressState = address.state || '';
+          shippingAddressPostalCode = address.postal_code || '';
+          shippingAddressCountry = address.country || '';
+        } 
+        // Then check billing address if shipping is not available
+        else if (customer.address) {
+          console.log('Using customer billing address from event');
+          const address = customer.address;
+          shippingAddressLine1 = address.line1 || '';
+          shippingAddressLine2 = address.line2 || '';
+          shippingAddressCity = address.city || '';
+          shippingAddressState = address.state || '';
+          shippingAddressPostalCode = address.postal_code || '';
+          shippingAddressCountry = address.country || '';
+        }
+      }
+      
+      // For invoice.paid events, check the invoice object
+      else if (stripeEvent.type === 'invoice.paid') {
+        const invoice = eventData;
+        
+        // First check shipping address
+        if (invoice.customer_shipping && invoice.customer_shipping.address) {
+          console.log('Using customer shipping address from invoice');
+          const address = invoice.customer_shipping.address;
+          shippingAddressLine1 = address.line1 || '';
+          shippingAddressLine2 = address.line2 || '';
+          shippingAddressCity = address.city || '';
+          shippingAddressState = address.state || '';
+          shippingAddressPostalCode = address.postal_code || '';
+          shippingAddressCountry = address.country || '';
+        } 
+        // Then check customer address if shipping is not available
+        else if (invoice.customer_address) {
+          console.log('Using customer address from invoice');
+          const address = invoice.customer_address;
+          shippingAddressLine1 = address.line1 || '';
+          shippingAddressLine2 = address.line2 || '';
+          shippingAddressCity = address.city || '';
+          shippingAddressState = address.state || '';
+          shippingAddressPostalCode = address.postal_code || '';
+          shippingAddressCountry = address.country || '';
+        }
+      }
+    }
+    
     // If shipping address is still empty but we have a Stripe customer ID,
     // try to fetch the customer's address from Stripe
-    if (!shippingAddress && stripeCustomerId) {
+    if ((!shippingAddressLine1 || !shippingAddressCity || !shippingAddressPostalCode) && stripeCustomerId) {
       try {
         // First check if we already have this customer in our database
         const { data: existingCustomer, error: customerError } = await supabase
@@ -523,23 +584,25 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         
         if (!customerError && existingCustomer) {
           // Use the customer's address from our database
-          const addressParts = [
-            existingCustomer.address_line1,
-            existingCustomer.address_city,
-            existingCustomer.address_postal_code,
-            existingCustomer.address_country
-          ].filter(Boolean);
+          console.log(`Using customer address from database for order`);
           
-          if (addressParts.length > 0) {
-            shippingAddress = addressParts.join(', ');
-            console.log(`Using customer address from database for order: ${shippingAddress}`);
-            
-            // Also update the individual address components
+          // Update the individual address components if they're empty
+          if (!shippingAddressLine1) {
             shippingAddressLine1 = existingCustomer.address_line1 || '';
+          }
+          if (!shippingAddressLine2) {
             shippingAddressLine2 = existingCustomer.address_line2 || '';
+          }
+          if (!shippingAddressCity) {
             shippingAddressCity = existingCustomer.address_city || '';
+          }
+          if (!shippingAddressState) {
             shippingAddressState = existingCustomer.address_state || '';
+          }
+          if (!shippingAddressPostalCode) {
             shippingAddressPostalCode = existingCustomer.address_postal_code || '';
+          }
+          if (!shippingAddressCountry) {
             shippingAddressCountry = existingCustomer.address_country || '';
           }
         }
