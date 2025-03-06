@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createOrderFromStripeEvent } from '../../../utils/supabase';
+import { createOrderFromStripeEvent, findOrCreateCustomer } from '../../../utils/supabase';
 import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
 
 // Initialize Stripe with your secret key
@@ -31,8 +31,8 @@ export async function POST(request) {
     // Log the event type
     console.log(`Received event: ${event.type}`);
 
+    // Store the event in Supabase for audit purposes
     try {
-      // Store the event in Supabase for audit purposes
       const { error: insertError } = await supabase
         .from('stripe_events')
         .insert({
@@ -40,7 +40,7 @@ export async function POST(request) {
           event_type: event.type,
           event_data: event.data.object,
           processed: false,
-          created_at: new Date()
+          created_at: new Date().toISOString()
         });
         
       if (insertError) {
@@ -58,18 +58,16 @@ export async function POST(request) {
     try {
       switch (event.type) {
         case 'checkout.session.completed':
-          console.log('Processing checkout.session.completed event');
-          result = await handleCheckoutSessionCompleted(event);
-          break;
-          
-        case 'payment_intent.succeeded':
-          console.log('Processing payment_intent.succeeded event');
-          result = await handlePaymentIntentSucceeded(event);
-          break;
+
           
         case 'customer.created':
           console.log('Processing customer.created event');
           result = await handleCustomerCreated(event);
+          break;
+
+        case 'invoice.paid':
+          console.log('Processing invoice.paid event');
+          result = await handleInvoicePaid(event);
           break;
           
         default:
@@ -87,7 +85,7 @@ export async function POST(request) {
         .from('stripe_events')
         .update({ 
           processed: true,
-          processed_at: new Date()
+          processed_at: new Date().toISOString()
         })
         .eq('event_id', event.id);
         
@@ -171,18 +169,184 @@ async function handleCustomerCreated(event) {
   try {
     const customer = event.data.object;
     
-    // Always create an order for any customer.created event
-    const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
+    // First, create the customer in our database
+    const customerData = {
+      name: customer.name || 'New Customer',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address_line1: customer.address?.line1 || '',
+      address_line2: customer.address?.line2 || '',
+      address_city: customer.address?.city || '',
+      address_state: customer.address?.state || '',
+      address_postal_code: customer.address?.postal_code || '',
+      address_country: customer.address?.country || '',
+      metadata: customer.metadata || {}
+    };
     
-    if (success) {
-      console.log(`Successfully created order ${orderId} from customer ${customer.id}`);
-      return { success: true, orderId };
+    // If shipping address exists, use it instead of billing address
+    if (customer.shipping && customer.shipping.address) {
+      customerData.address_line1 = customer.shipping.address.line1 || customerData.address_line1;
+      customerData.address_line2 = customer.shipping.address.line2 || customerData.address_line2;
+      customerData.address_city = customer.shipping.address.city || customerData.address_city;
+      customerData.address_state = customer.shipping.address.state || customerData.address_state;
+      customerData.address_postal_code = customer.shipping.address.postal_code || customerData.address_postal_code;
+      customerData.address_country = customer.shipping.address.country || customerData.address_country;
+    }
+    
+    const customerResult = await findOrCreateCustomer(customer.id, customerData);
+    
+    if (!customerResult.success) {
+      console.error(`Failed to create customer from ${customer.id}:`, customerResult.error);
     } else {
-      console.error(`Failed to create order from customer ${customer.id}:`, error);
-      return { success: false, error };
+      console.log(`Successfully created/updated customer ${customerResult.customerId} from Stripe customer ${customer.id}`);
+    }
+    
+    // Then create an order if needed (based on metadata)
+    const shouldCreateOrder = customer.metadata && customer.metadata.create_order === 'true';
+    
+    if (shouldCreateOrder) {
+      const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
+      
+      if (success) {
+        console.log(`Successfully created order ${orderId} from customer ${customer.id}`);
+        return { success: true, orderId, customerId: customerResult.customerId };
+      } else {
+        console.error(`Failed to create order from customer ${customer.id}:`, error);
+        return { success: false, error, customerId: customerResult.customerId };
+      }
+    } else {
+      // If we don't need to create an order, just return the customer result
+      return { 
+        success: customerResult.success, 
+        customerId: customerResult.customerId,
+        message: 'Customer created/updated but no order was created (create_order not set to true in metadata)'
+      };
     }
   } catch (error) {
     console.error('Error handling customer.created event:', error);
+    return { success: false, error };
+  }
+}
+
+// Handle invoice.paid event
+async function handleInvoicePaid(event) {
+  try {
+    const invoice = event.data.object;
+    const stripeCustomerId = invoice.customer;
+    const stripeInvoiceId = invoice.id;
+    
+    console.log(`Processing invoice.paid event for invoice ${stripeInvoiceId} and customer ${stripeCustomerId}`);
+    
+    // First, check if we have any orders with this invoice ID
+    const { data: orders, error: findError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('stripe_invoice_id', stripeInvoiceId);
+    
+    if (findError) {
+      console.error(`Error finding orders for invoice ${stripeInvoiceId}:`, findError);
+      return { success: false, error: findError };
+    }
+    
+    // If we found orders with this invoice ID, update their paid status
+    if (orders && orders.length > 0) {
+      console.log(`Found ${orders.length} orders for invoice ${stripeInvoiceId}, updating paid status`);
+      
+      const updatePromises = orders.map(order => 
+        supabase
+          .from('orders')
+          .update({ 
+            paid: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', order.id)
+      );
+      
+      await Promise.all(updatePromises);
+      
+      return { 
+        success: true, 
+        message: `Updated paid status for ${orders.length} orders`,
+        orderIds: orders.map(order => order.id)
+      };
+    }
+    
+    // If no orders found with this invoice ID, check if we have orders for this customer
+    if (stripeCustomerId) {
+      const { data: customerOrders, error: customerFindError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('stripe_customer_id', stripeCustomerId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (customerFindError) {
+        console.error(`Error finding orders for customer ${stripeCustomerId}:`, customerFindError);
+      } else if (customerOrders && customerOrders.length > 0) {
+        // Update the most recent order for this customer
+        const mostRecentOrder = customerOrders[0];
+        
+        console.log(`Updating most recent order ${mostRecentOrder.id} for customer ${stripeCustomerId}`);
+        
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({ 
+            paid: true,
+            stripe_invoice_id: stripeInvoiceId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', mostRecentOrder.id);
+        
+        if (updateError) {
+          console.error(`Error updating order ${mostRecentOrder.id}:`, updateError);
+          return { success: false, error: updateError };
+        }
+        
+        return { 
+          success: true, 
+          message: `Updated paid status for order ${mostRecentOrder.id}`,
+          orderId: mostRecentOrder.id
+        };
+      }
+    }
+    
+    // If we still haven't found any orders, create a new one from the invoice
+    console.log(`No existing orders found for invoice ${stripeInvoiceId}, creating a new order`);
+    
+    // Add the invoice ID to the event data for order creation
+    const modifiedEvent = {
+      ...event,
+      data: {
+        ...event.data,
+        object: {
+          ...event.data.object,
+          stripe_invoice_id: stripeInvoiceId
+        }
+      }
+    };
+    
+    const { success, data, orderId, error } = await createOrderFromStripeEvent(modifiedEvent);
+    
+    if (success) {
+      console.log(`Successfully created order ${orderId} from invoice ${stripeInvoiceId}`);
+      
+      // Make sure the order is marked as paid
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ paid: true })
+        .eq('id', orderId);
+      
+      if (updateError) {
+        console.error(`Error marking order ${orderId} as paid:`, updateError);
+      }
+      
+      return { success: true, orderId, message: 'Created new order from invoice' };
+    } else {
+      console.error(`Failed to create order from invoice ${stripeInvoiceId}:`, error);
+      return { success: false, error };
+    }
+  } catch (error) {
+    console.error('Error handling invoice.paid event:', error);
     return { success: false, error };
   }
 } 
