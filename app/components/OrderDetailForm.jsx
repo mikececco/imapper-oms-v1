@@ -7,8 +7,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   const [orderPack, setOrderPack] = useState(order.order_pack || '');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState({ text: '', type: '' });
-  const [isSelectHovered, setIsSelectHovered] = useState(false);
-  const [isButtonHovered, setIsButtonHovered] = useState(false);
 
   const handleOrderPackChange = (e) => {
     setOrderPack(e.target.value);
@@ -55,29 +53,18 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="order-detail-form">
-      <div className="form-group">
-        <label htmlFor="order_pack" className="text-black font-medium">Package Type</label>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <label htmlFor="order_pack" className="text-sm font-medium">
+          Package Type
+        </label>
         <select
           id="order_pack"
           name="order_pack"
-          className="form-control"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
           value={orderPack}
           onChange={handleOrderPackChange}
           required
-          onMouseEnter={() => setIsSelectHovered(true)}
-          onMouseLeave={() => setIsSelectHovered(false)}
-          style={{
-            backgroundColor: isSelectHovered ? '#e0e0e0' : '#f5f5f5',
-            color: '#000000',
-            border: '1px solid #000000',
-            padding: '0.5rem',
-            borderRadius: '4px',
-            width: '100%',
-            marginTop: '0.25rem',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer'
-          }}
         >
           <option value="" disabled>Select a package</option>
           {orderPackOptions.map((option, index) => (
@@ -88,13 +75,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
 
       {updateMessage.text && (
         <div 
-          className={`update-message ${updateMessage.type}`}
-          style={{ 
-            color: '#000000',
-            marginTop: '0.5rem',
-            marginBottom: '0.5rem',
-            fontWeight: updateMessage.type === 'success' ? 'bold' : 'normal'
-          }}
+          className={`p-2 rounded text-sm ${
+            updateMessage.type === 'success' 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-red-100 text-red-800'
+          }`}
         >
           {updateMessage.text}
         </div>
@@ -102,21 +87,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
 
       <button 
         type="submit" 
-        className="btn" 
         disabled={isUpdating}
-        onMouseEnter={() => setIsButtonHovered(true)}
-        onMouseLeave={() => setIsButtonHovered(false)}
-        style={{ 
-          marginTop: '0.5rem',
-          backgroundColor: isButtonHovered ? '#333333' : '#000000',
-          color: '#ffffff',
-          border: 'none',
-          padding: '0.5rem 1rem',
-          borderRadius: '4px',
-          cursor: isUpdating ? 'wait' : 'pointer',
-          opacity: isUpdating ? 0.7 : 1,
-          transition: 'all 0.2s ease'
-        }}
+        className="w-full px-4 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
       >
         {isUpdating ? 'Updating...' : 'Update Package'}
       </button>
