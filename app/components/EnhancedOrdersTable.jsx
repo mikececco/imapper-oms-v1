@@ -111,22 +111,22 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
           </TableCaption>
           <TableHeader className="enhanced-table-header">
             <TableRow>
-              <TableHead className="text-black">Actions</TableHead>
-              <TableHead className="text-black">ID</TableHead>
-              <TableHead className="text-black">Name</TableHead>
-              <TableHead className="text-black">Email</TableHead>
-              <TableHead className="text-black">Phone</TableHead>
-              <TableHead className="text-black">Address</TableHead>
-              <TableHead className="text-black">Order Pack</TableHead>
-              <TableHead className="text-black">Notes</TableHead>
-              <TableHead className="text-black">Paid?</TableHead>
-              <TableHead className="text-black">Ok to Ship?</TableHead>
-              <TableHead className="text-black">Status</TableHead>
-              <TableHead className="text-black">Shipping</TableHead>
-              <TableHead className="text-black">Tracking #</TableHead>
-              <TableHead className="text-black">Label</TableHead>
-              <TableHead className="text-black">Created At</TableHead>
-              <TableHead className="text-black">Updated At</TableHead>
+              <TableHead className="text-black w-[80px]">Actions</TableHead>
+              <TableHead className="text-black w-[60px]">ID</TableHead>
+              <TableHead className="text-black w-[150px]">Name</TableHead>
+              <TableHead className="text-black w-[180px]">Email</TableHead>
+              <TableHead className="text-black w-[120px]">Phone</TableHead>
+              <TableHead className="text-black w-[200px]">Address</TableHead>
+              <TableHead className="text-black w-[120px]">Order Pack</TableHead>
+              <TableHead className="text-black w-[150px]">Notes</TableHead>
+              <TableHead className="text-black w-[80px]">Paid?</TableHead>
+              <TableHead className="text-black w-[100px]">Ok to Ship?</TableHead>
+              <TableHead className="text-black w-[100px]">Status</TableHead>
+              <TableHead className="text-black w-[150px]">Shipping</TableHead>
+              <TableHead className="text-black w-[120px]">Tracking #</TableHead>
+              <TableHead className="text-black w-[80px]">Label</TableHead>
+              <TableHead className="text-black w-[180px]">Created At</TableHead>
+              <TableHead className="text-black w-[180px]">Updated At</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -152,41 +152,37 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                       Open
                     </button>
                   </TableCell>
-                  <TableCell className="enhanced-table-monospace">{order.id}</TableCell>
-                  <TableCell>{order.name || 'N/A'}</TableCell>
-                  <TableCell>{order.email || 'N/A'}</TableCell>
+                  <TableCell>{order.id}</TableCell>
+                  <TableCell className="enhanced-table-cell-truncate">{order.name || 'N/A'}</TableCell>
+                  <TableCell className="enhanced-table-cell-truncate">{order.email || 'N/A'}</TableCell>
                   <TableCell>{order.phone || 'N/A'}</TableCell>
-                  <TableCell className="enhanced-table-cell-truncate" title={order.shipping_address || 'N/A'}>
-                    {formatAddressForTable(order.shipping_address)}
-                  </TableCell>
+                  <TableCell className="enhanced-table-cell-wrap">{formatAddressForTable(order.shipping_address)}</TableCell>
                   <TableCell>
                     <OrderPackDropdown 
                       currentPack={order.order_pack} 
-                      orderId={order.id} 
+                      orderId={order.id}
                       onUpdate={onRefresh}
                     />
                   </TableCell>
-                  <TableCell className="enhanced-table-cell-truncate" title={order.order_notes || 'N/A'}>
-                    {order.order_notes || 'N/A'}
-                  </TableCell>
+                  <TableCell className="enhanced-table-cell-truncate">{order.order_notes || 'N/A'}</TableCell>
                   <TableCell>
                     <PaymentBadge 
                       isPaid={order.paid} 
-                      orderId={order.id} 
+                      orderId={order.id}
                       onUpdate={onRefresh}
                     />
                   </TableCell>
                   <TableCell>
                     <ShippingToggle 
                       okToShip={order.ok_to_ship} 
-                      orderId={order.id} 
+                      orderId={order.id}
                       onUpdate={onRefresh}
                     />
                   </TableCell>
                   <TableCell>
                     <StatusSelector 
                       currentStatus={order.status || 'pending'} 
-                      orderId={order.id} 
+                      orderId={order.id}
                       onUpdate={onRefresh}
                     />
                   </TableCell>
@@ -195,7 +191,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                       {order.shipping_instruction || 'ACTION REQUIRED'}
                     </div>
                   </TableCell>
-                  <TableCell className="enhanced-table-monospace">
+                  <TableCell className="enhanced-table-cell-truncate">
                     {order.tracking_number || 'N/A'}
                   </TableCell>
                   <TableCell>

@@ -643,13 +643,44 @@ input:checked + .toggle-slider:before {
   overflow: hidden;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
+  position: relative;
+}
+
+.enhanced-table-container::after {
+  content: "→ Scroll →";
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  animation: fadeInOut 3s ease-in-out infinite;
+  display: none; /* Hide by default */
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 1500px) {
+  .enhanced-table-container::after {
+    display: block; /* Show only when table would be scrollable */
+  }
 }
 
 .enhanced-table-scrollable {
   overflow-x: auto;
   max-height: 70vh;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  white-space: nowrap;
+}
+
+.enhanced-table-scrollable table {
+  min-width: 1500px; /* Ensure table is wide enough to trigger scrolling */
+  width: 100%;
 }
 
 .enhanced-table-scrollable::-webkit-scrollbar {
@@ -680,9 +711,20 @@ input:checked + .toggle-slider:before {
 
 .enhanced-table-cell-truncate {
   max-width: 200px;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.enhanced-table-scrollable th,
+.enhanced-table-scrollable td {
+  white-space: nowrap;
+  padding: 12px 16px;
+}
+
+.enhanced-table-scrollable td.enhanced-table-cell-wrap {
+  white-space: normal;
+  word-break: break-word;
 }
 
 .enhanced-table-monospace {
@@ -693,7 +735,16 @@ input:checked + .toggle-slider:before {
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .enhanced-table-scrollable {
-    max-height: 50vh;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .enhanced-table-container {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    width: calc(100% + 2rem);
+    border-radius: 0;
   }
 }
 
