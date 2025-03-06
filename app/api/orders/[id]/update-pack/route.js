@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../utils/supabase-client';
+import { createClient } from '@supabase/supabase-js';
 
-export async function POST(request, { params }) {
+// Get environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Create a server-side Supabase client
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export async function POST(request) {
   try {
-    const { id } = params;
+    // Extract the ID from the URL
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const id = pathParts[pathParts.length - 2]; // Get the ID from the URL path
+    
     const { orderPack } = await request.json();
 
     if (!id) {

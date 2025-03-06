@@ -6,9 +6,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: process.env.NODE_ENV === 'production' 
-          ? `${process.env.NEXT_PUBLIC_API_URL || '/api'}/:path*`
-          : 'http://localhost:5000/api/:path*',
+        destination: '/api/:path*', // Use Next.js API routes directly
       },
     ];
   },
