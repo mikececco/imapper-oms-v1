@@ -1,10 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabase-client';
 import { calculateOrderInstruction, calculateOrderStatus } from '../utils/order-instructions';
+import { fetchShippingMethods, DEFAULT_SHIPPING_METHODS } from '../utils/shipping-methods';
 
 export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
+  // Use useRef to track client-side rendering
+  const hasMounted = useRef(false);
+  
   const [formData, setFormData] = useState({
     name: order.name || '',
     email: order.email || '',
@@ -24,9 +28,94 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   const [calculatedStatus, setCalculatedStatus] = useState(calculateOrderStatus(order));
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState({ text: '', type: '' });
+  // Initialize with default methods to avoid hydration mismatch
+  const [shippingMethods, setShippingMethods] = useState(DEFAULT_SHIPPING_METHODS);
+  const [loadingShippingMethods, setLoadingShippingMethods] = useState(false); // Start with false to match server rendering
+  const [syncingShippingMethods, setSyncingShippingMethods] = useState(false);
+
+  // Only run this effect after the component has mounted on the client
+  useEffect(() => {
+    hasMounted.current = true;
+  }, []);
+
+  // Fetch shipping methods when component mounts on the client
+  useEffect(() => {
+    // Skip this effect during server-side rendering
+    if (!hasMounted.current) return;
+    
+    let isMounted = true;
+    
+    const loadShippingMethods = async () => {
+      try {
+        setLoadingShippingMethods(true);
+        const methods = await fetchShippingMethods();
+        
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setShippingMethods(methods);
+        }
+      } catch (error) {
+        console.error('Error loading shipping methods:', error);
+        // Only update state if component is still mounted
+        if (isMounted) {
+          // Ensure we have the default methods
+          setShippingMethods(DEFAULT_SHIPPING_METHODS);
+        }
+      } finally {
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setLoadingShippingMethods(false);
+        }
+      }
+    };
+    
+    loadShippingMethods();
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
+  }, [hasMounted]); // Only depend on hasMounted to prevent unnecessary API calls
+
+  // Function to manually refresh shipping methods
+  const handleSyncShippingMethods = async (e) => {
+    e.preventDefault(); // Prevent form submission
+    
+    if (syncingShippingMethods) return; // Prevent multiple clicks
+    
+    setSyncingShippingMethods(true);
+    
+    try {
+      // Force bypass cache
+      const methods = await fetchShippingMethods(true, true);
+      setShippingMethods(methods);
+      
+      // Show success message
+      setUpdateMessage({ 
+        text: 'Shipping methods refreshed!', 
+        type: 'success' 
+      });
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setUpdateMessage({ text: '', type: '' });
+      }, 3000);
+    } catch (error) {
+      console.error('Error syncing shipping methods:', error);
+      setUpdateMessage({ 
+        text: 'Failed to refresh shipping methods.', 
+        type: 'error' 
+      });
+    } finally {
+      setSyncingShippingMethods(false);
+    }
+  };
 
   // Calculate the instruction and status whenever relevant order data changes
   useEffect(() => {
+    // Skip this effect during server-side rendering
+    if (!hasMounted.current) return;
+    
     // Create a temporary order object with the current form data and original order data
     const tempOrder = {
       ...order,
@@ -39,7 +128,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     
     setCalculatedInstruction(instruction);
     setCalculatedStatus(status);
-  }, [order, formData]);
+  }, [order, formData, hasMounted]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -107,6 +196,9 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       setIsUpdating(false);
     }
   };
+
+  // Ensure we always have at least one shipping method
+  const displayMethods = shippingMethods.length > 0 ? shippingMethods : DEFAULT_SHIPPING_METHODS;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -294,24 +386,52 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div>
-            <label htmlFor="shipping_method" className="text-sm font-medium block">
-              Shipping Method
-            </label>
+            <div className="flex items-center space-x-2">
+              <label htmlFor="shipping_method" className="text-sm font-medium">
+                Shipping Method
+              </label>
+              <button
+                type="button"
+                onClick={handleSyncShippingMethods}
+                disabled={syncingShippingMethods || loadingShippingMethods}
+                className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
+                title="Refresh shipping methods"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className={`h-4 w-4 ${syncingShippingMethods ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                  />
+                </svg>
+              </button>
+            </div>
             <select
               id="shipping_method"
               name="shipping_method"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent mt-1"
               value={formData.shipping_method}
               onChange={handleChange}
+              disabled={loadingShippingMethods || isUpdating || syncingShippingMethods}
             >
-              <option value="standard">Standard</option>
-              <option value="express">Express</option>
-              <option value="priority">Priority</option>
-              <option value="economy">Economy</option>
+              {displayMethods.map(method => (
+                <option key={method.id} value={method.code}>
+                  {method.name}
+                </option>
+              ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Required for SendCloud shipping label creation
-            </p>
+            {(loadingShippingMethods || syncingShippingMethods) && (
+              <p className="text-xs text-gray-500 mt-1">
+                {syncingShippingMethods ? 'Refreshing shipping methods...' : 'Loading shipping methods...'}
+              </p>
+            )}
           </div>
           
           <div>
