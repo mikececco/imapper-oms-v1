@@ -91,7 +91,20 @@ export default function CustomerDetailPage({ params }) {
             </div>
             <div className="mb-4">
               <p className="text-sm text-gray-500">Stripe Customer ID</p>
-              <p className="font-medium text-sm font-mono">{customer.stripe_customer_id || 'N/A'}</p>
+              {customer.stripe_customer_id ? (
+                <p className="font-medium text-sm font-mono">
+                  <a 
+                    href={`https://dashboard.stripe.com/customers/${customer.stripe_customer_id}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-blue-600 hover:underline"
+                  >
+                    {customer.stripe_customer_id}
+                  </a>
+                </p>
+              ) : (
+                <p className="font-medium text-sm font-mono">N/A</p>
+              )}
             </div>
             <div className="mb-4">
               <p className="text-sm text-gray-500">Customer Since</p>

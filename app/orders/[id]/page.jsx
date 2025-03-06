@@ -124,9 +124,43 @@ export default async function OrderDetail({ params }) {
             {order.stripe_customer_id && (
               <div className="stripe-info">
                 <h3>Stripe Information</h3>
-                <p><strong>Customer ID:</strong> {order.stripe_customer_id}</p>
-                {order.stripe_invoice_id && <p><strong>Invoice ID:</strong> {order.stripe_invoice_id}</p>}
-                {order.stripe_payment_intent_id && <p><strong>Payment Intent ID:</strong> {order.stripe_payment_intent_id}</p>}
+                <p>
+                  <strong>Customer ID:</strong>{' '}
+                  <a 
+                    href={`https://dashboard.stripe.com/customers/${order.stripe_customer_id}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-blue-600 hover:underline"
+                  >
+                    {order.stripe_customer_id}
+                  </a>
+                </p>
+                {order.stripe_invoice_id && (
+                  <p>
+                    <strong>Invoice ID:</strong>{' '}
+                    <a 
+                      href={`https://dashboard.stripe.com/invoices/${order.stripe_invoice_id}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-600 hover:underline"
+                    >
+                      {order.stripe_invoice_id}
+                    </a>
+                  </p>
+                )}
+                {order.stripe_payment_intent_id && (
+                  <p>
+                    <strong>Payment Intent ID:</strong>{' '}
+                    <a 
+                      href={`https://dashboard.stripe.com/payments/${order.stripe_payment_intent_id}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-600 hover:underline"
+                    >
+                      {order.stripe_payment_intent_id}
+                    </a>
+                  </p>
+                )}
               </div>
             )}
           </div>

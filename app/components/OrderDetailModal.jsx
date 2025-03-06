@@ -207,9 +207,43 @@ export default function OrderDetailModal({ orderId, onClose }) {
               {order.stripe_customer_id && (
                 <div className="mt-4 bg-gray-50 p-4 rounded border border-black">
                   <h3 className="font-medium mb-2 text-black">Stripe Information</h3>
-                  <p className="text-black"><span className="font-medium">Customer ID:</span> {order.stripe_customer_id}</p>
-                  {order.stripe_invoice_id && <p className="text-black"><span className="font-medium">Invoice ID:</span> {order.stripe_invoice_id}</p>}
-                  {order.stripe_payment_intent_id && <p className="text-black"><span className="font-medium">Payment Intent ID:</span> {order.stripe_payment_intent_id}</p>}
+                  <p className="text-black">
+                    <span className="font-medium">Customer ID:</span>{' '}
+                    <a 
+                      href={`https://dashboard.stripe.com/customers/${order.stripe_customer_id}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-600 hover:underline"
+                    >
+                      {order.stripe_customer_id}
+                    </a>
+                  </p>
+                  {order.stripe_invoice_id && (
+                    <p className="text-black">
+                      <span className="font-medium">Invoice ID:</span>{' '}
+                      <a 
+                        href={`https://dashboard.stripe.com/invoices/${order.stripe_invoice_id}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-600 hover:underline"
+                      >
+                        {order.stripe_invoice_id}
+                      </a>
+                    </p>
+                  )}
+                  {order.stripe_payment_intent_id && (
+                    <p className="text-black">
+                      <span className="font-medium">Payment Intent ID:</span>{' '}
+                      <a 
+                        href={`https://dashboard.stripe.com/payments/${order.stripe_payment_intent_id}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-600 hover:underline"
+                      >
+                        {order.stripe_payment_intent_id}
+                      </a>
+                    </p>
+                  )}
                 </div>
               )}
             </div>
