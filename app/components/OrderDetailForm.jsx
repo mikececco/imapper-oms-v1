@@ -17,7 +17,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     order_pack: order.order_pack || '',
     order_notes: order.order_notes || '',
     weight: order.weight || '1.000',
-    paid: order.paid || false,
+    shipping_method: order.shipping_method || 'standard',
   });
   
   const [calculatedInstruction, setCalculatedInstruction] = useState(order.instruction || 'ACTION REQUIRED');
@@ -49,14 +49,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     }));
   };
 
-  const handleCheckboxChange = (e) => {
-    const { name, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: checked
-    }));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
@@ -84,7 +76,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           order_pack: formData.order_pack,
           order_notes: formData.order_notes,
           weight: formData.weight,
-          paid: formData.paid,
+          shipping_method: formData.shipping_method,
           instruction: instruction, // Use the calculated instruction
           updated_at: new Date().toISOString()
         })
@@ -300,21 +292,28 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           ></textarea>
         </div>
         
-        <div className="flex items-center space-x-2 mt-4">
-          <input
-            type="checkbox"
-            id="paid"
-            name="paid"
-            checked={formData.paid}
-            onChange={handleCheckboxChange}
-            className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
-          />
-          <label htmlFor="paid" className="text-sm font-medium">
-            Payment Received
-          </label>
-        </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label htmlFor="shipping_method" className="text-sm font-medium block">
+              Shipping Method
+            </label>
+            <select
+              id="shipping_method"
+              name="shipping_method"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              value={formData.shipping_method}
+              onChange={handleChange}
+            >
+              <option value="standard">Standard</option>
+              <option value="express">Express</option>
+              <option value="priority">Priority</option>
+              <option value="economy">Economy</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Required for SendCloud shipping label creation
+            </p>
+          </div>
+          
           <div>
             <label htmlFor="instruction" className="text-sm font-medium block">
               Shipping Instruction (Auto-calculated)

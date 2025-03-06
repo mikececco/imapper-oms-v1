@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link";
-import { fetchOrders, fetchOrderStats, fetchRecentActivity } from "../utils/supabase";
+import { fetchOrders, fetchOrderStats, fetchRecentActivity } from "../utils/supabase-client";
 import DeliveryStats from "../components/DeliveryStats";
 import TestOrderModal from "../components/TestOrderModal";
 import { useEffect, useState } from "react";

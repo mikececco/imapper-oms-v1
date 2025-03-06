@@ -11,8 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector, OrderPackDropdown } from "./OrderActions";
+import { StatusBadge, PaymentBadge, ShippingToggle, OrderPackDropdown } from "./OrderActions";
+import ShippingMethodDropdown from "./ShippingMethodDropdown";
 import { useOrderDetailModal } from "./OrderDetailModal";
+import "./order-status.css";
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -119,6 +121,29 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
     }
   };
 
+  // Update delivery status
+  const updateDeliveryStatus = async (orderId) => {
+    try {
+      const response = await fetch(`/api/orders/update-delivery-status?orderId=${orderId}`, {
+        method: 'GET',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update delivery status');
+      }
+      
+      // Refresh orders to show updated status
+      if (onRefresh) onRefresh();
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating delivery status:', error);
+      alert(`Error: ${error.message}`);
+      return { success: false, error };
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -147,11 +172,12 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
               <TableHead className="text-black w-[120px]">Order Pack</TableHead>
               <TableHead className="text-black w-[150px]">Notes</TableHead>
               <TableHead className="text-black w-[80px]">Weight</TableHead>
+              <TableHead className="text-black w-[100px]">Ship Method</TableHead>
               <TableHead className="text-black w-[80px]">Paid?</TableHead>
               <TableHead className="text-black w-[100px]">Ok to Ship?</TableHead>
-              <TableHead className="text-black w-[100px]">Status</TableHead>
               <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
               <TableHead className="text-black w-[120px]">Tracking #</TableHead>
+              <TableHead className="text-black w-[120px]">Delivery Status</TableHead>
               <TableHead className="text-black w-[80px]">Label</TableHead>
               <TableHead className="text-black w-[180px]">Created At</TableHead>
               <TableHead className="text-black w-[180px]">Updated At</TableHead>
@@ -202,6 +228,13 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                   <TableCell className="enhanced-table-cell-truncate">{order.order_notes || 'N/A'}</TableCell>
                   <TableCell>{order.weight || '1.000'}</TableCell>
                   <TableCell>
+                    <ShippingMethodDropdown
+                      currentMethod={order.shipping_method}
+                      orderId={order.id}
+                      onUpdate={onRefresh}
+                    />
+                  </TableCell>
+                  <TableCell>
                     <PaymentBadge 
                       isPaid={order.paid} 
                       orderId={order.id}
@@ -216,19 +249,30 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh }) {
                     />
                   </TableCell>
                   <TableCell>
-                    <StatusSelector 
-                      currentStatus={order.status || 'pending'} 
-                      orderId={order.id}
-                      onUpdate={onRefresh}
-                    />
-                  </TableCell>
-                  <TableCell>
                     <div className={`shipping-instruction ${order.shipping_instruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
                       {order.shipping_instruction || 'ACTION REQUIRED'}
                     </div>
                   </TableCell>
                   <TableCell className="enhanced-table-cell-truncate">
                     {order.tracking_number || 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <div className={`order-status ${(order.delivery_status || 'empty').toLowerCase().replace(/\s+/g, '-')} px-2 py-1 rounded text-sm`}>
+                        {order.delivery_status || 'EMPTY'}
+                      </div>
+                      {order.tracking_number && (
+                        <button
+                          onClick={() => updateDeliveryStatus(order.id)}
+                          className="text-gray-500 hover:text-black"
+                          title="Refresh delivery status"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {order.label_url ? (

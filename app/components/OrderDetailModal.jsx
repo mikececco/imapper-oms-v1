@@ -258,6 +258,14 @@ export default function OrderDetailModal({ children }) {
                         onUpdate={refreshOrder} 
                       />
                     </div>
+                    <div className="flex items-center mt-2">
+                      <span className="font-medium mr-2">Ok to Ship:</span>
+                      <ShippingToggle 
+                        okToShip={order.ok_to_ship} 
+                        orderId={order.id}
+                        onUpdate={refreshOrder}
+                      />
+                    </div>
                     <div className="mt-2">
                       <span className="font-medium block mb-1">Shipping Address:</span>
                       <div className="break-words bg-gray-50 p-2 rounded text-sm max-w-full overflow-hidden">
@@ -296,6 +304,14 @@ export default function OrderDetailModal({ children }) {
                         >
                           View Label
                         </a>
+                      </div>
+                    )}
+                    {order.shipping_method && (
+                      <div className="mb-2">
+                        <span className="font-medium">Shipping Method:</span> 
+                        <span className="capitalize ml-1">
+                          {order.shipping_method}
+                        </span>
                       </div>
                     )}
                     
@@ -370,17 +386,41 @@ export default function OrderDetailModal({ children }) {
                   <h2 className="text-lg font-semibold mb-4">Stripe Information</h2>
                   {order.stripe_customer_id && (
                     <p className="mb-2">
-                      <span className="font-medium">Customer ID:</span> {order.stripe_customer_id}
+                      <span className="font-medium">Customer ID:</span>{' '}
+                      <a 
+                        href={`https://dashboard.stripe.com/customers/${order.stripe_customer_id}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-600 hover:underline"
+                      >
+                        {order.stripe_customer_id}
+                      </a>
                     </p>
                   )}
                   {order.stripe_invoice_id && (
                     <p className="mb-2">
-                      <span className="font-medium">Invoice ID:</span> {order.stripe_invoice_id}
+                      <span className="font-medium">Invoice ID:</span>{' '}
+                      <a 
+                        href={`https://dashboard.stripe.com/invoices/${order.stripe_invoice_id}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-600 hover:underline"
+                      >
+                        {order.stripe_invoice_id}
+                      </a>
                     </p>
                   )}
                   {order.stripe_payment_intent_id && (
                     <p className="mb-2">
-                      <span className="font-medium">Payment Intent ID:</span> {order.stripe_payment_intent_id}
+                      <span className="font-medium">Payment Intent ID:</span>{' '}
+                      <a 
+                        href={`https://dashboard.stripe.com/payments/${order.stripe_payment_intent_id}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-600 hover:underline"
+                      >
+                        {order.stripe_payment_intent_id}
+                      </a>
                     </p>
                   )}
                 </div>

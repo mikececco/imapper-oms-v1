@@ -111,6 +111,9 @@ async function createSendCloudParcel(order) {
     // Ensure weight is in the correct format (string with 3 decimal places)
     const weight = order.weight ? order.weight.toString() : '1.000';
     
+    // Get shipping method or use default
+    const shippingMethod = order.shipping_method || 'standard';
+    
     // Prepare the parcel data
     const parcelData = {
       parcel: {
@@ -126,7 +129,8 @@ async function createSendCloudParcel(order) {
         order_number: order.id,
         weight: weight, // Use the weight from the order
         request_label: true,
-        apply_shipping_rules: true
+        apply_shipping_rules: true,
+        shipping_method: shippingMethod // Add shipping method
       }
     };
     

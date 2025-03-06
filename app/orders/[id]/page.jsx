@@ -91,6 +91,15 @@ export default async function OrderDetail({ params }) {
               </div>
 
               <div className="info-group">
+                <h3>Package Information</h3>
+                <p><strong>Package Type:</strong> {order.order_pack || 'N/A'}</p>
+                <p><strong>Weight:</strong> {order.weight || 'N/A'} kg</p>
+                {order.shipping_method && (
+                  <p><strong>Shipping Method:</strong> <span className="capitalize">{order.shipping_method}</span></p>
+                )}
+              </div>
+
+              <div className="info-group">
                 <h3>Order Information</h3>
                 <p><strong>Created:</strong> {formatDate(order.created_at)}</p>
                 <p><strong>Updated:</strong> {formatDate(order.updated_at)}</p>
@@ -107,11 +116,11 @@ export default async function OrderDetail({ params }) {
                   />
                 </p>
               </div>
+            </div>
 
-              <div className="info-group">
-                <h3>Package Information</h3>
-                <OrderDetailForm order={order} orderPackOptions={ORDER_PACK_OPTIONS} />
-              </div>
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-4">Edit Order</h3>
+              <OrderDetailForm order={order} orderPackOptions={ORDER_PACK_OPTIONS} />
             </div>
 
             {order.instruction && (

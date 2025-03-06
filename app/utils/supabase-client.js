@@ -4,17 +4,36 @@ import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './env';
 import { calculateOrderInstruction } from './order-instructions';
 
+// Check if we're in a build context
+const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
+
 // Check if environment variables are set
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL === 'build-placeholder') {
   console.warn('Supabase environment variables are missing. Using fallback values.');
 }
 
 // Create Supabase client with error handling
 let supabase;
 try {
-  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: false }
-  });
+  // Only create the client if we're not in a build context and have valid values
+  if (!isBuildTime && SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL !== 'build-placeholder') {
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false }
+    });
+  } else {
+    // Provide a dummy client to prevent runtime errors
+    supabase = {
+      from: () => ({
+        select: () => ({ data: [], error: null }),
+        insert: () => ({ data: null, error: new Error('Supabase client not initialized') }),
+        update: () => ({ data: null, error: new Error('Supabase client not initialized') }),
+        delete: () => ({ data: null, error: new Error('Supabase client not initialized') }),
+        eq: () => ({ data: null, error: new Error('Supabase client not initialized') }),
+        order: () => ({ data: [], error: null }),
+        or: () => ({ data: [], error: null }),
+      })
+    };
+  }
 } catch (error) {
   console.error('Error initializing Supabase client:', error);
   // Provide a dummy client to prevent runtime errors
@@ -296,6 +315,85 @@ export async function filterOrders(filters) {
     return data || [];
   } catch (error) {
     console.error('Exception filtering orders:', error);
+    return [];
+  }
+}
+
+// Fetch order statistics
+export async function fetchOrderStats() {
+  try {
+    // First, get the total count of orders
+    const { count: total, error: countError } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) {
+      console.error('Error fetching order count:', countError);
+      return { total: 0, pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 };
+    }
+    
+    // Then get counts for each status
+    const statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const stats = { total };
+    
+    // Get count for each status in parallel
+    await Promise.all(statuses.map(async (status) => {
+      const { count, error } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', status);
+      
+      if (error) {
+        console.error(`Error fetching ${status} order count:`, error);
+        stats[status] = 0;
+      } else {
+        stats[status] = count;
+      }
+    }));
+    
+    return stats;
+  } catch (error) {
+    console.error('Exception fetching order stats:', error);
+    return { total: 0, pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 };
+  }
+}
+
+// Fetch recent activity
+export async function fetchRecentActivity() {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, name, status, created_at, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(5);
+    
+    if (error) {
+      console.error('Error fetching recent activity:', error);
+      return [];
+    }
+    
+    return data?.map(order => {
+      let description = '';
+      let time = new Date(order.updated_at || order.created_at);
+      
+      if (order.status === 'pending') {
+        description = `New order created: ${order.id} for ${order.name || 'Unknown Customer'}`;
+      } else if (order.status === 'shipped') {
+        description = `Order ${order.id} for ${order.name || 'Unknown Customer'} marked as shipped`;
+      } else if (order.status === 'delivered') {
+        description = `Order ${order.id} for ${order.name || 'Unknown Customer'} marked as delivered`;
+      } else {
+        description = `Order ${order.id} for ${order.name || 'Unknown Customer'} updated to ${order.status}`;
+      }
+      
+      return {
+        id: order.id,
+        description,
+        time
+      };
+    }) || [];
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
     return [];
   }
 } 

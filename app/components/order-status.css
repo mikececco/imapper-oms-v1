@@ -1,0 +1,41 @@
+/* Order Status Styles */
+.order-status {
+  display: inline-block;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+/* Status colors */
+.order-status.empty {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.order-status.ready-to-send {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.order-status.delivered {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.order-status.in-transit,
+.order-status.out-for-delivery {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.order-status.exception,
+.order-status.failed {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.order-status.unknown {
+  background-color: #e5e7eb;
+  color: #4b5563;
+} 
