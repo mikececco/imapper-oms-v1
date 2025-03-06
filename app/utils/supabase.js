@@ -1,15 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY } from './env';
 
-// These environment variables are set in next.config.js
-const supabaseUrl = process.env.NEXT_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please check your configuration.');
+if (!SERVER_SUPABASE_URL || !SERVER_SUPABASE_ANON_KEY) {
+  console.warn('Missing Supabase environment variables. Using fallback values.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client with error handling
+let supabase;
+try {
+  supabase = createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, {
+    auth: { persistSession: false }
+  });
+} catch (error) {
+  console.error('Error initializing Supabase client:', error);
+  throw new Error('Failed to initialize Supabase client. Check your environment variables.');
+}
+
+export { supabase };
 
 // Helper function to fetch orders
 export async function fetchOrders() {
@@ -25,8 +33,8 @@ export async function fetchOrders() {
     }
     
     return data || [];
-  } catch (e) {
-    console.error('Exception fetching orders:', e);
+  } catch (error) {
+    console.error('Exception fetching orders:', error);
     return [];
   }
 }

@@ -1,32 +1,55 @@
 "use client"
 
 import { createClient } from '@supabase/supabase-js';
-
-// Get environment variables with fallbacks
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './env';
 
 // Check if environment variables are set
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase environment variables are missing. Please check your configuration.');
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('Supabase environment variables are missing. Using fallback values.');
 }
 
-// Create Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client with error handling
+let supabase;
+try {
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false }
+  });
+} catch (error) {
+  console.error('Error initializing Supabase client:', error);
+  // Provide a dummy client to prevent runtime errors
+  supabase = {
+    from: () => ({
+      select: () => ({ data: [], error: null }),
+      insert: () => ({ data: null, error: new Error('Supabase client not initialized') }),
+      update: () => ({ data: null, error: new Error('Supabase client not initialized') }),
+      delete: () => ({ data: null, error: new Error('Supabase client not initialized') }),
+      eq: () => ({ data: null, error: new Error('Supabase client not initialized') }),
+      order: () => ({ data: [], error: null }),
+      or: () => ({ data: [], error: null }),
+    })
+  };
+}
+
+export { supabase };
 
 // Fetch orders
 export async function fetchOrders() {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false });
-  
-  if (error) {
-    console.error('Error fetching orders:', error);
-    throw error;
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching orders:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Exception fetching orders:', error);
+    return [];
   }
-  
-  return data || [];
 }
 
 // Search orders

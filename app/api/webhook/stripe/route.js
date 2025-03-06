@@ -2,17 +2,16 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createOrderFromStripeEvent } from '../../../utils/supabase';
+import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
 
 // Initialize Stripe with your secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe(STRIPE_SECRET_KEY);
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY);
 
 // This is your Stripe webhook secret for testing
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const endpointSecret = STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request) {
   try {
