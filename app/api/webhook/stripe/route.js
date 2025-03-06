@@ -201,26 +201,16 @@ async function handleCustomerCreated(event) {
       console.log(`Successfully created/updated customer ${customerResult.customerId} from Stripe customer ${customer.id}`);
     }
     
-    // Then create an order if needed (based on metadata)
-    const shouldCreateOrder = customer.metadata && customer.metadata.create_order === 'true';
+    // Always create an order for customer.created events
+    console.log(`Creating order for customer ${customer.id}`);
+    const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
     
-    if (shouldCreateOrder) {
-      const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
-      
-      if (success) {
-        console.log(`Successfully created order ${orderId} from customer ${customer.id}`);
-        return { success: true, orderId, customerId: customerResult.customerId };
-      } else {
-        console.error(`Failed to create order from customer ${customer.id}:`, error);
-        return { success: false, error, customerId: customerResult.customerId };
-      }
+    if (success) {
+      console.log(`Successfully created order ${orderId} from customer ${customer.id}`);
+      return { success: true, orderId, customerId: customerResult.customerId };
     } else {
-      // If we don't need to create an order, just return the customer result
-      return { 
-        success: customerResult.success, 
-        customerId: customerResult.customerId,
-        message: 'Customer created/updated but no order was created (create_order not set to true in metadata)'
-      };
+      console.error(`Failed to create order from customer ${customer.id}:`, error);
+      return { success: false, error, customerId: customerResult.customerId };
     }
   } catch (error) {
     console.error('Error handling customer.created event:', error);

@@ -31,11 +31,26 @@ const customerObject = {
     country: 'FR',
     postal_code: '34150'
   },
+  shipping: {
+    name: 'Test Customer Shipping',
+    phone: '+33612345678',
+    address: {
+      city: 'ANIANE',
+      line1: '23 bis boulevard Félix Giraud',
+      line2: 'Apartment 4B',
+      state: null,
+      country: 'FR',
+      postal_code: '34150'
+    }
+  },
   metadata: {
     notes: 'Test customer created via webhook test script',
     package: 'Premium Pack',
     invoice_id: `in_test_${Date.now()}`
-  }
+  },
+  description: 'Test customer for webhook integration',
+  preferred_locales: ['fr-FR'],
+  livemode: false
 };
 
 // Create a sample event

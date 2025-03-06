@@ -551,12 +551,17 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     
     console.log(`Creating order from ${stripeEvent.type} event:`, {
       id: orderId,
-      customer_name: customerName,
-      customer_email: customerEmail,
-      customer_phone: customerPhone,
-      shipping_address: shippingAddress,
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone,
+      shipping_address_line1: shippingAddressLine1,
+      shipping_address_line2: shippingAddressLine2,
+      shipping_address_city: shippingAddressCity,
+      shipping_address_postal_code: shippingAddressPostalCode,
+      shipping_address_country: shippingAddressCountry,
       order_pack: orderPack,
       order_notes: orderNotes,
+      instruction: 'TO SHIP', // Default shipping instruction
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
       stripe_payment_intent_id: stripePaymentIntentId,
@@ -566,14 +571,19 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     // Create the order in Supabase
     const { data, error } = await supabase.from('orders').insert({
       id: orderId,
-      customer_name: customerName,
-      customer_email: customerEmail,
-      customer_phone: customerPhone,
-      shipping_address: shippingAddress,
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone,
+      shipping_address_line1: shippingAddressLine1,
+      shipping_address_line2: shippingAddressLine2,
+      shipping_address_city: shippingAddressCity,
+      shipping_address_postal_code: shippingAddressPostalCode,
+      shipping_address_country: shippingAddressCountry,
       order_pack: orderPack || 'Standard Pack', // Default value
       order_notes: orderNotes,
+      instruction: 'TO SHIP', // Default shipping instruction for new orders
       status: 'pending',
-      is_paid: stripeEvent.type === 'invoice.paid', // Mark as paid for invoice.paid
+      paid: stripeEvent.type === 'invoice.paid', // Mark as paid for invoice.paid
       ok_to_ship: false,
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
