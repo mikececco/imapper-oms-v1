@@ -1,84 +1,51 @@
-import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createOrderFromStripeEvent, findOrCreateCustomer } from '../../../app/utils/supabase';
-import { 
-  SERVER_SUPABASE_URL, 
-  SERVER_SUPABASE_ANON_KEY, 
-  STRIPE_SECRET_KEY, 
-  STRIPE_WEBHOOK_SECRET 
-} from '../../../app/utils/env';
+import { createClient } from '@supabase/supabase-js';
+import { createOrderFromStripeEvent, findOrCreateCustomer } from '../../../utils/supabase';
+import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
 
 // Initialize Stripe with your secret key
-const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
+const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY, {
+  apiVersion: '2023-10-16',
+}) : null;
 
 // Initialize Supabase client
 const supabase = SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY && SERVER_SUPABASE_URL !== 'build-placeholder'
   ? createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY)
   : null;
 
-// This is your Stripe webhook secret
-const endpointSecret = STRIPE_WEBHOOK_SECRET;
-
-// Configure the API route to not parse the body as JSON
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-// Helper to read the raw request body
-const getRawBody = async (req) => {
-  return new Promise((resolve) => {
-    let body = '';
-    req.on('data', (chunk) => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      resolve(body);
-    });
-  });
-};
-
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
+export async function POST(request) {
   try {
     // Check if clients aren't initialized
     if (!stripe || !supabase) {
       console.error('Stripe or Supabase client not initialized');
-      return res.status(503).json({ error: 'Service unavailable during build or initialization' });
+      return NextResponse.json({ error: 'Service unavailable during build or initialization' }, { status: 503 });
     }
     
     // Log headers for debugging
-    console.log('Pages Router Webhook request headers:', req.headers);
+    console.log('App Router Webhook request headers:', Object.fromEntries(request.headers.entries()));
     
-    // Get the raw request body
-    const rawBody = await getRawBody(req);
-    console.log('Raw body length:', rawBody.length);
+    const sig = request.headers.get('stripe-signature');
+    const body = await request.text();
     
-    const sig = req.headers['stripe-signature'];
+    console.log('Raw body length:', body.length);
     console.log('Stripe signature:', sig);
     
     if (!sig) {
       console.error('No Stripe signature found in request headers');
-      return res.status(400).json({ error: 'No Stripe signature found' });
+      return NextResponse.json({ error: 'No Stripe signature found' }, { status: 400 });
     }
 
     let event;
 
     try {
       // Verify the event came from Stripe
-      event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
+      event = stripe.webhooks.constructEvent(body, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
-      console.error('Raw body length:', rawBody.length);
+      console.error('Raw body length:', body.length);
       console.error('Signature:', sig);
-      return res.status(400).json({ 
-        error: `Webhook Error: ${err.message}`,
-        details: 'Signature verification failed. Make sure you are passing the raw request body from Stripe.'
-      });
+      return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
     }
 
     // If we get here, we have a valid event
@@ -110,11 +77,6 @@ export default async function handler(req, res) {
     // Handle different event types
     try {
       switch (event.type) {
-        case 'checkout.session.completed':
-          console.log('Processing checkout.session.completed event');
-          result = await handleCheckoutSessionCompleted(event);
-          break;
-          
         case 'customer.created':
           console.log('Processing customer.created event');
           result = await handleCustomerCreated(event);
@@ -152,10 +114,10 @@ export default async function handler(req, res) {
     }
 
     // Return a 200 response to acknowledge receipt of the event
-    return res.status(200).json({ received: true, result });
+    return NextResponse.json({ received: true, result });
   } catch (error) {
     console.error('Error handling webhook:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
