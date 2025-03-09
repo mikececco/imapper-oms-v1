@@ -128,9 +128,8 @@ async function createSendCloudParcel(order) {
         telephone: order.phone || '',
         order_number: order.order_pack || order.id,
         weight: weight, // Use the weight from the order
-        request_label: true,
-        apply_shipping_rules: true,
-        shipping_method: shippingMethod // Add shipping method
+        request_label: false,
+        apply_shipping_rules: false,
       }
     };
     
