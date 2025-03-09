@@ -47,6 +47,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Shipping address is incomplete' }, { status: 400 });
     }
     
+    // Check if the order pack is filled
+    if (!order.order_pack) {
+      return NextResponse.json({ error: 'Order pack is required before creating a shipping label' }, { status: 400 });
+    }
+    
     // Create a parcel in SendCloud
     const parcel = await createSendCloudParcel(order);
     

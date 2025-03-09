@@ -33,10 +33,13 @@ export default function OrderFilters({ onFilterChange }) {
 
   return (
     <div className="order-filters">
-      <div className="filter-header" onClick={() => setIsExpanded(!isExpanded)}>
-        <h3>Filter Orders</h3>
-        <button className="filter-toggle">
-          {isExpanded ? '▲' : '▼'}
+      <div className="filter-header">
+        <h3>Filters</h3>
+        <button 
+          className="filter-toggle px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {isExpanded ? 'Hide Filters' : 'Show Filters'}
         </button>
       </div>
       
@@ -84,31 +87,36 @@ export default function OrderFilters({ onFilterChange }) {
             </select>
           </div>
 
-          {/* Date Range Filters */}
+          {/* Date Range Filters - Vertical layout */}
           <div className="filter-group date-range">
-            <label>Date Range</label>
-            <div className="date-inputs">
-              <input
-                type="date"
-                id="start-date"
-                placeholder="Start"
-                className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                }}
-              />
-              <span className="date-separator">to</span>
-              <input
-                type="date"
-                id="end-date"
-                placeholder="End"
-                className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                }}
-              />
+            <label>Order Date</label>
+            <div className="date-inputs-vertical">
+              <div className="date-input-group">
+                <label htmlFor="start-date" className="text-xs text-gray-600">Start Date</label>
+                <input
+                  type="date"
+                  id="start-date"
+                  placeholder="Start"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                  }}
+                />
+              </div>
+              <div className="date-input-group">
+                <label htmlFor="end-date" className="text-xs text-gray-600">End Date</label>
+                <input
+                  type="date"
+                  id="end-date"
+                  placeholder="End"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -116,13 +124,13 @@ export default function OrderFilters({ onFilterChange }) {
         <div className="filter-actions">
           <button
             onClick={clearFilters}
-            className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm"
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
           >
             Clear
           </button>
           <button
             onClick={handleFilterChange}
-            className="px-3 py-1 bg-black text-white rounded hover:opacity-90 text-sm"
+            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
           >
             Apply
           </button>

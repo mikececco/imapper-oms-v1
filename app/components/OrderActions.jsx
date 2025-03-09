@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateOrderStatus, updatePaymentStatus, updateShippingStatus } from '../utils/supabase-client';
 import { ORDER_PACK_OPTIONS } from '../utils/constants';
+import CustomOrderPackModal from './CustomOrderPackModal';
 
 export function StatusBadge({ status }) {
   return (
@@ -59,18 +60,14 @@ export function PaymentBadge({ isPaid, orderId, onUpdate }) {
 
   return (
     <span 
-      className="paid-badge"
+      className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium cursor-pointer ${
+        paid 
+          ? isHovered ? 'bg-green-600' : 'bg-green-500' 
+          : isHovered ? 'bg-red-600' : 'bg-red-500'
+      } text-white transition-colors duration-200`}
       onClick={handlePaymentUpdate}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{ 
-        cursor: isUpdating ? 'wait' : 'pointer',
-        backgroundColor: isHovered ? '#333333' : '#000000',
-        color: '#ffffff',
-        padding: '0.25rem 0.5rem',
-        borderRadius: '4px',
-        transition: 'all 0.2s ease'
-      }}
     >
       {isUpdating ? '...' : (paid ? 'PAID' : 'UNPAID')}
     </span>
@@ -222,9 +219,24 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [orderPack, setOrderPack] = useState(currentPack || '');
   const [isHovered, setIsHovered] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Check if the current pack is not in the predefined options
+  useEffect(() => {
+    if (currentPack && !ORDER_PACK_OPTIONS.some(option => option.value === currentPack)) {
+      setOrderPack(currentPack);
+    }
+  }, [currentPack]);
   
   const handleChange = async (e) => {
     const newValue = e.target.value;
+    
+    // If "Add custom..." option is selected, show the modal
+    if (newValue === 'custom') {
+      setIsModalOpen(true);
+      return;
+    }
+    
     const previousValue = orderPack;
     
     // Optimistic update - immediately update the UI
@@ -272,6 +284,60 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
     }
   };
   
+  const handleSaveCustomPack = async (customValue) => {
+    // Check if the custom value already exists in the predefined options
+    const isDuplicate = ORDER_PACK_OPTIONS.some(option => 
+      option.value.toLowerCase() === customValue.toLowerCase()
+    );
+    
+    if (isDuplicate) {
+      throw new Error('This Order Pack already exists. Please use a different name.');
+    }
+    
+    const previousValue = orderPack;
+    
+    // Optimistic update - immediately update the UI
+    setOrderPack(customValue);
+    setIsUpdating(true);
+    
+    try {
+      const response = await fetch(`/api/orders/${orderId}/update-pack`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderPack: customValue }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update order pack');
+      }
+      
+      // If onUpdate is provided, call it with the updated order data
+      if (onUpdate) {
+        const updatedOrder = {
+          id: orderId,
+          order_pack: customValue,
+          updated_at: new Date().toISOString()
+        };
+        
+        onUpdate(updatedOrder);
+      }
+      
+      // Update the router cache without navigating
+      router.refresh();
+    } catch (error) {
+      console.error('Error updating order pack:', error);
+      // Revert to the previous value on error
+      setOrderPack(previousValue);
+      throw error; // Re-throw to be caught by the modal
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
   return (
     <div className="order-pack-dropdown">
       <select
@@ -299,7 +365,14 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
             {option.label}
           </option>
         ))}
+        <option value="custom">+ Add custom package...</option>
       </select>
+      
+      <CustomOrderPackModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveCustomPack}
+      />
     </div>
   );
 } 

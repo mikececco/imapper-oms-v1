@@ -784,48 +784,43 @@ input:checked + .toggle-slider:before {
 
 /* Order Filters */
 .order-filters {
-  background-color: var(--background);
-  border: 1px solid var(--gray-200);
+  margin-bottom: 1.5rem;
+  border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .filter-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  cursor: pointer;
-  user-select: none;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.filter-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
 }
 
 .filter-toggle {
-  background: none;
-  border: none;
-  font-size: 0.875rem;
-  color: var(--foreground);
   cursor: pointer;
 }
 
 .filter-content {
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-}
-
-.filter-content.expanded {
-  max-height: 500px; /* Adjust as needed */
+  padding: 1rem;
+  background-color: white;
 }
 
 .filter-content.collapsed {
-  max-height: 0;
+  display: none;
 }
 
-.order-filters h3 {
-  font-size: 1rem;
-  margin: 0;
-  color: var(--foreground);
-  font-weight: 600;
+.filter-content.expanded {
+  display: block;
 }
 
 .filters-grid {
@@ -856,6 +851,18 @@ input:checked + .toggle-slider:before {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.filter-group.date-range .date-inputs-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .date-separator {

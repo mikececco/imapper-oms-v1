@@ -92,11 +92,11 @@ export default async function OrderDetail({ params }) {
 
               <div className="info-group">
                 <h3>Package Information</h3>
-                <p><strong>Package Type:</strong> {order.order_pack || 'N/A'}</p>
+                <p><strong>Order Pack List:</strong> {order.order_pack || 'N/A'}</p>
                 <p><strong>Weight:</strong> {order.weight || 'N/A'} kg</p>
-                {order.shipping_method && (
+                {/* {order.shipping_method && (
                   <p><strong>Shipping Method:</strong> <span className="capitalize">{order.shipping_method}</span></p>
-                )}
+                )} */}
               </div>
 
               <div className="info-group">

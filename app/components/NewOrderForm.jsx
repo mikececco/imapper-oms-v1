@@ -193,7 +193,7 @@ export default function NewOrderForm() {
           onChange={handleChange}
           required
         >
-          <option value="" disabled>Select a package</option>
+          <option value="" disabled>Select order pack list</option>
           {ORDER_PACK_OPTIONS.map((option, index) => (
             <option key={index} value={option.value}>{option.label}</option>
           ))}

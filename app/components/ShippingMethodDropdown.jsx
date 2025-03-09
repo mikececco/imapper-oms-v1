@@ -22,6 +22,8 @@ export default function ShippingMethodDropdown({ currentMethod, orderId, onUpdat
   }, []);
   
   // Fetch shipping methods when component mounts on the client
+  // DISABLED: Shipping method fetching is disabled as requested
+  /*
   useEffect(() => {
     // Skip this effect during server-side rendering
     if (!hasMounted.current) return;
@@ -64,8 +66,30 @@ export default function ShippingMethodDropdown({ currentMethod, orderId, onUpdat
       isMounted = false;
     };
   }, [hasMounted]); // Remove shippingMethod dependency to prevent unnecessary API calls
+  */
   
-  // Function to manually refresh shipping methods
+  // Function to manually refresh shipping methods - kept but not used
+  const loadShippingMethods = async () => {
+    try {
+      setLoading(true);
+      const methods = await fetchShippingMethods();
+      
+      setShippingMethods(methods);
+      
+      // If current method is not in the list, set to first available method
+      if (methods.length > 0 && !methods.some(m => m.code === shippingMethod)) {
+        setShippingMethod(methods[0].code);
+      }
+    } catch (error) {
+      console.error('Error loading shipping methods:', error);
+      // Ensure we have the default methods
+      setShippingMethods(DEFAULT_SHIPPING_METHODS);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Function to manually refresh shipping methods - kept but disabled
   const handleSyncShippingMethods = async (e) => {
     e.stopPropagation(); // Prevent event bubbling
     
@@ -141,56 +165,6 @@ export default function ShippingMethodDropdown({ currentMethod, orderId, onUpdat
   // Ensure we always have at least one shipping method
   const displayMethods = shippingMethods.length > 0 ? shippingMethods : DEFAULT_SHIPPING_METHODS;
   
-  return (
-    <div className="shipping-method-dropdown flex items-center">
-      <select
-        value={shippingMethod}
-        onChange={handleChange}
-        disabled={isUpdating || loading || syncing}
-        className="form-control form-control-sm"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        style={{
-          padding: '4px 8px',
-          fontSize: '0.875rem',
-          width: '100%',
-          maxWidth: '120px',
-          backgroundColor: isHovered ? '#e0e0e0' : '#f5f5f5',
-          color: '#000000',
-          border: '1px solid #000000',
-          cursor: (isUpdating || loading || syncing) ? 'wait' : 'pointer',
-          transition: 'all 0.2s ease'
-        }}
-      >
-        {displayMethods.map(method => (
-          <option key={method.id} value={method.code}>
-            {method.name}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        onClick={handleSyncShippingMethods}
-        disabled={syncing || loading || isUpdating}
-        className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-1 focus:ring-black"
-        title="Refresh shipping methods"
-        style={{ minWidth: '20px' }}
-      >
-        <svg 
-          xmlns="http://www.w3.org/2000/svg" 
-          className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} 
-          fill="none" 
-          viewBox="0 0 24 24" 
-          stroke="currentColor"
-        >
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={2} 
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-          />
-        </svg>
-      </button>
-    </div>
-  );
+  // Return null to hide the component
+  return null;
 } 

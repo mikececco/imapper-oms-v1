@@ -8,6 +8,7 @@ import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from './Ord
 import OrderDetailForm from './OrderDetailForm';
 import PaymentStatusEditor from './PaymentStatusEditor';
 import { ORDER_PACK_OPTIONS } from '../utils/constants';
+import { normalizeCountryToCode, getCountryDisplayName } from '../utils/country-utils';
 
 // Create context for the OrderDetailModal
 export const OrderDetailModalContext = createContext({
@@ -43,8 +44,23 @@ const formatDate = (dateString) => {
 };
 
 // Format address for display
-const formatCombinedAddress = (order) => {
+const formatCombinedAddress = (order, isMounted = false) => {
   if (!order) return 'N/A';
+  
+  // Get normalized country display only on client-side
+  let countryDisplay = '';
+  if (isMounted) {
+    if (order.shipping_address_country) {
+      const countryCode = normalizeCountryToCode(order.shipping_address_country);
+      countryDisplay = getCountryDisplayName(countryCode);
+    } else if (order.shipping_address && order.shipping_address.includes(',')) {
+      const parts = order.shipping_address.split(',').map(part => part.trim());
+      if (parts.length >= 4) {
+        const countryCode = normalizeCountryToCode(parts[3]);
+        countryDisplay = getCountryDisplayName(countryCode);
+      }
+    }
+  }
   
   // Check if we have individual address components
   if (order.shipping_address_line1 || order.shipping_address_city || order.shipping_address_postal_code || order.shipping_address_country) {
@@ -53,7 +69,7 @@ const formatCombinedAddress = (order) => {
       order.shipping_address_line2,
       order.shipping_address_city,
       order.shipping_address_postal_code,
-      order.shipping_address_country
+      isMounted ? (countryDisplay || order.shipping_address_country) : order.shipping_address_country
     ].filter(Boolean);
     
     return addressParts.join(', ') || 'N/A';
@@ -61,7 +77,20 @@ const formatCombinedAddress = (order) => {
   
   // Fallback to legacy shipping_address field if it exists
   if (order.shipping_address) {
-    return order.shipping_address;
+    if (isMounted) {
+      // Parse the shipping address
+      const parts = order.shipping_address.split(',').map(part => part.trim());
+      const parsedAddress = {
+        street: parts[0] || 'N/A',
+        city: parts[1] || 'N/A',
+        postalCode: parts[2] || 'N/A',
+        country: countryDisplay || parts[3] || 'N/A'
+      };
+      
+      return `${parsedAddress.street}, ${parsedAddress.city}, ${parsedAddress.postalCode}, ${parsedAddress.country}`;
+    } else {
+      return order.shipping_address;
+    }
   }
   
   return 'N/A';
@@ -86,6 +115,7 @@ export default function OrderDetailModal({ children }) {
   const [creatingLabel, setCreatingLabel] = useState(false);
   const [labelMessage, setLabelMessage] = useState(null);
   const [migrationNeeded, setMigrationNeeded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const openModal = (orderId) => {
     setSelectedOrderId(orderId);
@@ -184,8 +214,13 @@ export default function OrderDetailModal({ children }) {
       } else {
         setLabelMessage({
           type: 'success',
-          text: 'Shipping label created successfully!'
+          text: `Shipping label created successfully! SendCloud Parcel ID: ${data.shipping_id || 'N/A'}`
         });
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => {
+          setLabelMessage(null);
+        }, 5000);
       }
       
       // Refresh the order to show the updated tracking information
@@ -230,6 +265,11 @@ export default function OrderDetailModal({ children }) {
     };
   }, []);
 
+  // Add useEffect to set isMounted after client-side rendering
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -268,7 +308,7 @@ export default function OrderDetailModal({ children }) {
                     <p className="mb-2"><span className="font-medium">Created:</span> {formatDate(order.created_at)}</p>
                     <p className="mb-2"><span className="font-medium">Updated:</span> {formatDate(order.updated_at)}</p>
                     <div className="flex items-center mt-2">
-                      <span className="font-medium mr-2">Payment Status:</span>
+                      <span className="font-medium text-base mr-2">Payment Status:</span>
                       <PaymentStatusEditor 
                         orderId={order.id} 
                         currentStatus={order.paid} 
@@ -286,30 +326,15 @@ export default function OrderDetailModal({ children }) {
                     <div className="mt-2">
                       <span className="font-medium block mb-1">Shipping Address:</span>
                       <div className="break-words bg-gray-50 p-2 rounded text-sm max-w-full overflow-hidden">
-                        {formatCombinedAddress(order)}
+                        <p className="text-sm text-gray-600">
+                          {formatCombinedAddress(order, isMounted)}
+                        </p>
                       </div>
                     </div>
                   </div>
                   
                   <div>
-                    {order.tracking_number && (
-                      <div className="mb-2">
-                        <span className="font-medium">Tracking Number:</span> {order.tracking_number}
-                      </div>
-                    )}
-                    {order.tracking_link && (
-                      <div className="mb-2">
-                        <span className="font-medium">Tracking Link:</span> 
-                        <a 
-                          href={order.tracking_link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline ml-1"
-                        >
-                          View Tracking
-                        </a>
-                      </div>
-                    )}
+                    {/* Tracking number is now editable in the form, so we don't need to display it here */}
                     {order.label_url && (
                       <div className="mb-2">
                         <span className="font-medium">Shipping Label:</span> 
@@ -321,14 +346,6 @@ export default function OrderDetailModal({ children }) {
                         >
                           View Label
                         </a>
-                      </div>
-                    )}
-                    {order.shipping_method && (
-                      <div className="mb-2">
-                        <span className="font-medium">Shipping Method:</span> 
-                        <span className="capitalize ml-1">
-                          {order.shipping_method}
-                        </span>
                       </div>
                     )}
                     
@@ -359,17 +376,28 @@ export default function OrderDetailModal({ children }) {
                 </div>
                 
                 {/* Create Shipping Label Button */}
-                {!order.label_url && (
+                {!order.label_url && !order.shipping_id && (
                   <div className="mt-4">
                     <button
                       onClick={createShippingLabel}
-                      disabled={creatingLabel || !order.shipping_address_line1}
+                      disabled={creatingLabel || !order.shipping_address_line1 || !order.order_pack}
                       className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
                     >
                       {creatingLabel ? 'Creating Label...' : 'Create Shipping Label'}
                     </button>
                     {!order.shipping_address_line1 && <p className="text-sm text-red-600 mt-1">Missing shipping address</p>}
+                    {!order.order_pack && <p className="text-sm text-red-600 mt-1">Order pack is required</p>}
                     {!order.paid && <p className="text-sm text-yellow-600 mt-1">Note: Order is not marked as paid</p>}
+                  </div>
+                )}
+                
+                {/* Message when shipping_id exists but no label_url */}
+                {!order.label_url && order.shipping_id && (
+                  <div className="mt-4">
+                    <div className="p-2 bg-yellow-100 text-yellow-800 rounded text-sm">
+                      A shipping label has already been created (Parcel ID: {order.shipping_id}), but the label URL is missing. 
+                      Please check SendCloud for the label.
+                    </div>
                   </div>
                 )}
                 

@@ -70,10 +70,12 @@ export default function PaymentStatusEditor({ orderId, currentStatus, onUpdate }
   if (!isEditing) {
     return (
       <div className="flex items-center space-x-2">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          currentStatus ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${
+          currentStatus 
+            ? 'bg-green-500 text-white' 
+            : 'bg-red-500 text-white'
         }`}>
-          {currentStatus ? 'Paid' : 'Unpaid'}
+          {currentStatus ? 'PAID' : 'UNPAID'}
         </span>
         <button
           onClick={handleEdit}

@@ -8,6 +8,7 @@ import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
 import OrderFilters from "../components/OrderFilters";
 import CountryTabs from "../components/CountryTabs";
 import { calculateOrderInstruction } from "../utils/order-instructions";
+import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
 import "./orders.css";
 
 export default function Orders({ searchParams }) {
@@ -17,6 +18,7 @@ export default function Orders({ searchParams }) {
   const [loading, setLoading] = useState(true);
   const [activeFilters, setActiveFilters] = useState(null);
   const [activeCountry, setActiveCountry] = useState('all');
+  const [isMounted, setIsMounted] = useState(false);
 
   // Get search query from URL parameters - properly unwrapped with use()
   const unwrappedParams = use(searchParams);
@@ -46,7 +48,8 @@ export default function Orders({ searchParams }) {
       }));
       
       setOrders(data);
-      filterOrdersByCountry(data, activeCountry);
+      const filtered = filterOrdersByCountry(data, activeCountry);
+      setFilteredOrders(filtered);
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
@@ -57,51 +60,45 @@ export default function Orders({ searchParams }) {
   // Filter orders by country
   const filterOrdersByCountry = (ordersToFilter, country) => {
     if (!ordersToFilter || ordersToFilter.length === 0) {
-      setFilteredOrders([]);
-      return;
+      return [];
     }
     
     if (country === 'all') {
-      setFilteredOrders(ordersToFilter);
-      return;
+      return ordersToFilter;
     }
     
-    const filtered = ordersToFilter.filter(order => {
+    return ordersToFilter.filter(order => {
+      // Try to get country from different possible fields
       let orderCountry = 'Unknown';
       
       if (order.shipping_address_country) {
-        orderCountry = order.shipping_address_country.trim().toUpperCase();
-      } else if (order.shipping_address) {
-        // Try to extract from combined address
+        orderCountry = order.shipping_address_country;
+      } else if (order.shipping_address?.country) {
+        orderCountry = order.shipping_address.country;
+      } else if (typeof order.shipping_address === 'string' && order.shipping_address.includes(',')) {
         const parts = order.shipping_address.split(',');
         if (parts.length >= 4) {
-          orderCountry = parts[3].trim().toUpperCase();
+          orderCountry = parts[3].trim();
         }
       }
       
-      // Normalize country name
-      if (orderCountry === 'USA' || orderCountry === 'US' || orderCountry === 'UNITED STATES') {
-        orderCountry = 'USA';
-      } else if (orderCountry === 'UK' || orderCountry === 'UNITED KINGDOM' || orderCountry === 'GREAT BRITAIN') {
-        orderCountry = 'UK';
-      } else if (orderCountry === 'FRANCE' || orderCountry === 'FR') {
-        orderCountry = 'FRANCE';
-      } else if (orderCountry === 'GERMANY' || orderCountry === 'DE') {
-        orderCountry = 'GERMANY';
-      } else if (orderCountry === 'NETHERLANDS' || orderCountry === 'NL') {
-        orderCountry = 'NETHERLANDS';
+      // Only normalize on client side
+      if (isMounted) {
+        const normalizedOrderCountry = normalizeCountryToCode(orderCountry);
+        const normalizedFilterCountry = normalizeCountryToCode(country);
+        return normalizedOrderCountry === normalizedFilterCountry;
+      } else {
+        // Simple string comparison on server side
+        return orderCountry === country;
       }
-      
-      return orderCountry === country;
     });
-    
-    setFilteredOrders(filtered);
   };
 
   // Handle country tab change
   const handleCountryChange = (country) => {
     setActiveCountry(country);
-    filterOrdersByCountry(orders, country);
+    const filtered = filterOrdersByCountry(orders, country);
+    setFilteredOrders(filtered);
   };
 
   useEffect(() => {
@@ -122,20 +119,37 @@ export default function Orders({ searchParams }) {
     );
     
     setOrders(updatedOrders);
-    filterOrdersByCountry(updatedOrders, activeCountry);
+    const filtered = filterOrdersByCountry(updatedOrders, activeCountry);
+    setFilteredOrders(filtered);
     
     // Update the router cache without navigating
     router.refresh();
   };
 
+  // Add useEffect to set isMounted after client-side rendering and initialize filtered orders
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Add separate useEffect to update filtered orders when orders or activeCountry changes
+  useEffect(() => {
+    if (orders.length > 0) {
+      const filtered = filterOrdersByCountry(orders, activeCountry);
+      setFilteredOrders(filtered);
+    }
+  }, [orders, activeCountry, isMounted]);
+
   return (
     <div className="container">
       <header className="orders-header">
-        <h1 className="text-black">Order Management System</h1>
+        <h1 className="text-2xl font-bold mb-4">
+          {activeCountry === 'all' ? 'All Orders' : 
+            (isMounted ? `${getCountryDisplayName(activeCountry)} Orders` : `${activeCountry} Orders`)}
+        </h1>
         <h2 className="text-black">
           {query ? `SEARCH RESULTS FOR "${query}"` : 
            activeFilters ? 'FILTERED ORDERS' : 
-           activeCountry !== 'all' ? `ORDERS FROM ${activeCountry}` : 'ALL ORDERS'}
+           activeCountry !== 'all' ? `ORDERS FROM ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}` : 'ALL ORDERS'}
         </h2>
         {query && filteredOrders.length > 0 && (
           <p className="text-sm text-gray-600 mt-1">
@@ -149,7 +163,7 @@ export default function Orders({ searchParams }) {
         )}
         {activeCountry !== 'all' && !query && !activeFilters && (
           <p className="text-sm text-gray-600 mt-1">
-            Showing {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} from {activeCountry}
+            Showing {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} from {COUNTRY_MAPPING[activeCountry]?.name || activeCountry}
           </p>
         )}
       </header>
@@ -163,7 +177,8 @@ export default function Orders({ searchParams }) {
         <div className="orders-content">
           <CountryTabs 
             orders={orders} 
-            onCountryChange={handleCountryChange} 
+            activeTab={activeCountry}
+            setActiveTab={handleCountryChange} 
           />
           <EnhancedOrdersTable 
             orders={filteredOrders} 

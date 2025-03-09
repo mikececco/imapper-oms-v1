@@ -494,7 +494,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       }
       
       // Set order details
-      orderNotes = `Created from invoice ${stripeInvoiceId}`;
+      orderNotes = `Invoice: ${stripeInvoiceId}`;
       
       // Find or create customer
       if (stripeCustomerId) {

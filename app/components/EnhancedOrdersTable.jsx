@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -17,6 +17,7 @@ import ShippingMethodDropdown from "./ShippingMethodDropdown";
 import { useOrderDetailModal } from "./OrderDetailModal";
 import { calculateOrderInstruction } from "../utils/order-instructions";
 import "./order-status.css";
+import { normalizeCountryToCode, getCountryDisplayName } from '../utils/country-utils';
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -42,36 +43,62 @@ const parseShippingAddress = (address) => {
   if (!address) return { street: 'N/A', city: 'N/A', postalCode: 'N/A', country: 'N/A' };
   
   const parts = address.split(',').map(part => part.trim());
+  
+  // Get country code and display name
+  let countryRaw = parts[3] || 'NL';
+  const countryCode = normalizeCountryToCode(countryRaw);
+  const countryDisplay = getCountryDisplayName(countryCode);
+  
   return {
     street: parts[0] || 'N/A',
     city: parts[1] || 'N/A',
     postalCode: parts[2] || 'N/A',
-    country: parts[3] || 'NL'
+    country: countryDisplay,
+    countryCode: countryCode
   };
 };
 
 // Format address for display in table with truncation
-const formatAddressForTable = (order) => {
+const formatAddressForTable = (order, isMounted = false) => {
   if (!order) return 'N/A';
   
   let fullAddress = '';
+  let countryDisplay = '';
+  
+  // Get normalized country display only on client-side
+  if (isMounted) {
+    if (order.shipping_address_country) {
+      const countryCode = normalizeCountryToCode(order.shipping_address_country);
+      countryDisplay = getCountryDisplayName(countryCode);
+    } else if (order.shipping_address && order.shipping_address.includes(',')) {
+      const parts = order.shipping_address.split(',').map(part => part.trim());
+      if (parts.length >= 4) {
+        const countryCode = normalizeCountryToCode(parts[3]);
+        countryDisplay = getCountryDisplayName(countryCode);
+      }
+    }
+  }
   
   // Check if we have individual address components
-  if (order.shipping_address_line1 || order.shipping_address_city || order.shipping_address_postal_code || order.shipping_address_country) {
+  if (order.shipping_address_line1 || order.shipping_address_city || order.shipping_address_postal_code) {
     const addressParts = [
       order.shipping_address_line1,
       order.shipping_address_line2,
       order.shipping_address_city,
       order.shipping_address_postal_code,
-      order.shipping_address_country
+      isMounted ? (countryDisplay || order.shipping_address_country) : order.shipping_address_country
     ].filter(Boolean);
     
     fullAddress = addressParts.join(', ') || 'N/A';
   }
   // Fallback to legacy shipping_address field if it exists
   else if (order.shipping_address) {
-    const parsedAddress = parseShippingAddress(order.shipping_address);
-    fullAddress = `${parsedAddress.street}, ${parsedAddress.city}, ${parsedAddress.postalCode}, ${parsedAddress.country}`;
+    if (isMounted) {
+      const parsedAddress = parseShippingAddress(order.shipping_address);
+      fullAddress = `${parsedAddress.street}, ${parsedAddress.city}, ${parsedAddress.postalCode}, ${countryDisplay || parsedAddress.country}`;
+    } else {
+      fullAddress = order.shipping_address;
+    }
   }
   else {
     return 'N/A';
@@ -96,14 +123,17 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const query = searchParams.get('q') || '';
   const { openModal } = useOrderDetailModal();
   const [isMounted, setIsMounted] = useState(false);
-  const [localOrders, setLocalOrders] = useState([]);
+  const [localOrders, setLocalOrders] = useState(orders || []);
   const [deletingOrderId, setDeletingOrderId] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [labelMessage, setLabelMessage] = useState(null);
 
-  // Initialize localOrders with the provided orders
+  // Update localOrders when orders prop changes
   useEffect(() => {
-    setLocalOrders(orders);
+    if (orders) {
+      setLocalOrders(orders);
+    }
   }, [orders]);
 
   // Only run this effect after the component has mounted on the client
@@ -143,6 +173,23 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   // Create shipping label
   const createShippingLabel = async (orderId) => {
     try {
+      // First check if the order has an order pack
+      const order = localOrders.find(o => o.id === orderId);
+      if (!order.order_pack) {
+        setLabelMessage({
+          orderId,
+          type: 'error',
+          text: 'Order pack is required before creating a shipping label'
+        });
+        
+        // Clear message after 5 seconds
+        setTimeout(() => {
+          setLabelMessage(null);
+        }, 5000);
+        
+        return { success: false, error: 'Order pack is required' };
+      }
+      
       const response = await fetch('/api/orders/create-shipping-label', {
         method: 'POST',
         headers: {
@@ -186,11 +233,29 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
             )
           );
           
-          // Show warning to user
-          alert(`Shipping label created but there was an issue updating the order: ${data.message}`);
+          // Show warning message
+          setLabelMessage({
+            orderId,
+            type: 'warning',
+            text: `Shipping label created but there was an issue updating the order: ${data.message}`
+          });
+          
+          // Clear message after 5 seconds
+          setTimeout(() => {
+            setLabelMessage(null);
+          }, 5000);
         } else {
           // No tracking info available
-          alert(`Warning: ${data.message}`);
+          setLabelMessage({
+            orderId,
+            type: 'warning',
+            text: `Warning: ${data.message}`
+          });
+          
+          // Clear message after 5 seconds
+          setTimeout(() => {
+            setLabelMessage(null);
+          }, 5000);
         }
       } else {
         // Success case - update local state with the returned data
@@ -215,7 +280,16 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         );
         
         // Show success message
-        alert('Shipping label created successfully!');
+        setLabelMessage({
+          orderId,
+          type: 'success',
+          text: `Shipping label created successfully! SendCloud Parcel ID: ${data.shipping_id || 'N/A'}`
+        });
+        
+        // Clear message after 5 seconds
+        setTimeout(() => {
+          setLabelMessage(null);
+        }, 5000);
       }
       
       // Refresh orders to show updated tracking info
@@ -224,7 +298,18 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       return { success: true };
     } catch (error) {
       console.error('Error creating shipping label:', error);
-      alert(`Error: ${error.message}`);
+      
+      setLabelMessage({
+        orderId,
+        type: 'error',
+        text: `Error: ${error.message}`
+      });
+      
+      // Clear message after 5 seconds
+      setTimeout(() => {
+        setLabelMessage(null);
+      }, 5000);
+      
       return { success: false, error };
     }
   };
@@ -361,9 +446,10 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       <div className="enhanced-table-scrollable">
         <Table>
           <TableCaption>
-            {localOrders.length > 0 
-              ? `Showing ${localOrders.length} order${localOrders.length === 1 ? '' : 's'}.` 
-              : 'No orders found.'}
+            {loading ? 'Loading orders...' : 
+              localOrders.length > 0 
+                ? `Showing ${localOrders.length} order${localOrders.length === 1 ? '' : 's'}.` 
+                : 'No orders found.'}
           </TableCaption>
           <TableHeader className="enhanced-table-header">
             <TableRow>
@@ -376,7 +462,6 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
               <TableHead className="text-black w-[120px]">Order Pack</TableHead>
               <TableHead className="text-black w-[150px]">Notes</TableHead>
               <TableHead className="text-black w-[80px]">Weight</TableHead>
-              <TableHead className="text-black w-[100px]">Ship Method</TableHead>
               <TableHead className="text-black w-[80px]">Paid?</TableHead>
               <TableHead className="text-black w-[100px]">Ok to Ship?</TableHead>
               <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
@@ -395,6 +480,10 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 const calculatedInstruction = isMounted
                   ? calculateOrderInstruction(order)
                   : (order.instruction || 'ACTION REQUIRED');
+                
+                // When displaying country information
+                const countryCode = normalizeCountryToCode(order.shipping_address?.country);
+                const countryDisplay = getCountryDisplayName(countryCode);
                 
                 return (
                   <TableRow key={order.id} className="text-black">
@@ -437,15 +526,26 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                       </div>
                     </TableCell>
                     <TableCell>{order.id}</TableCell>
-                    <TableCell className="enhanced-table-cell-truncate">{order.name || 'N/A'}</TableCell>
+                    <TableCell className="enhanced-table-cell-truncate">
+                      {order.customer_id ? (
+                        <Link 
+                          href={`/customers/${order.customer_id}`}
+                          className="text-blue-600 hover:underline hover:text-blue-800"
+                        >
+                          {order.name || 'N/A'}
+                        </Link>
+                      ) : (
+                        order.name || 'N/A'
+                      )}
+                    </TableCell>
                     <TableCell className="enhanced-table-cell-truncate">{order.email || 'N/A'}</TableCell>
                     <TableCell>{order.phone || 'N/A'}</TableCell>
                     <TableCell className="address-container">
                       <span className="address-text">
-                        {truncateText(formatAddressForTable(order), 25)}
+                        {truncateText(formatAddressForTable(order, isMounted), 25)}
                       </span>
                       <div className="address-tooltip">
-                        {formatAddressForTable(order)}
+                        {formatAddressForTable(order, isMounted)}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -457,13 +557,6 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                     </TableCell>
                     <TableCell className="enhanced-table-cell-truncate">{order.order_notes || 'N/A'}</TableCell>
                     <TableCell>{order.weight || '1.000'}</TableCell>
-                    <TableCell>
-                      <ShippingMethodDropdown
-                        currentMethod={order.shipping_method}
-                        orderId={order.id}
-                        onUpdate={handleOrderUpdate}
-                      />
-                    </TableCell>
                     <TableCell>
                       <PaymentBadge 
                         isPaid={order.paid} 
@@ -512,25 +605,48 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         >
                           View
                         </a>
-                      ) : (
-                        order.ok_to_ship && order.paid && order.shipping_address ? (
-                          <button
-                            onClick={() => createShippingLabel(order.id)}
-                            className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                          >
-                            Create
-                          </button>
-                        ) : (
-                          <div className="relative tooltip-container">
-                            <span className="text-gray-400 cursor-help">N/A</span>
-                            <div className="tooltip">
-                              {!order.ok_to_ship ? "Not ready to ship" : 
-                               !order.paid ? "Order not paid" : 
-                               !order.shipping_address ? "Missing shipping address" : 
-                               "Cannot create label"}
-                            </div>
+                      ) : order.shipping_id ? (
+                        <div className="relative tooltip-container">
+                          <span className="text-yellow-500 cursor-help">Pending</span>
+                          <div className="tooltip">
+                            Label created (ID: {order.shipping_id.substring(0, 8)}...) but URL not available
                           </div>
-                        )
+                        </div>
+                      ) : (
+                        <>
+                          {order.ok_to_ship && order.paid && order.shipping_address && order.order_pack ? (
+                            <div>
+                              <button
+                                onClick={() => createShippingLabel(order.id)}
+                                className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
+                              >
+                                Create
+                              </button>
+                              {labelMessage && labelMessage.orderId === order.id && (
+                                <div className={`mt-1 p-1 text-xs rounded ${
+                                  labelMessage.type === 'success' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : labelMessage.type === 'warning'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {labelMessage.text}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="relative tooltip-container">
+                              <span className="text-gray-400 cursor-help">N/A</span>
+                              <div className="tooltip">
+                                {!order.ok_to_ship ? "Not ready to ship" : 
+                                 !order.paid ? "Order not paid" : 
+                                 !order.shipping_address ? "Missing shipping address" : 
+                                 !order.order_pack ? "Order pack required" :
+                                 "Cannot create label"}
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </TableCell>
                     <TableCell>{formatDate(order.created_at)}</TableCell>

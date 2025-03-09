@@ -97,7 +97,7 @@ The system automatically creates orders from Stripe events:
    - Additional order details can be included in metadata (package, notes)
 
 To include additional information in orders, add metadata to your Stripe objects:
-- `package`: The order package type
+- `package`: The order pack list
 - `notes`: Any special instructions for the order
 - `create_order`: Set to 'true' to create an order from a customer object
 
