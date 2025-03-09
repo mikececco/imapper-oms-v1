@@ -347,7 +347,6 @@ export async function filterOrders(filters) {
           'shipped': 'SHIPPED',
           'delivered': 'DELIVERED',
           'to-be-shipped-but-no-sticker': 'TO BE SHIPPED BUT NO STICKER',
-          'to-be-shipped-but-wrong-tracking-link': 'TO BE SHIPPED BUT WRONG TRACKING LINK'
         };
         
         const instructionValue = instructionMap[filters.instruction] || filters.instruction;

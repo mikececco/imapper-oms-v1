@@ -91,11 +91,15 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   // Use useRef to track client-side rendering
   const hasMounted = useRef(false);
   const [hoveredButtonId, setHoveredButtonId] = useState(null);
+  const [hoveredDeleteId, setHoveredDeleteId] = useState(null);
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const { openModal } = useOrderDetailModal();
   const [isMounted, setIsMounted] = useState(false);
   const [localOrders, setLocalOrders] = useState([]);
+  const [deletingOrderId, setDeletingOrderId] = useState(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Initialize localOrders with the provided orders
   useEffect(() => {
@@ -186,6 +190,59 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     }
   };
 
+  // Function to handle order deletion
+  const handleDeleteOrder = async (orderId) => {
+    setDeletingOrderId(orderId);
+    setShowConfirmation(true);
+  };
+
+  // Function to confirm and execute order deletion
+  const confirmDeleteOrder = async () => {
+    if (!deletingOrderId) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const response = await fetch(`/api/orders/${deletingOrderId}/delete`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete order');
+      }
+      
+      // Remove the order from local state
+      setLocalOrders(prevOrders => prevOrders.filter(order => order.id !== deletingOrderId));
+      
+      // Call the parent's onRefresh if provided
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        // If no parent handler, update the router cache
+        router.refresh();
+      }
+      
+      // Reset state
+      setShowConfirmation(false);
+      setDeletingOrderId(null);
+      
+      // Show success message
+      alert('Order deleted successfully');
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      alert(`Error deleting order: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Function to cancel order deletion
+  const cancelDeleteOrder = () => {
+    setShowConfirmation(false);
+    setDeletingOrderId(null);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -196,6 +253,32 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
 
   return (
     <div className="enhanced-table-container">
+      {/* Confirmation Dialog */}
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+            <p className="mb-6">Are you sure you want to delete this order? This action cannot be undone.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDeleteOrder}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteOrder}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="enhanced-table-scrollable">
         <Table>
           <TableCaption>
@@ -237,23 +320,42 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 return (
                   <TableRow key={order.id} className="text-black">
                     <TableCell>
-                      <button 
-                        onClick={() => openOrderDetail(order.id)}
-                        className="open-btn"
-                        onMouseEnter={() => setHoveredButtonId(order.id)}
-                        onMouseLeave={() => setHoveredButtonId(null)}
-                        style={{
-                          backgroundColor: hoveredButtonId === order.id ? '#333333' : '#000000',
-                          color: '#ffffff',
-                          border: 'none',
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        Open
-                      </button>
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => openOrderDetail(order.id)}
+                          className="open-btn"
+                          onMouseEnter={() => setHoveredButtonId(order.id)}
+                          onMouseLeave={() => setHoveredButtonId(null)}
+                          style={{
+                            backgroundColor: hoveredButtonId === order.id ? '#333333' : '#000000',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          Open
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteOrder(order.id)}
+                          className="delete-btn"
+                          onMouseEnter={() => setHoveredDeleteId(order.id)}
+                          onMouseLeave={() => setHoveredDeleteId(null)}
+                          style={{
+                            backgroundColor: hoveredDeleteId === order.id ? '#e53e3e' : '#f56565',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </TableCell>
                     <TableCell>{order.id}</TableCell>
                     <TableCell className="enhanced-table-cell-truncate">{order.name || 'N/A'}</TableCell>

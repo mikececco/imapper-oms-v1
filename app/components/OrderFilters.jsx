@@ -56,13 +56,12 @@ export default function OrderFilters({ onFilterChange }) {
               }}
             >
               <option value="all">All Instructions</option>
+              <option value="unknown">ACTION REQUIRED</option>
               <option value="to-ship">TO SHIP</option>
+              <option value="to-be-shipped-but-no-sticker">TO BE SHIPPED BUT NO STICKER</option>
               <option value="do-not-ship">DO NOT SHIP</option>
               <option value="shipped">SHIPPED</option>
               <option value="delivered">DELIVERED</option>
-              <option value="to-be-shipped-but-no-sticker">TO BE SHIPPED BUT NO STICKER</option>
-              <option value="to-be-shipped-but-wrong-tracking-link">TO BE SHIPPED BUT WRONG TRACKING LINK</option>
-              <option value="unknown">ACTION REQUIRED</option>
             </select>
           </div>
 
