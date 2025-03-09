@@ -18,6 +18,10 @@ const supabase = !isBuildTime && SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY
 // This is your Stripe webhook secret for testing
 const endpointSecret = STRIPE_WEBHOOK_SECRET;
 
+// Tell Next.js to not parse the body automatically
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(request) {
   try {
     // Check if we're in a build context or if clients aren't initialized
@@ -26,16 +30,27 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Service unavailable during build or initialization' }, { status: 503 });
     }
     
-    const body = await request.text();
+    // Log headers for debugging
+    console.log('Webhook request headers:', Object.fromEntries(request.headers.entries()));
+    
+    // Get the raw request body as text
+    const rawBody = await request.text();
     const sig = request.headers.get('stripe-signature');
+    
+    if (!sig) {
+      console.error('No Stripe signature found in request headers');
+      return NextResponse.json({ error: 'No Stripe signature found' }, { status: 400 });
+    }
 
     let event;
 
     try {
       // Verify the event came from Stripe
-      event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+      event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
+      console.error('Raw body length:', rawBody.length);
+      console.error('Signature:', sig);
       return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
     }
 
@@ -69,7 +84,9 @@ export async function POST(request) {
     try {
       switch (event.type) {
         case 'checkout.session.completed':
-
+          console.log('Processing checkout.session.completed event');
+          result = await handleCheckoutSessionCompleted(event);
+          break;
           
         case 'customer.created':
           console.log('Processing customer.created event');
