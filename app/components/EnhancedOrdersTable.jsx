@@ -151,9 +151,69 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         body: JSON.stringify({ orderId }),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create shipping label');
+        throw new Error(data.error || 'Failed to create shipping label');
+      }
+      
+      // Current timestamp for updates
+      const currentTimestamp = new Date().toISOString();
+      
+      // Check if there's a warning but the label was still created
+      if (data.warning) {
+        console.warn('Warning from shipping label API:', data.message);
+        
+        // If we have tracking info, update the order locally
+        if (data.tracking_number || data.tracking_link || data.label_url) {
+          const updatedOrder = {
+            id: orderId,
+            tracking_number: data.tracking_number || '',
+            tracking_link: data.tracking_link || '',
+            label_url: data.label_url || '',
+            status: 'Ready to send',
+            last_delivery_status_check: currentTimestamp,
+            updated_at: currentTimestamp
+          };
+          
+          // Update local state
+          setLocalOrders(prevOrders => 
+            prevOrders.map(order => 
+              order.id === orderId 
+                ? { ...order, ...updatedOrder } 
+                : order
+            )
+          );
+          
+          // Show warning to user
+          alert(`Shipping label created but there was an issue updating the order: ${data.message}`);
+        } else {
+          // No tracking info available
+          alert(`Warning: ${data.message}`);
+        }
+      } else {
+        // Success case - update local state with the returned data
+        const updatedOrder = {
+          id: orderId,
+          tracking_number: data.tracking_number || '',
+          tracking_link: data.tracking_link || '',
+          label_url: data.label_url || '',
+          status: 'Ready to send',
+          last_delivery_status_check: currentTimestamp,
+          updated_at: currentTimestamp
+        };
+        
+        // Update local state
+        setLocalOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.id === orderId 
+              ? { ...order, ...updatedOrder } 
+              : order
+          )
+        );
+        
+        // Show success message
+        alert('Shipping label created successfully!');
       }
       
       // Refresh orders to show updated tracking info
@@ -177,6 +237,23 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to update delivery status');
+      }
+      
+      const data = await response.json();
+      
+      // If we have updated order data, update the local state
+      if (data.success && data.order) {
+        // Update local state with the returned data
+        setLocalOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.id === orderId 
+              ? { ...order, ...data.order } 
+              : order
+          )
+        );
+        
+        // Show success message
+        alert(`Delivery status updated to: ${data.deliveryStatus || 'Unknown'}`);
       }
       
       // Refresh orders to show updated status

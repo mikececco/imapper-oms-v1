@@ -54,34 +54,78 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Failed to create parcel in SendCloud' }, { status: 500 });
     }
     
+    // Safely extract properties from the parcel object with fallbacks
+    const trackingNumber = parcel?.tracking_number || '';
+    const trackingUrl = parcel?.tracking_url || '';
+    const labelUrl = parcel?.label?.normal_printer || parcel?.label?.link || '';
+    
     // Update the order with the tracking information
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({
-        tracking_number: parcel.tracking_number || '',
-        tracking_link: parcel.tracking_url || '',
-        label_url: parcel.label.normal_printer || '',
-        delivery_status: 'Ready to send',
-        status: 'processing',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderId);
+    let updateError;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    // Get current timestamp for last_delivery_status_check
+    const currentTimestamp = new Date().toISOString();
+    
+    // Try updating the order, with retries if it fails
+    while (retryCount < maxRetries) {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          tracking_number: trackingNumber,
+          tracking_link: trackingUrl,
+          label_url: labelUrl,
+          status: 'Ready to send',
+          last_delivery_status_check: currentTimestamp,
+          updated_at: currentTimestamp
+        })
+        .eq('id', orderId);
+      
+      if (!error) {
+        // Update successful, break out of the retry loop
+        updateError = null;
+        break;
+      }
+      
+      // Update failed, increment retry count and try again
+      updateError = error;
+      retryCount++;
+      
+      // Wait a bit before retrying (exponential backoff)
+      if (retryCount < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
+      }
+    }
     
     if (updateError) {
-      console.error('Error updating order with tracking info:', updateError);
+      console.error(`Error updating order with tracking info after ${maxRetries} attempts:`, updateError);
+      // Log the parcel object for debugging
+      console.log('Parcel object:', JSON.stringify(parcel, null, 2));
+      
       return NextResponse.json({ 
         warning: true,
-        message: 'Shipping label created but failed to update order',
-        parcel
+        message: 'Shipping label created but failed to update order in database',
+        error: updateError.message,
+        parcel: {
+          id: parcel?.id || '',
+          tracking_number: trackingNumber,
+          tracking_url: trackingUrl,
+          label: {
+            normal_printer: labelUrl
+          }
+        },
+        tracking_number: trackingNumber,
+        tracking_link: trackingUrl,
+        label_url: labelUrl
       }, { status: 200 });
     }
     
     return NextResponse.json({ 
       success: true,
       message: 'Shipping label created successfully',
-      tracking_number: parcel.tracking_number,
-      tracking_link: parcel.tracking_url,
-      label_url: parcel.label.normal_printer
+      tracking_number: trackingNumber,
+      tracking_link: trackingUrl,
+      label_url: labelUrl
     });
     
   } catch (error) {
@@ -128,10 +172,12 @@ async function createSendCloudParcel(order) {
         telephone: order.phone || '',
         order_number: order.order_pack || order.id,
         weight: weight, // Use the weight from the order
-        request_label: false,
-        apply_shipping_rules: false,
+        request_label: false, // Set to true to request a label
+        apply_shipping_rules: false, // Apply shipping rules to get the best carrier
       }
     };
+    
+    console.log('Sending parcel data to SendCloud:', JSON.stringify(parcelData, null, 2));
     
     // Send the request to SendCloud API
     const response = await fetch('https://panel.sendcloud.sc/api/v2/parcels', {
@@ -150,8 +196,26 @@ async function createSendCloudParcel(order) {
       throw new Error(data.error?.message || 'Failed to create parcel in SendCloud');
     }
     
+    // Check if we have a valid parcel object
+    if (!data.parcel) {
+      console.error('SendCloud API returned no parcel:', data);
+      throw new Error('SendCloud API returned no parcel');
+    }
+    
+    // Ensure the parcel has the expected properties
+    const parcel = {
+      id: data.parcel.id || '',
+      tracking_number: data.parcel.tracking_number || '',
+      tracking_url: data.parcel.tracking_url || '',
+      label: {
+        normal_printer: data.parcel.label?.normal_printer || data.parcel.label?.link || ''
+      }
+    };
+    
+    console.log('Successfully created parcel in SendCloud:', JSON.stringify(parcel, null, 2));
+    
     // Return the created parcel
-    return data.parcel;
+    return parcel;
     
   } catch (error) {
     console.error('Error creating SendCloud parcel:', error);

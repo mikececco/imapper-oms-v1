@@ -120,7 +120,7 @@ export async function updateOrderDeliveryStatus(orderId) {
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
       .update({
-        delivery_status: deliveryInfo.status,
+        status: deliveryInfo.status,
         last_delivery_status_check: new Date().toISOString(),
         sendcloud_data: deliveryInfo.rawData
       })
