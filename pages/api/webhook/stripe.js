@@ -52,11 +52,14 @@ export default async function handler(req, res) {
     }
     
     // Log headers for debugging
-    console.log('Webhook request headers:', req.headers);
+    console.log('Pages Router Webhook request headers:', req.headers);
     
     // Get the raw request body
     const rawBody = await getRawBody(req);
+    console.log('Raw body length:', rawBody.length);
+    
     const sig = req.headers['stripe-signature'];
+    console.log('Stripe signature:', sig);
     
     if (!sig) {
       console.error('No Stripe signature found in request headers');
