@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY } from './env';
+import { normalizeCountryToCode } from './country-utils';
 
 // Check if we're in a build context
 const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
@@ -634,6 +635,11 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       }
     }
     
+    // Before creating the order, normalize the country code
+    if (shippingAddressCountry) {
+      shippingAddressCountry = normalizeCountryToCode(shippingAddressCountry);
+    }
+    
     console.log(`Creating order from ${stripeEvent.type} event:`, {
       id: orderId,
       name: customerName,
@@ -646,7 +652,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_country: shippingAddressCountry,
       order_pack: '', // Empty by default, to be filled by admin
       order_notes: orderNotes,
-      instruction: 'ACTION REQUIRED', // Default shipping instruction
+      instruction: 'TO SHIP', // Default shipping instruction for new orders
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
       stripe_payment_intent_id: stripePaymentIntentId,
@@ -654,37 +660,42 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     });
     
     // Create the order in Supabase
-    const { data, error } = await supabase.from('orders').insert({
-      id: orderId,
-      name: customerName,
-      email: customerEmail,
-      phone: customerPhone,
-      shipping_address_line1: shippingAddressLine1,
-      shipping_address_line2: shippingAddressLine2,
-      shipping_address_city: shippingAddressCity,
-      shipping_address_postal_code: shippingAddressPostalCode,
-      shipping_address_country: shippingAddressCountry,
-      order_pack: '', // Empty by default, to be filled by admin
-      order_notes: orderNotes,
-      instruction: 'TO SHIP', // Default shipping instruction for new orders
-      status: 'pending',
-      // Mark as paid for invoice.paid or customer.created with an invoice ID from our webhook handler
-      paid: stripeEvent.type === 'invoice.paid' || (stripeEvent.type === 'customer.created' && stripeEvent.data.invoiceId),
-      ok_to_ship: false,
-      stripe_customer_id: stripeCustomerId,
-      stripe_invoice_id: stripeInvoiceId,
-      stripe_payment_intent_id: stripePaymentIntentId,
-      customer_id: customerId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }).select();
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        id: orderId,
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+        shipping_address: shippingAddress,
+        shipping_address_line1: shippingAddressLine1,
+        shipping_address_line2: shippingAddressLine2,
+        shipping_address_city: shippingAddressCity,
+        shipping_address_postal_code: shippingAddressPostalCode,
+        shipping_address_country: shippingAddressCountry,
+        order_pack: '', // Empty by default, to be filled by admin
+        order_notes: orderNotes,
+        instruction: 'TO SHIP', // Default shipping instruction for new orders
+        status: 'pending',
+        stripe_customer_id: stripeCustomerId,
+        stripe_invoice_id: stripeInvoiceId,
+        stripe_payment_intent_id: stripePaymentIntentId,
+        customer_id: customerId,
+        // Mark as paid for invoice.paid or customer.created with an invoice ID from our webhook handler
+        paid: stripeEvent.type === 'invoice.paid' || (stripeEvent.type === 'customer.created' && stripeEvent.data.invoiceId),
+        ok_to_ship: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
     
-    if (error) {
-      console.error('Error creating order from Stripe event:', error);
-      return { success: false, error };
+    if (orderError) {
+      console.error('Error creating order from Stripe event:', orderError);
+      return { success: false, error: orderError };
     }
     
-    return { success: true, data, orderId };
+    return { success: true, data: order, orderId };
   } catch (e) {
     console.error('Exception creating order from Stripe event:', e);
     return { success: false, error: e };
@@ -695,11 +706,14 @@ export async function createOrderFromStripeEvent(stripeEvent) {
 function formatShippingAddress(address) {
   if (!address) return '';
   
+  // Normalize the country code
+  const countryCode = address.country ? normalizeCountryToCode(address.country) : '';
+  
   const parts = [
     address.line1,
     address.city,
     address.postal_code,
-    address.country
+    countryCode
   ].filter(Boolean);
   
   return parts.join(', ');

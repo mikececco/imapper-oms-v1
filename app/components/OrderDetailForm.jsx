@@ -164,9 +164,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     
     // Special handling for country field to normalize it
     if (name === 'shipping_address_country') {
+      // Convert to uppercase and trim
+      const normalizedValue = value.trim().toUpperCase();
       setFormData(prev => ({
         ...prev,
-        [name]: normalizeCountryToCode(value)
+        [name]: normalizedValue
       }));
     } else {
       setFormData(prev => ({
@@ -405,35 +407,18 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           
           <div>
             <label htmlFor="shipping_address_country" className="text-sm font-medium block">
-              Country
+              Country Code (e.g. FR, GB, US)
             </label>
             {isMounted ? (
-              <>
-                <select
-                  id="shipping_address_country"
-                  name="shipping_address_country"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  value={formData.shipping_address_country}
-                  onChange={handleChange}
-                >
-                  <option value="">Select a country</option>
-                  {Object.entries(COUNTRY_MAPPING).map(([code, data]) => (
-                    <option key={code} value={code}>{data.name}</option>
-                  ))}
-                  <option value="Other">Other</option>
-                </select>
-                {formData.shipping_address_country === 'Other' && (
-                  <input
-                    type="text"
-                    placeholder="Enter country name"
-                    className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      shipping_address_country: e.target.value
-                    }))}
-                  />
-                )}
-              </>
+              <input
+                id="shipping_address_country"
+                name="shipping_address_country"
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                value={formData.shipping_address_country}
+                onChange={handleChange}
+                placeholder="Enter country code (e.g. FR, GB, US)"
+              />
             ) : (
               <input
                 id="shipping_address_country"
@@ -443,6 +428,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
                 value={formData.shipping_address_country}
                 readOnly
               />
+            )}
+            {formData.shipping_address_country && COUNTRY_MAPPING[formData.shipping_address_country.toUpperCase()] && (
+              <p className="mt-1 text-sm text-gray-600">
+                {getCountryDisplayName(formData.shipping_address_country.toUpperCase())}
+              </p>
             )}
           </div>
         </div>
