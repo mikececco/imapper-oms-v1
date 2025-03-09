@@ -1,58 +1,66 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createOrderFromStripeEvent, findOrCreateCustomer } from '../../../utils/supabase';
-import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
+import { createOrderFromStripeEvent, findOrCreateCustomer } from '../../../app/utils/supabase';
+import { 
+  SERVER_SUPABASE_URL, 
+  SERVER_SUPABASE_ANON_KEY, 
+  STRIPE_SECRET_KEY, 
+  STRIPE_WEBHOOK_SECRET 
+} from '../../../app/utils/env';
 
-// Check if we're in a build context
-const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
+// Initialize Stripe with your secret key
+const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
-// Initialize Stripe with your secret key (only if not in build time)
-const stripe = !isBuildTime && STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
-
-// Initialize Supabase client (only if not in build time)
-const supabase = !isBuildTime && SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY && SERVER_SUPABASE_URL !== 'build-placeholder'
+// Initialize Supabase client
+const supabase = SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY && SERVER_SUPABASE_URL !== 'build-placeholder'
   ? createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY)
   : null;
 
-// This is your Stripe webhook secret for testing
+// This is your Stripe webhook secret
 const endpointSecret = STRIPE_WEBHOOK_SECRET;
 
-// Tell Next.js to not parse the body automatically
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+// Configure the API route to not parse the body as JSON
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
-export async function POST(request) {
+// Helper to read the raw request body
+const getRawBody = async (req) => {
+  return new Promise((resolve) => {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      resolve(body);
+    });
+  });
+};
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    // Check if we're in a build context or if clients aren't initialized
-    if (isBuildTime || !stripe || !supabase) {
+    // Check if clients aren't initialized
+    if (!stripe || !supabase) {
       console.error('Stripe or Supabase client not initialized');
-      return NextResponse.json({ error: 'Service unavailable during build or initialization' }, { status: 503 });
+      return res.status(503).json({ error: 'Service unavailable during build or initialization' });
     }
     
     // Log headers for debugging
-    console.log('Webhook request headers:', Object.fromEntries(request.headers.entries()));
+    console.log('Webhook request headers:', req.headers);
     
-    // Clone the request to get the raw body
-    const clonedRequest = request.clone();
-    
-    // Get the raw request body as text
-    const rawBody = await clonedRequest.text();
-    
-    // Parse the body as JSON for our processing
-    let jsonBody;
-    try {
-      jsonBody = JSON.parse(rawBody);
-    } catch (err) {
-      console.error('Error parsing webhook body as JSON:', err);
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-    }
-    
-    const sig = request.headers.get('stripe-signature');
+    // Get the raw request body
+    const rawBody = await getRawBody(req);
+    const sig = req.headers['stripe-signature'];
     
     if (!sig) {
       console.error('No Stripe signature found in request headers');
-      return NextResponse.json({ error: 'No Stripe signature found' }, { status: 400 });
+      return res.status(400).json({ error: 'No Stripe signature found' });
     }
 
     let event;
@@ -64,23 +72,10 @@ export async function POST(request) {
       console.error(`Webhook signature verification failed: ${err.message}`);
       console.error('Raw body length:', rawBody.length);
       console.error('Signature:', sig);
-      
-      // Try with the JSON body directly from the request
-      try {
-        // Use the original request to get the body directly
-        const originalBody = await request.json();
-        const originalBodyString = JSON.stringify(originalBody);
-        
-        // Try with the stringified body
-        event = stripe.webhooks.constructEvent(originalBodyString, sig, endpointSecret);
-        console.log('Signature verification succeeded with original request body');
-      } catch (secondErr) {
-        console.error('Second attempt at signature verification failed:', secondErr.message);
-        return NextResponse.json({ 
-          error: `Webhook Error: ${err.message}`,
-          details: 'Signature verification failed. Make sure you are passing the raw request body from Stripe.'
-        }, { status: 400 });
-      }
+      return res.status(400).json({ 
+        error: `Webhook Error: ${err.message}`,
+        details: 'Signature verification failed. Make sure you are passing the raw request body from Stripe.'
+      });
     }
 
     // If we get here, we have a valid event
@@ -154,10 +149,10 @@ export async function POST(request) {
     }
 
     // Return a 200 response to acknowledge receipt of the event
-    return NextResponse.json({ received: true, result });
+    return res.status(200).json({ received: true, result });
   } catch (error) {
     console.error('Error handling webhook:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
 
@@ -196,27 +191,6 @@ async function handleCheckoutSessionCompleted(event) {
     }
   } catch (error) {
     console.error('Error handling checkout.session.completed event:', error);
-    return { success: false, error };
-  }
-}
-
-// Handle payment_intent.succeeded event
-async function handlePaymentIntentSucceeded(event) {
-  try {
-    const paymentIntent = event.data.object;
-    
-    // Create an order from the payment intent
-    const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
-    
-    if (success) {
-      console.log(`Successfully created order ${orderId} from payment intent ${paymentIntent.id}`);
-      return { success: true, orderId };
-    } else {
-      console.error(`Failed to create order from payment intent ${paymentIntent.id}:`, error);
-      return { success: false, error };
-    }
-  } catch (error) {
-    console.error('Error handling payment_intent.succeeded event:', error);
     return { success: false, error };
   }
 }
@@ -295,75 +269,41 @@ async function handleInvoicePaid(event) {
       return { success: false, error: findError };
     }
     
-    // If we found orders with this invoice ID, update their paid status
+    // If we already have an order for this invoice, update it
     if (orders && orders.length > 0) {
-      console.log(`Found ${orders.length} orders for invoice ${stripeInvoiceId}, updating paid status`);
+      console.log(`Found ${orders.length} existing orders for invoice ${stripeInvoiceId}`);
       
-      const updatePromises = orders.map(order => 
-        supabase
-          .from('orders')
-          .update({ 
-            paid: true,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', order.id)
-      );
-      
-      await Promise.all(updatePromises);
-      
-      return { 
-        success: true, 
-        message: `Updated paid status for ${orders.length} orders`,
-        orderIds: orders.map(order => order.id)
-      };
-    }
-    
-    // If no orders found with this invoice ID, check if we have orders for this customer
-    if (stripeCustomerId) {
-      const { data: customerOrders, error: customerFindError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('stripe_customer_id', stripeCustomerId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (customerFindError) {
-        console.error(`Error finding orders for customer ${stripeCustomerId}:`, customerFindError);
-      } else if (customerOrders && customerOrders.length > 0) {
-        // Update the most recent order for this customer
-        const mostRecentOrder = customerOrders[0];
-        
-        console.log(`Updating most recent order ${mostRecentOrder.id} for customer ${stripeCustomerId}`);
-        
+      // Update all orders to mark them as paid
+      for (const order of orders) {
         const { error: updateError } = await supabase
           .from('orders')
           .update({ 
             paid: true,
-            stripe_invoice_id: stripeInvoiceId,
             updated_at: new Date().toISOString()
           })
-          .eq('id', mostRecentOrder.id);
+          .eq('id', order.id);
         
         if (updateError) {
-          console.error(`Error updating order ${mostRecentOrder.id}:`, updateError);
-          return { success: false, error: updateError };
+          console.error(`Error updating order ${order.id} for invoice ${stripeInvoiceId}:`, updateError);
+        } else {
+          console.log(`Successfully marked order ${order.id} as paid for invoice ${stripeInvoiceId}`);
         }
-        
-        return { 
-          success: true, 
-          message: `Updated paid status for order ${mostRecentOrder.id}`,
-          orderId: mostRecentOrder.id
-        };
       }
+      
+      return { success: true, orderIds: orders.map(o => o.id) };
     }
     
-    // If we still haven't found any orders, log a message but don't create a new one
-    console.log(`No existing orders found for invoice ${stripeInvoiceId}, skipping order creation`);
+    // If we don't have an order for this invoice, create one
+    console.log(`No existing orders found for invoice ${stripeInvoiceId}, creating new order`);
+    const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
     
-    return { 
-      success: true, 
-      message: 'No existing orders found for this invoice, skipping order creation'
-    };
+    if (success) {
+      console.log(`Successfully created order ${orderId} from invoice ${stripeInvoiceId}`);
+      return { success: true, orderId };
+    } else {
+      console.error(`Failed to create order from invoice ${stripeInvoiceId}:`, error);
+      return { success: false, error };
+    }
   } catch (error) {
     console.error('Error handling invoice.paid event:', error);
     return { success: false, error };
