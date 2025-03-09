@@ -86,32 +86,47 @@ export async function updateOrderDeliveryStatus(orderId) {
       return { success: false, error: fetchError };
     }
     
-    // Check if order has a tracking link
-    if (!order.tracking_link || order.tracking_link === 'Empty label') {
-      return { 
-        success: false, 
-        error: 'No tracking link available',
-        order
-      };
+    let deliveryInfo;
+    
+    // If we have a shipping_id, use it to fetch shipping details
+    if (order.shipping_id) {
+      console.log(`Using shipping_id ${order.shipping_id} to fetch delivery status`);
+      const shippingDetails = await fetchShippingDetails(order.shipping_id);
+      
+      if (shippingDetails.success) {
+        deliveryInfo = {
+          status: shippingDetails.status,
+          lastUpdate: new Date().toISOString(),
+          carrier: shippingDetails.carrier,
+          destination: order.shipping_address_country,
+          rawData: shippingDetails.parcel
+        };
+      } else {
+        console.warn(`Failed to fetch shipping details using shipping_id: ${shippingDetails.error}`);
+        // Fall back to using tracking number if shipping_id fails
+      }
     }
     
-    // Extract tracking number
-    const trackingNumber = extractTrackingNumber(order.tracking_link);
-    if (!trackingNumber) {
-      return { 
-        success: false, 
-        error: 'Could not extract tracking number from link',
-        order
-      };
+    // If we don't have shipping details yet and have a tracking link, use it
+    if (!deliveryInfo && order.tracking_link && order.tracking_link !== 'Empty label') {
+      // Extract tracking number
+      const trackingNumber = extractTrackingNumber(order.tracking_link);
+      if (!trackingNumber) {
+        return { 
+          success: false, 
+          error: 'Could not extract tracking number from link',
+          order
+        };
+      }
+      
+      // Fetch delivery status from SendCloud
+      deliveryInfo = await fetchDeliveryStatus(trackingNumber);
     }
     
-    // Fetch delivery status from SendCloud
-    const deliveryInfo = await fetchDeliveryStatus(trackingNumber);
-    
-    if (deliveryInfo.error) {
+    if (!deliveryInfo || deliveryInfo.error) {
       return { 
         success: false, 
-        error: deliveryInfo.error,
+        error: deliveryInfo?.error || 'No delivery information available',
         order
       };
     }
@@ -196,9 +211,57 @@ export async function batchUpdateDeliveryStatus(limit = 50) {
   }
 }
 
+/**
+ * Fetch shipping details from SendCloud API by parcel ID
+ * @param {string} shippingId - The SendCloud parcel ID
+ * @returns {Promise<Object>} - The shipping details
+ */
+export async function fetchShippingDetails(shippingId) {
+  if (!shippingId) {
+    return { success: false, error: 'No shipping ID provided' };
+  }
+
+  try {
+    // Basic auth for SendCloud API
+    const auth = Buffer.from(`${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`).toString('base64');
+    
+    const response = await fetch(`https://panel.sendcloud.sc/api/v2/parcels/${shippingId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`SendCloud API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.parcel) {
+      return { success: false, error: 'No parcel found with this ID' };
+    }
+    
+    return {
+      success: true,
+      parcel: data.parcel,
+      status: data.parcel.status?.message || null,
+      trackingNumber: data.parcel.tracking_number || null,
+      trackingUrl: data.parcel.tracking_url || null,
+      carrier: data.parcel.carrier?.code || null,
+      labelUrl: data.parcel.label?.normal_printer || null
+    };
+  } catch (error) {
+    console.error('Error fetching shipping details from SendCloud:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export default {
   extractTrackingNumber,
   fetchDeliveryStatus,
   updateOrderDeliveryStatus,
-  batchUpdateDeliveryStatus
+  batchUpdateDeliveryStatus,
+  fetchShippingDetails
 }; 

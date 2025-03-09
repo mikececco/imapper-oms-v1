@@ -221,13 +221,68 @@ async function handleCustomerCreated(event) {
       console.log(`Successfully created/updated customer ${customerResult.customerId} from Stripe customer ${customer.id}`);
     }
     
-    // Always create an order for customer.created events
-    console.log(`Creating order for customer ${customer.id}`);
+    // Check if there are any paid invoices for this customer with amount > 300 euros
+    console.log(`Checking for paid invoices for customer ${customer.id}`);
+    const invoices = await stripe.invoices.list({
+      customer: customer.id,
+      status: 'paid',
+      limit: 10
+    });
+    
+    let eligibleInvoice = null;
+    
+    // Find an invoice with amount > 300 euros
+    for (const invoice of invoices.data) {
+      const amountPaid = invoice.amount_paid / 100; // Convert from cents to euros
+      console.log(`Found invoice ${invoice.id} with amount paid: ${amountPaid} euros`);
+      
+      if (amountPaid > 300) {
+        eligibleInvoice = invoice;
+        break;
+      }
+    }
+    
+    if (!eligibleInvoice) {
+      console.log(`No eligible invoices found for customer ${customer.id} (amount > 300 euros required)`);
+      return { 
+        success: false, 
+        message: 'No eligible invoices found (amount > 300 euros required)',
+        customerId: customerResult.customerId 
+      };
+    }
+    
+    // Create an order for the eligible invoice
+    console.log(`Creating order for customer ${customer.id} with eligible invoice ${eligibleInvoice.id}`);
+    
+    // Add the invoice ID to the event data for reference
+    event.data.invoiceId = eligibleInvoice.id;
+    
     const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
     
     if (success) {
-      console.log(`Successfully created order ${orderId} from customer ${customer.id}`);
-      return { success: true, orderId, customerId: customerResult.customerId };
+      console.log(`Successfully created order ${orderId} from customer ${customer.id} with invoice ${eligibleInvoice.id}`);
+      
+      // Update the order with the invoice ID
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          stripe_invoice_id: eligibleInvoice.id,
+          paid: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+      
+      if (updateError) {
+        console.error(`Error updating order ${orderId} with invoice ID:`, updateError);
+      }
+      
+      return { 
+        success: true, 
+        orderId, 
+        customerId: customerResult.customerId,
+        invoiceId: eligibleInvoice.id,
+        amountPaid: eligibleInvoice.amount_paid / 100
+      };
     } else {
       console.error(`Failed to create order from customer ${customer.id}:`, error);
       return { success: false, error, customerId: customerResult.customerId };

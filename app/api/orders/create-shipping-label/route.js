@@ -55,6 +55,7 @@ export async function POST(request) {
     }
     
     // Safely extract properties from the parcel object with fallbacks
+    const parcelId = parcel?.id || '';
     const trackingNumber = parcel?.tracking_number || '';
     const trackingUrl = parcel?.tracking_url || '';
     const labelUrl = parcel?.label?.normal_printer || parcel?.label?.link || '';
@@ -72,12 +73,14 @@ export async function POST(request) {
       const { error } = await supabase
         .from('orders')
         .update({
+          shipping_id: parcelId.toString(),
           tracking_number: trackingNumber,
           tracking_link: trackingUrl,
           label_url: labelUrl,
           status: 'Ready to send',
           last_delivery_status_check: currentTimestamp,
-          updated_at: currentTimestamp
+          updated_at: currentTimestamp,
+          sendcloud_data: parcel // Store the full parcel data in the sendcloud_data column
         })
         .eq('id', orderId);
       
@@ -114,6 +117,7 @@ export async function POST(request) {
             normal_printer: labelUrl
           }
         },
+        shipping_id: parcelId.toString(),
         tracking_number: trackingNumber,
         tracking_link: trackingUrl,
         label_url: labelUrl
@@ -123,6 +127,7 @@ export async function POST(request) {
     return NextResponse.json({ 
       success: true,
       message: 'Shipping label created successfully',
+      shipping_id: parcelId.toString(),
       tracking_number: trackingNumber,
       tracking_link: trackingUrl,
       label_url: labelUrl
@@ -204,7 +209,7 @@ async function createSendCloudParcel(order) {
     
     // Ensure the parcel has the expected properties
     const parcel = {
-      id: data.parcel.id || '',
+      id: data.parcel.id ? data.parcel.id.toString() : '',
       tracking_number: data.parcel.tracking_number || '',
       tracking_url: data.parcel.tracking_url || '',
       label: {

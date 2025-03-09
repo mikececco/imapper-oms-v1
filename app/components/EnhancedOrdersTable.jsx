@@ -168,6 +168,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         if (data.tracking_number || data.tracking_link || data.label_url) {
           const updatedOrder = {
             id: orderId,
+            shipping_id: data.shipping_id || '',
             tracking_number: data.tracking_number || '',
             tracking_link: data.tracking_link || '',
             label_url: data.label_url || '',
@@ -195,6 +196,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         // Success case - update local state with the returned data
         const updatedOrder = {
           id: orderId,
+          shipping_id: data.shipping_id || '',
           tracking_number: data.tracking_number || '',
           tracking_link: data.tracking_link || '',
           label_url: data.label_url || '',

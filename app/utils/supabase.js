@@ -303,8 +303,13 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       customerPhone = customer.phone || '';
       stripeCustomerId = customer.id || '';
       
+      // Check if there's an invoice ID in the event data (added by our webhook handler)
+      if (stripeEvent.data.invoiceId) {
+        stripeInvoiceId = stripeEvent.data.invoiceId;
+        console.log(`Using invoice ID from event data: ${stripeInvoiceId}`);
+      }
       // Check if there's an invoice ID in the customer object or metadata
-      if (customer.invoice) {
+      else if (customer.invoice) {
         stripeInvoiceId = customer.invoice;
       } else if (customer.metadata && customer.metadata.invoice_id) {
         stripeInvoiceId = customer.metadata.invoice_id;
@@ -663,7 +668,8 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       order_notes: orderNotes,
       instruction: 'TO SHIP', // Default shipping instruction for new orders
       status: 'pending',
-      paid: stripeEvent.type === 'invoice.paid', // Mark as paid for invoice.paid
+      // Mark as paid for invoice.paid or customer.created with an invoice ID from our webhook handler
+      paid: stripeEvent.type === 'invoice.paid' || (stripeEvent.type === 'customer.created' && stripeEvent.data.invoiceId),
       ok_to_ship: false,
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
