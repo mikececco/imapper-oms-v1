@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { createOrderFromStripeEvent, findOrCreateCustomer } from '../../../utils/supabase';
 import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
+import { headers } from 'next/headers'
 
 // Initialize Stripe with your secret key
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY, {
@@ -25,8 +26,9 @@ export async function POST(request) {
     // Log headers for debugging
     console.log('App Router Webhook request headers:', Object.fromEntries(request.headers.entries()));
     
-    const sig = request.headers.get('stripe-signature');
-    const body = await request.text();
+    const headerPayload = headers()
+    const sig = headerPayload.get('stripe-signature')
+    const body = await request.text()
     
     console.log('Raw body length:', body.length);
     console.log('Stripe signature:', sig);
