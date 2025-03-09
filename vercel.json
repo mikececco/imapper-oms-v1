@@ -4,18 +4,6 @@
   "outputDirectory": ".next",
   "framework": "nextjs",
   "regions": ["cdg1"],
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "https://ppvcladrmrprkqclyycr.supabase.co",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwdmNsYWRybXJwcmtxY2x5eWNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExODcxMTMsImV4cCI6MjA1Njc2MzExM30.MtKxAaj-XiDdlritn2G3OtCFLoTzsayL8-Pget09sMA",
-    "NEXT_SUPABASE_URL": "https://ppvcladrmrprkqclyycr.supabase.co",
-    "NEXT_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwdmNsYWRybXJwcmtxY2x5eWNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDExODcxMTMsImV4cCI6MjA1Njc2MzExM30.MtKxAaj-XiDdlritn2G3OtCFLoTzsayL8-Pget09sMA",
-    "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwdmNsYWRybXJwcmtxY2x5eWNyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MTE4NzExMywiZXhwIjoyMDU2NzYzMTEzfQ.Ow-yjJXDGVBJzGmUlABGnQE7BNAJkO0CK-trfVe_sFE",
-    "STRIPE_SECRET_KEY": "sk_test_8J2R6srhPFSFN4FWjyRrDfGT00yM8f3TcY",
-    "STRIPE_WEBHOOK_SECRET": "whsec_6ed010a3847d553a430c642df7f28b14e9feceb1d637270b9160d7ee5fc0da08",
-    "SENDCLOUD_API_KEY": "8482aee7-1997-467f-969f-382fc92c9fdf",
-    "SENDCLOUD_API_SECRET": "1f4e21310bab41c180bfef9d6d753215",
-    "NEXT_PUBLIC_API_URL": "https://imapper-oms-v1.vercel.app/api"
-  },
   "routes": [
     {
       "src": "/api/webhook/stripe",

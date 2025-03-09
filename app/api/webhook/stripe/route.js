@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { createOrderFromStripeEvent, findOrCreateCustomer } from '../../../utils/supabase';
 import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
-import { headers } from 'next/headers'
 
 // Initialize Stripe with your secret key
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY, {
@@ -26,9 +26,12 @@ export async function POST(request) {
     // Log headers for debugging
     console.log('App Router Webhook request headers:', Object.fromEntries(request.headers.entries()));
     
-    const headerPayload = headers()
-    const sig = headerPayload.get('stripe-signature')
-    const body = await request.text()
+    // Get the Stripe signature from headers
+    const headersList = headers();
+    const sig = headersList.get('stripe-signature');
+    
+    // Get the raw body
+    const body = await request.text();
     
     console.log('Raw body length:', body.length);
     console.log('Stripe signature:', sig);
@@ -42,12 +45,31 @@ export async function POST(request) {
 
     try {
       // Verify the event came from Stripe
+      console.log('Attempting to verify webhook signature...');
+      console.log('Webhook secret length:', STRIPE_WEBHOOK_SECRET ? STRIPE_WEBHOOK_SECRET.length : 0);
+      console.log('Webhook secret first 10 chars:', STRIPE_WEBHOOK_SECRET ? STRIPE_WEBHOOK_SECRET.substring(0, 10) + '...' : 'undefined');
+      
       event = stripe.webhooks.constructEvent(body, sig, STRIPE_WEBHOOK_SECRET);
+      console.log('Webhook signature verification successful!');
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
       console.error('Raw body length:', body.length);
       console.error('Signature:', sig);
-      return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
+      
+      // Try with a different approach as a fallback
+      try {
+        console.log('Trying alternative signature verification approach...');
+        // Try with a trimmed body
+        const trimmedBody = body.trim();
+        event = stripe.webhooks.constructEvent(trimmedBody, sig, STRIPE_WEBHOOK_SECRET);
+        console.log('Alternative approach succeeded!');
+      } catch (secondErr) {
+        console.error('Second attempt at signature verification failed:', secondErr.message);
+        return NextResponse.json({ 
+          error: `Webhook Error: ${err.message}`,
+          details: 'Signature verification failed. Make sure the webhook secret is correct.'
+        }, { status: 400 });
+      }
     }
 
     // If we get here, we have a valid event
