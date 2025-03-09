@@ -360,7 +360,7 @@ export default function OrderDetailModal({ children }) {
                       {order.tracking_number && (
                         <button
                           onClick={updateDeliveryStatus}
-                          className="mt-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                          className="mt-2 w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
                         >
                           Update Status from SendCloud
                         </button>
@@ -377,17 +377,29 @@ export default function OrderDetailModal({ children }) {
                 
                 {/* Create Shipping Label Button */}
                 {!order.label_url && !order.shipping_id && (
-                  <div className="mt-4">
+                  <div className="mt-6 w-full">
                     <button
                       onClick={createShippingLabel}
                       disabled={creatingLabel || !order.shipping_address_line1 || !order.order_pack}
-                      className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+                      className="w-full px-4 py-3 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {creatingLabel ? 'Creating Label...' : 'Create Shipping Label'}
                     </button>
                     {!order.shipping_address_line1 && <p className="text-sm text-red-600 mt-1">Missing shipping address</p>}
                     {!order.order_pack && <p className="text-sm text-red-600 mt-1">Order pack is required</p>}
                     {!order.paid && <p className="text-sm text-yellow-600 mt-1">Note: Order is not marked as paid</p>}
+                    
+                    {labelMessage && (
+                      <div className={`mt-3 p-3 rounded-md text-center ${
+                        labelMessage.type === 'success' 
+                          ? 'bg-green-100 text-green-800' 
+                          : labelMessage.type === 'warning'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                      }`}>
+                        {labelMessage.text}
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -400,20 +412,6 @@ export default function OrderDetailModal({ children }) {
                     </div>
                   </div>
                 )}
-                
-                {labelMessage && (
-                  <div 
-                    className={`mt-4 p-2 rounded text-sm ${
-                      labelMessage.type === 'success' 
-                        ? 'bg-green-100 text-green-800' 
-                        : labelMessage.type === 'warning'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {labelMessage.text}
-                  </div>
-                )}
               </div>
             </div>
           ) : (
@@ -422,10 +420,10 @@ export default function OrderDetailModal({ children }) {
             </div>
           )}
           
-          <DialogFooter>
+          <DialogFooter className="w-full">
             <button 
               onClick={closeModal}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              className="w-full px-4 py-3 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
             >
               Close
             </button>

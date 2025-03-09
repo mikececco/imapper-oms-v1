@@ -43,6 +43,46 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   const [isMounted, setIsMounted] = useState(false);
   const [isCustomPackModalOpen, setIsCustomPackModalOpen] = useState(false);
 
+  // Add state to track if form has been modified
+  const [isFormModified, setIsFormModified] = useState(false);
+  
+  // Store the original form data for comparison
+  const [originalFormData, setOriginalFormData] = useState({});
+  
+  // Initialize form data and original data
+  useEffect(() => {
+    const initialData = {
+      name: order.name || '',
+      email: order.email || '',
+      phone: order.phone || '',
+      shipping_address_line1: order.shipping_address_line1 || '',
+      shipping_address_line2: order.shipping_address_line2 || '',
+      shipping_address_city: order.shipping_address_city || '',
+      shipping_address_postal_code: order.shipping_address_postal_code || '',
+      shipping_address_country: normalizeCountryToCode(order.shipping_address_country || ''),
+      order_pack: order.order_pack || '',
+      order_notes: order.order_notes || '',
+      weight: order.weight || '1.000',
+      shipping_method: order.shipping_method || 'standard',
+      tracking_link: order.tracking_link || '',
+      tracking_number: order.tracking_number || '',
+      shipping_id: order.shipping_id || '',
+    };
+    
+    setFormData(initialData);
+    setOriginalFormData(initialData);
+  }, [order]);
+  
+  // Check if form data has changed
+  useEffect(() => {
+    // Compare current form data with original data
+    const hasChanged = Object.keys(formData).some(key => 
+      formData[key] !== originalFormData[key]
+    );
+    
+    setIsFormModified(hasChanged);
+  }, [formData, originalFormData]);
+
   // Only run this effect after the component has mounted on the client
   useEffect(() => {
     hasMounted.current = true;
@@ -275,6 +315,17 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   // Ensure we always have at least one shipping method
   const displayMethods = shippingMethods.length > 0 ? shippingMethods : DEFAULT_SHIPPING_METHODS;
 
+  // Add helper functions to check if fields are modified and apply styling
+  const isFieldModified = (fieldName) => {
+    return formData[fieldName] !== originalFormData[fieldName];
+  };
+
+  const getFieldBorderClass = (fieldName) => {
+    return isFieldModified(fieldName) 
+      ? 'border-yellow-400' 
+      : 'border-gray-300';
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -308,7 +359,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               id="name"
               name="name"
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('name')}`}
               value={formData.name}
               onChange={handleChange}
             />
@@ -322,7 +373,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               id="email"
               name="email"
               type="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('email')}`}
               value={formData.email}
               onChange={handleChange}
             />
@@ -336,7 +387,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               id="phone"
               name="phone"
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('phone')}`}
               value={formData.phone}
               onChange={handleChange}
             />
@@ -355,7 +406,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               id="shipping_address_line1"
               name="shipping_address_line1"
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_line1')}`}
               value={formData.shipping_address_line1}
               onChange={handleChange}
             />
@@ -369,7 +420,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               id="shipping_address_line2"
               name="shipping_address_line2"
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_line2')}`}
               value={formData.shipping_address_line2}
               onChange={handleChange}
             />
@@ -384,7 +435,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
                 id="shipping_address_city"
                 name="shipping_address_city"
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_city')}`}
                 value={formData.shipping_address_city}
                 onChange={handleChange}
               />
@@ -398,7 +449,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
                 id="shipping_address_postal_code"
                 name="shipping_address_postal_code"
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_postal_code')}`}
                 value={formData.shipping_address_postal_code}
                 onChange={handleChange}
               />
@@ -414,7 +465,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
                 id="shipping_address_country"
                 name="shipping_address_country"
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_country')}`}
                 value={formData.shipping_address_country}
                 onChange={handleChange}
                 placeholder="Enter country code (e.g. FR, GB, US)"
@@ -424,7 +475,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
                 id="shipping_address_country"
                 name="shipping_address_country"
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_country')}`}
                 value={formData.shipping_address_country}
                 readOnly
               />
@@ -450,7 +501,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
             <select
               id="order_pack"
               name="order_pack"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('order_pack')}`}
               value={formData.order_pack}
               onChange={handleChange}
             >
@@ -477,7 +528,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               name="weight"
               type="text"
               placeholder="1.000"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('weight')}`}
               value={formData.weight}
               onChange={handleChange}
             />
@@ -495,7 +546,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
             id="order_notes"
             name="order_notes"
             rows="3"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('order_notes')}`}
             value={formData.order_notes}
             onChange={handleChange}
           ></textarea>
@@ -609,25 +660,29 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         </div>
       </div>
 
-      {updateMessage.text && (
-        <div 
-          className={`p-2 rounded text-sm ${
+      <div className="mt-6 w-full">
+        <button
+          type="submit"
+          className={`w-full px-4 py-3 rounded-md font-medium ${
+            isUpdating || !isFormModified
+              ? 'bg-gray-400 text-white cursor-not-allowed'
+              : 'bg-black text-white hover:bg-gray-800'
+          }`}
+          disabled={isUpdating || !isFormModified}
+        >
+          {isUpdating ? 'Updating...' : 'Update Order'}
+        </button>
+        
+        {updateMessage.text && (
+          <div className={`mt-3 p-3 rounded-md text-center ${
             updateMessage.type === 'success' 
               ? 'bg-green-100 text-green-800' 
               : 'bg-red-100 text-red-800'
-          }`}
-        >
-          {updateMessage.text}
-        </div>
-      )}
-
-      <button 
-        type="submit" 
-        disabled={isUpdating}
-        className="w-full px-4 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
-      >
-        {isUpdating ? 'Updating...' : 'Update Order'}
-      </button>
+          }`}>
+            {updateMessage.text}
+          </div>
+        )}
+      </div>
     </form>
   );
 } 
