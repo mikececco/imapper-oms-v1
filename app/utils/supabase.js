@@ -270,29 +270,32 @@ export async function searchOrders(query) {
 // Helper function to create an order from a Stripe event
 export async function createOrderFromStripeEvent(stripeEvent) {
   try {
-    // First, verify that the event is stored in the database
+    // Verify that the event is stored in the database
     await verifyStripeEventStored(stripeEvent);
     
-    // Generate a unique ID for the order
-    const orderId = `ord_${crypto.randomBytes(6).toString('hex')}`;
+    // Generate a unique order ID
+    const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     
-    // Extract customer information from the event
+    // Extract data from the event
     const eventData = stripeEvent.data.object;
-    let customerName = 'Unknown Customer';
+    
+    // Initialize variables for order data
+    let customerName = '';
     let customerEmail = '';
     let customerPhone = '';
+    let shippingAddressForDisplay = ''; // Initialize this variable
     let shippingAddressLine1 = '';
     let shippingAddressLine2 = '';
     let shippingAddressCity = '';
     let shippingAddressState = '';
     let shippingAddressPostalCode = '';
     let shippingAddressCountry = '';
-    let orderPack = '';
     let orderNotes = '';
     let stripeCustomerId = '';
     let stripeInvoiceId = '';
     let stripePaymentIntentId = '';
     let customerId = null;
+    let isPaid = stripeEvent.type === 'invoice.paid' || (stripeEvent.type === 'customer.created' && stripeEvent.data.invoiceId);
     
     // Handle different event types
     if (stripeEvent.type === 'customer.created') {
@@ -306,7 +309,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       customerPhone = customer.phone || '';
       
       // Extract shipping address if available
-      let shippingAddressForDisplay = ''; // For display purposes only, not stored in DB
       if (customer.shipping && customer.shipping.address) {
         const address = customer.shipping.address;
         shippingAddressLine1 = address.line1 || '';
@@ -572,6 +574,16 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shippingAddressCountry = normalizeCountryToCode(shippingAddressCountry);
     }
     
+    // If we don't have a formatted address for display yet, create one from the individual components
+    if (!shippingAddressForDisplay && (shippingAddressLine1 || shippingAddressCity || shippingAddressPostalCode || shippingAddressCountry)) {
+      shippingAddressForDisplay = [
+        shippingAddressLine1,
+        shippingAddressCity,
+        shippingAddressPostalCode,
+        shippingAddressCountry
+      ].filter(Boolean).join(', ');
+    }
+    
     console.log(`Creating order from ${stripeEvent.type} event:`, {
       id: orderId,
       name: customerName,
@@ -613,8 +625,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         stripe_invoice_id: stripeInvoiceId,
         stripe_payment_intent_id: stripePaymentIntentId,
         customer_id: customerId,
-        // Mark as paid for invoice.paid or customer.created with an invoice ID from our webhook handler
-        paid: stripeEvent.type === 'invoice.paid' || (stripeEvent.type === 'customer.created' && stripeEvent.data.invoiceId),
+        paid: isPaid,
         ok_to_ship: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
