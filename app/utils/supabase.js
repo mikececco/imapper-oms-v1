@@ -281,7 +281,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     let customerName = 'Unknown Customer';
     let customerEmail = '';
     let customerPhone = '';
-    let shippingAddress = '';
     let shippingAddressLine1 = '';
     let shippingAddressLine2 = '';
     let shippingAddressCity = '';
@@ -299,10 +298,27 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     if (stripeEvent.type === 'customer.created') {
       // Extract data from customer object
       const customer = eventData;
-      customerName = customer.name || 'New Customer';
+      stripeCustomerId = customer.id || '';
+      
+      // Extract customer details
+      customerName = customer.name || '';
       customerEmail = customer.email || '';
       customerPhone = customer.phone || '';
-      stripeCustomerId = customer.id || '';
+      
+      // Extract shipping address if available
+      let shippingAddressForDisplay = ''; // For display purposes only, not stored in DB
+      if (customer.shipping && customer.shipping.address) {
+        const address = customer.shipping.address;
+        shippingAddressLine1 = address.line1 || '';
+        shippingAddressLine2 = address.line2 || '';
+        shippingAddressCity = address.city || '';
+        shippingAddressState = address.state || '';
+        shippingAddressPostalCode = address.postal_code || '';
+        shippingAddressCountry = address.country || '';
+        
+        // Format shipping address for display purposes
+        shippingAddressForDisplay = formatShippingAddress(address);
+      }
       
       // Check if there's an invoice ID in the event data (added by our webhook handler)
       if (stripeEvent.data.invoiceId) {
@@ -322,98 +338,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       }
       
       console.log(`Using invoice ID: ${stripeInvoiceId} for customer ${stripeCustomerId}`);
-      
-      // Extract all possible address information
-      let addressFound = false;
-      
-      // Check if customer has an address
-      if (customer.address) {
-        addressFound = true;
-        const address = customer.address;
-        shippingAddressLine1 = address.line1 || '';
-        shippingAddressLine2 = address.line2 || '';
-        shippingAddressCity = address.city || '';
-        shippingAddressState = address.state || '';
-        shippingAddressPostalCode = address.postal_code || '';
-        shippingAddressCountry = address.country || '';
-        
-        // Format shipping address for the orders table
-        shippingAddress = formatShippingAddress(address);
-        console.log('Using customer.address for shipping address:', shippingAddress);
-      } 
-      
-      // If no address yet, check shipping address
-      if (!addressFound && customer.shipping && customer.shipping.address) {
-        addressFound = true;
-        const address = customer.shipping.address;
-        shippingAddressLine1 = address.line1 || '';
-        shippingAddressLine2 = address.line2 || '';
-        shippingAddressCity = address.city || '';
-        shippingAddressState = address.state || '';
-        shippingAddressPostalCode = address.postal_code || '';
-        shippingAddressCountry = address.country || '';
-        
-        // Format shipping address for the orders table
-        shippingAddress = formatShippingAddress(address);
-        console.log('Using customer.shipping.address for shipping address:', shippingAddress);
-      } 
-      
-      // If still no address, check metadata
-      if (!addressFound && customer.metadata && customer.metadata.address) {
-        // Try to parse address from metadata if it exists
-        try {
-          const address = typeof customer.metadata.address === 'string' 
-            ? JSON.parse(customer.metadata.address) 
-            : customer.metadata.address;
-            
-          shippingAddressLine1 = address.line1 || '';
-          shippingAddressLine2 = address.line2 || '';
-          shippingAddressCity = address.city || '';
-          shippingAddressState = address.state || '';
-          shippingAddressPostalCode = address.postal_code || '';
-          shippingAddressCountry = address.country || '';
-          
-          // Format shipping address for the orders table
-          shippingAddress = formatShippingAddress(address);
-          addressFound = true;
-          console.log('Using customer.metadata.address for shipping address:', shippingAddress);
-        } catch (e) {
-          console.error('Error parsing address from metadata:', e);
-          // If parsing fails, leave address empty
-        }
-      }
-      
-      // If still no address, check for individual address fields in metadata
-      if (!addressFound && customer.metadata) {
-        const metadata = customer.metadata;
-        const addressFields = [
-          'address_line1', 'address_line_1', 'line1', 'street',
-          'address_city', 'city',
-          'address_postal_code', 'postal_code', 'zip',
-          'address_country', 'country'
-        ];
-        
-        // Check if any address fields exist in metadata
-        const hasAddressFields = addressFields.some(field => metadata[field]);
-        
-        if (hasAddressFields) {
-          shippingAddressLine1 = metadata.address_line1 || metadata.address_line_1 || metadata.line1 || metadata.street || '';
-          shippingAddressCity = metadata.address_city || metadata.city || '';
-          shippingAddressPostalCode = metadata.address_postal_code || metadata.postal_code || metadata.zip || '';
-          shippingAddressCountry = metadata.address_country || metadata.country || '';
-          
-          // Format shipping address for the orders table
-          shippingAddress = [
-            shippingAddressLine1,
-            shippingAddressCity,
-            shippingAddressPostalCode,
-            shippingAddressCountry
-          ].filter(Boolean).join(', ');
-          
-          addressFound = true;
-          console.log('Using individual address fields from metadata for shipping address:', shippingAddress);
-        }
-      }
       
       // Get metadata if available
       if (customer.metadata) {
@@ -479,7 +403,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressCountry = address.country || '';
         
         // Format shipping address for the orders table
-        shippingAddress = formatShippingAddress(address);
+        shippingAddressForDisplay = formatShippingAddress(address);
       } else if (invoice.customer_address) {
         // Use customer address if shipping address is not available
         const address = invoice.customer_address;
@@ -491,7 +415,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressCountry = address.country || '';
         
         // Format shipping address for the orders table
-        shippingAddress = formatShippingAddress(address);
+        shippingAddressForDisplay = formatShippingAddress(address);
       }
       
       // Set order details
@@ -523,9 +447,9 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       return { success: false, error: `Event type ${stripeEvent.type} not supported for order creation` };
     }
     
-    // If we have individual address components but no formatted shipping address, create it
-    if (!shippingAddress && (shippingAddressLine1 || shippingAddressCity || shippingAddressPostalCode)) {
-      shippingAddress = [
+    // If we have individual address components but no formatted shipping address, create it for display
+    if (!shippingAddressForDisplay && (shippingAddressLine1 || shippingAddressCity || shippingAddressPostalCode)) {
+      shippingAddressForDisplay = [
         shippingAddressLine1,
         shippingAddressCity,
         shippingAddressPostalCode,
@@ -628,6 +552,14 @@ export async function createOrderFromStripeEvent(stripeEvent) {
           if (!shippingAddressCountry) {
             shippingAddressCountry = existingCustomer.address_country || '';
           }
+          
+          // Update the formatted address for display
+          shippingAddressForDisplay = [
+            shippingAddressLine1,
+            shippingAddressCity,
+            shippingAddressPostalCode,
+            shippingAddressCountry
+          ].filter(Boolean).join(', ');
         }
       } catch (addressError) {
         console.error('Error fetching customer address:', addressError);
@@ -650,13 +582,14 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_city: shippingAddressCity,
       shipping_address_postal_code: shippingAddressPostalCode,
       shipping_address_country: shippingAddressCountry,
+      shipping_address_for_display: shippingAddressForDisplay,
       order_pack: '', // Empty by default, to be filled by admin
       order_notes: orderNotes,
-      instruction: 'TO SHIP', // Default shipping instruction for new orders
+      instruction: 'TO SHIP', // Default shipping instruction
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
-      stripe_payment_intent_id: stripePaymentIntentId,
-      customer_id: customerId
+      customer_id: customerId,
+      paid: isPaid
     });
     
     // Create the order in Supabase
@@ -667,7 +600,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         name: customerName,
         email: customerEmail,
         phone: customerPhone,
-        shipping_address: shippingAddress,
         shipping_address_line1: shippingAddressLine1,
         shipping_address_line2: shippingAddressLine2,
         shipping_address_city: shippingAddressCity,
@@ -702,7 +634,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
   }
 }
 
-// Helper function to format shipping address
+// Helper function to format shipping address - used for display purposes only, not for database storage
 function formatShippingAddress(address) {
   if (!address) return '';
   
