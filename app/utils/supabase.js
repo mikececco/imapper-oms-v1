@@ -600,20 +600,26 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     
     // Format line items for storage if available
     let lineItemsJson = null;
-    if (lineItems && lineItems.length > 0) {
-      // Extract relevant information from line items
-      const formattedLineItems = lineItems.map(item => ({
-        id: item.id,
-        description: item.description,
-        amount: item.amount / 100, // Convert from cents to euros
-        quantity: item.quantity || 1,
-        currency: item.currency || 'eur',
-        type: item.type || 'invoiceitem'
-      }));
-      
-      // Convert to JSON string for storage
-      lineItemsJson = JSON.stringify(formattedLineItems);
-      console.log(`Formatted ${formattedLineItems.length} line items for storage`);
+    if (lineItems && Array.isArray(lineItems) && lineItems.length > 0) {
+      try {
+        // Extract relevant information from line items
+        const formattedLineItems = lineItems.map(item => ({
+          id: item.id || '',
+          description: item.description || '',
+          amount: (item.amount || 0) / 100, // Convert from cents to euros
+          quantity: item.quantity || 1,
+          currency: item.currency || 'eur',
+          type: item.type || 'invoiceitem'
+        }));
+        
+        // Convert to JSON string for storage
+        lineItemsJson = JSON.stringify(formattedLineItems);
+        console.log(`Formatted ${formattedLineItems.length} line items for storage`);
+      } catch (error) {
+        console.error('Error formatting line items:', error);
+        // If there's an error, set lineItemsJson to null
+        lineItemsJson = null;
+      }
     }
     
     console.log(`Creating order from ${stripeEvent.type} event:`, {
@@ -634,36 +640,43 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       stripe_invoice_id: stripeInvoiceId,
       customer_id: customerId,
       paid: isPaid,
-      line_items: lineItemsJson
+      line_items: lineItemsJson ? `${lineItemsJson.substring(0, 50)}...` : null
     });
     
-    // Create the order in Supabase
+    // Create the order in Supabase with dynamic fields
+    const insertData = {
+      id: orderId,
+      name: customerName,
+      email: customerEmail,
+      phone: customerPhone,
+      shipping_address_line1: shippingAddressLine1,
+      shipping_address_line2: shippingAddressLine2,
+      shipping_address_city: shippingAddressCity,
+      shipping_address_postal_code: shippingAddressPostalCode,
+      shipping_address_country: shippingAddressCountry,
+      order_pack: '', // Empty by default, to be filled by admin
+      order_notes: orderNotes,
+      instruction: 'TO SHIP', // Default shipping instruction for new orders
+      status: 'pending',
+      stripe_customer_id: stripeCustomerId,
+      stripe_invoice_id: stripeInvoiceId,
+      stripe_payment_intent_id: stripePaymentIntentId,
+      customer_id: customerId,
+      paid: isPaid,
+      ok_to_ship: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Only add line_items if we have them
+    if (lineItemsJson) {
+      insertData.line_items = lineItemsJson;
+    }
+
+    // Insert the order
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        id: orderId,
-        name: customerName,
-        email: customerEmail,
-        phone: customerPhone,
-        shipping_address_line1: shippingAddressLine1,
-        shipping_address_line2: shippingAddressLine2,
-        shipping_address_city: shippingAddressCity,
-        shipping_address_postal_code: shippingAddressPostalCode,
-        shipping_address_country: shippingAddressCountry,
-        order_pack: '', // Empty by default, to be filled by admin
-        order_notes: orderNotes,
-        instruction: 'TO SHIP', // Default shipping instruction for new orders
-        status: 'pending',
-        stripe_customer_id: stripeCustomerId,
-        stripe_invoice_id: stripeInvoiceId,
-        stripe_payment_intent_id: stripePaymentIntentId,
-        customer_id: customerId,
-        paid: isPaid,
-        ok_to_ship: false,
-        line_items: lineItemsJson, // Add line items to the order
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(insertData)
       .select()
       .single();
     
