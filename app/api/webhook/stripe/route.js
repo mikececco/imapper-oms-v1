@@ -251,11 +251,18 @@ async function handleCustomerCreated(event) {
       };
     }
     
+    // Fetch line items for the eligible invoice
+    console.log(`Fetching line items for invoice ${eligibleInvoice.id}`);
+    const lineItems = await stripe.invoiceItems.list({
+      invoice: eligibleInvoice.id
+    });
+    
     // Create an order for the eligible invoice
     console.log(`Creating order for customer ${customer.id} with eligible invoice ${eligibleInvoice.id}`);
     
-    // Add the invoice ID to the event data for reference
+    // Add the invoice ID and line items to the event data for reference
     event.data.invoiceId = eligibleInvoice.id;
+    event.data.lineItems = lineItems.data;
     
     const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
     
@@ -278,14 +285,17 @@ async function handleCustomerCreated(event) {
       
       return { 
         success: true, 
-        orderId, 
-        customerId: customerResult.customerId,
-        invoiceId: eligibleInvoice.id,
-        amountPaid: eligibleInvoice.amount_paid / 100
+        message: `Order created from customer ${customer.id} with invoice ${eligibleInvoice.id}`,
+        orderId,
+        customerId: customerResult.customerId
       };
     } else {
       console.error(`Failed to create order from customer ${customer.id}:`, error);
-      return { success: false, error, customerId: customerResult.customerId };
+      return { 
+        success: false, 
+        error,
+        customerId: customerResult.customerId
+      };
     }
   } catch (error) {
     console.error('Error handling customer.created event:', error);
@@ -297,55 +307,41 @@ async function handleCustomerCreated(event) {
 async function handleInvoicePaid(event) {
   try {
     const invoice = event.data.object;
-    const stripeCustomerId = invoice.customer;
-    const stripeInvoiceId = invoice.id;
     
-    console.log(`Processing invoice.paid event for invoice ${stripeInvoiceId} and customer ${stripeCustomerId}`);
-    
-    // First, check if we have any orders with this invoice ID
-    const { data: orders, error: findError } = await supabase
+    // Check if this invoice has already been processed
+    const { data: existingOrders, error: queryError } = await supabase
       .from('orders')
-      .select('*')
-      .eq('stripe_invoice_id', stripeInvoiceId);
+      .select('id')
+      .eq('stripe_invoice_id', invoice.id);
     
-    if (findError) {
-      console.error(`Error finding orders for invoice ${stripeInvoiceId}:`, findError);
-      return { success: false, error: findError };
+    if (queryError) {
+      console.error('Error checking for existing orders:', queryError);
+    } else if (existingOrders && existingOrders.length > 0) {
+      console.log(`Invoice ${invoice.id} has already been processed, skipping`);
+      return { success: true, message: 'Invoice already processed', orderId: existingOrders[0].id };
     }
     
-    // If we already have an order for this invoice, update it
-    if (orders && orders.length > 0) {
-      console.log(`Found ${orders.length} existing orders for invoice ${stripeInvoiceId}`);
-      
-      // Update all orders to mark them as paid
-      for (const order of orders) {
-        const { error: updateError } = await supabase
-          .from('orders')
-          .update({ 
-            paid: true,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', order.id);
-        
-        if (updateError) {
-          console.error(`Error updating order ${order.id} for invoice ${stripeInvoiceId}:`, updateError);
-        } else {
-          console.log(`Successfully marked order ${order.id} as paid for invoice ${stripeInvoiceId}`);
-        }
-      }
-      
-      return { success: true, orderIds: orders.map(o => o.id) };
-    }
+    // Fetch line items for the invoice
+    console.log(`Fetching line items for invoice ${invoice.id}`);
+    const lineItems = await stripe.invoiceItems.list({
+      invoice: invoice.id
+    });
     
-    // If we don't have an order for this invoice, create one
-    console.log(`No existing orders found for invoice ${stripeInvoiceId}, creating new order`);
+    // Add line items to the event data
+    event.data.lineItems = lineItems.data;
+    
+    // Create an order from the invoice
     const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
     
     if (success) {
-      console.log(`Successfully created order ${orderId} from invoice ${stripeInvoiceId}`);
-      return { success: true, orderId };
+      console.log(`Successfully created order ${orderId} from invoice ${invoice.id}`);
+      return { 
+        success: true, 
+        message: `Order created from invoice ${invoice.id}`,
+        orderId 
+      };
     } else {
-      console.error(`Failed to create order from invoice ${stripeInvoiceId}:`, error);
+      console.error(`Failed to create order from invoice ${invoice.id}:`, error);
       return { success: false, error };
     }
   } catch (error) {

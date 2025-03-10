@@ -420,6 +420,63 @@ export default function OrderDetailModal({ children }) {
             </div>
           )}
           
+          {/* Line Items Section */}
+          {order.line_items && (
+            <div className="bg-white p-4 rounded border border-gray-200 mt-4">
+              <h2 className="text-lg font-semibold mb-4">Invoice Line Items</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {(() => {
+                      try {
+                        const lineItems = JSON.parse(order.line_items);
+                        return lineItems.map((item, index) => (
+                          <tr key={index}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.description || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">€{item.amount.toFixed(2)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.quantity}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">€{(item.amount * item.quantity).toFixed(2)}</td>
+                          </tr>
+                        ));
+                      } catch (error) {
+                        return (
+                          <tr>
+                            <td colSpan="4" className="px-6 py-4 text-center text-sm text-red-500">
+                              Error parsing line items: {error.message}
+                            </td>
+                          </tr>
+                        );
+                      }
+                    })()}
+                  </tbody>
+                  <tfoot className="bg-gray-50">
+                    <tr>
+                      <td colSpan="3" className="px-6 py-3 text-right text-sm font-medium text-gray-500">Total</td>
+                      <td className="px-6 py-3 text-sm text-gray-500">
+                        {(() => {
+                          try {
+                            const lineItems = JSON.parse(order.line_items);
+                            return `€${lineItems.reduce((sum, item) => sum + (item.amount * item.quantity), 0).toFixed(2)}`;
+                          } catch (error) {
+                            return 'Error calculating total';
+                          }
+                        })()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+          
           <DialogFooter className="w-full">
             <button 
               onClick={closeModal}

@@ -297,6 +297,8 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     let customerId = null;
     // Initialize isPaid as false, we'll set it to true if needed
     let isPaid = false;
+    // Initialize line items
+    let lineItems = null;
     
     // Handle different event types
     if (stripeEvent.type === 'customer.created') {
@@ -329,6 +331,12 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         console.log(`Using invoice ID from event data: ${stripeInvoiceId}`);
         // Since we have an invoice ID, this order is paid
         isPaid = true;
+        
+        // Check if there are line items in the event data
+        if (stripeEvent.data.lineItems) {
+          lineItems = stripeEvent.data.lineItems;
+          console.log(`Found ${lineItems.length} line items for invoice ${stripeInvoiceId}`);
+        }
       }
       // Check if there's an invoice ID in the customer object or metadata
       else if (customer.invoice) {
@@ -342,7 +350,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         stripeInvoiceId = `cus_ref_${customer.id}`;
       }
       
-      console.log(`Using invoice ID: ${stripeInvoiceId} for customer ${stripeCustomerId}`);
+      console.log(`Using invoice ID: ${stripeInvoiceId}`);
       
       // Get metadata if available
       if (customer.metadata) {
@@ -590,6 +598,24 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       ].filter(Boolean).join(', ');
     }
     
+    // Format line items for storage if available
+    let lineItemsJson = null;
+    if (lineItems && lineItems.length > 0) {
+      // Extract relevant information from line items
+      const formattedLineItems = lineItems.map(item => ({
+        id: item.id,
+        description: item.description,
+        amount: item.amount / 100, // Convert from cents to euros
+        quantity: item.quantity || 1,
+        currency: item.currency || 'eur',
+        type: item.type || 'invoiceitem'
+      }));
+      
+      // Convert to JSON string for storage
+      lineItemsJson = JSON.stringify(formattedLineItems);
+      console.log(`Formatted ${formattedLineItems.length} line items for storage`);
+    }
+    
     console.log(`Creating order from ${stripeEvent.type} event:`, {
       id: orderId,
       name: customerName,
@@ -607,7 +633,8 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
       customer_id: customerId,
-      paid: isPaid
+      paid: isPaid,
+      line_items: lineItemsJson
     });
     
     // Create the order in Supabase
@@ -633,6 +660,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         customer_id: customerId,
         paid: isPaid,
         ok_to_ship: false,
+        line_items: lineItemsJson, // Add line items to the order
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
