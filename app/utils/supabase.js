@@ -295,7 +295,8 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     let stripeInvoiceId = '';
     let stripePaymentIntentId = '';
     let customerId = null;
-    let isPaid = stripeEvent.type === 'invoice.paid' || (stripeEvent.type === 'customer.created' && stripeEvent.data.invoiceId);
+    // Initialize isPaid as false, we'll set it to true if needed
+    let isPaid = false;
     
     // Handle different event types
     if (stripeEvent.type === 'customer.created') {
@@ -326,6 +327,8 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       if (stripeEvent.data.invoiceId) {
         stripeInvoiceId = stripeEvent.data.invoiceId;
         console.log(`Using invoice ID from event data: ${stripeInvoiceId}`);
+        // Since we have an invoice ID, this order is paid
+        isPaid = true;
       }
       // Check if there's an invoice ID in the customer object or metadata
       else if (customer.invoice) {
@@ -382,6 +385,9 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       const invoice = eventData;
       stripeCustomerId = invoice.customer || '';
       stripeInvoiceId = invoice.id || '';
+      
+      // Since this is an invoice.paid event, the order is paid
+      isPaid = true;
       
       // Try to get customer details from the invoice
       if (invoice.customer_name) {
