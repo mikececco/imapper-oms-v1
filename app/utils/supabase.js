@@ -273,6 +273,44 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     // Verify that the event is stored in the database
     await verifyStripeEventStored(stripeEvent);
     
+    // Check if this is a customer.created event with an invoice
+    if (stripeEvent.type === 'customer.created' && stripeEvent.data.invoiceId) {
+      // If we have an invoice ID, check if the amount is greater than 300 euros
+      // This should be done in the webhook handler, but we'll double-check here
+      try {
+        // If the webhook handler has already checked the amount, we can trust it
+        // But if we're called directly, we should check the amount
+        if (!stripeEvent.data.amountChecked) {
+          console.log(`Checking invoice amount for ${stripeEvent.data.invoiceId}`);
+          
+          // We need to import Stripe here
+          const Stripe = require('stripe');
+          const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+            apiVersion: '2023-10-16',
+          });
+          
+          // Fetch the invoice from Stripe
+          const invoice = await stripe.invoices.retrieve(stripeEvent.data.invoiceId);
+          
+          // Check if the amount is greater than 300 euros
+          const amountPaid = invoice.amount_paid / 100; // Convert from cents to euros
+          console.log(`Invoice ${stripeEvent.data.invoiceId} amount paid: ${amountPaid} euros`);
+          
+          if (amountPaid <= 300) {
+            console.log(`Invoice amount (${amountPaid} euros) is not greater than 300 euros, skipping order creation`);
+            return { 
+              success: false, 
+              error: `Invoice amount (${amountPaid} euros) is not greater than 300 euros` 
+            };
+          }
+        }
+      } catch (error) {
+        console.error(`Error checking invoice amount for ${stripeEvent.data.invoiceId}:`, error);
+        // Continue with order creation even if we can't check the amount
+        // This is to avoid blocking order creation if the Stripe API is unavailable
+      }
+    }
+    
     // Generate a unique order ID
     const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     

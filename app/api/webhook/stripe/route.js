@@ -148,6 +148,42 @@ export async function POST(request) {
 // Create an order from any event type
 async function createOrderFromAnyEvent(event) {
   try {
+    // Check if the event contains an invoice
+    const eventData = event.data.object;
+    
+    if (eventData.invoice || eventData.id.startsWith('in_')) {
+      // This event is related to an invoice, check the amount
+      const invoiceId = eventData.invoice || (eventData.id.startsWith('in_') ? eventData.id : null);
+      
+      if (invoiceId) {
+        console.log(`Event ${event.type} contains invoice ${invoiceId}, checking amount`);
+        
+        try {
+          // Fetch the invoice from Stripe
+          const invoice = await stripe.invoices.retrieve(invoiceId);
+          
+          // Check if the amount is greater than 300 euros
+          const amountPaid = invoice.amount_paid / 100; // Convert from cents to euros
+          console.log(`Invoice ${invoiceId} amount paid: ${amountPaid} euros`);
+          
+          if (amountPaid <= 300) {
+            console.log(`Invoice amount (${amountPaid} euros) is not greater than 300 euros, skipping order creation`);
+            return { 
+              success: false, 
+              message: `Invoice amount (${amountPaid} euros) is not greater than 300 euros` 
+            };
+          }
+          
+          // Add the invoice ID and amount checked flag to the event data
+          event.data.invoiceId = invoiceId;
+          event.data.amountChecked = true;
+        } catch (error) {
+          console.error(`Error checking invoice amount for ${invoiceId}:`, error);
+          // Continue with order creation even if we can't check the amount
+        }
+      }
+    }
+    
     const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
     
     if (success) {
@@ -260,9 +296,10 @@ async function handleCustomerCreated(event) {
     // Create an order for the eligible invoice
     console.log(`Creating order for customer ${customer.id} with eligible invoice ${eligibleInvoice.id}`);
     
-    // Add the invoice ID and line items to the event data for reference
+    // Add the invoice ID, line items, and amount checked flag to the event data for reference
     event.data.invoiceId = eligibleInvoice.id;
     event.data.lineItems = lineItems.data;
+    event.data.amountChecked = true; // Mark that we've already checked the amount
     
     const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
     
@@ -321,14 +358,27 @@ async function handleInvoicePaid(event) {
       return { success: true, message: 'Invoice already processed', orderId: existingOrders[0].id };
     }
     
+    // Check if the invoice amount is greater than 300 euros
+    const amountPaid = invoice.amount_paid / 100; // Convert from cents to euros
+    console.log(`Invoice ${invoice.id} amount paid: ${amountPaid} euros`);
+    
+    if (amountPaid <= 300) {
+      console.log(`Invoice amount (${amountPaid} euros) is not greater than 300 euros, skipping order creation`);
+      return { 
+        success: false, 
+        message: `Invoice amount (${amountPaid} euros) is not greater than 300 euros` 
+      };
+    }
+    
     // Fetch line items for the invoice
     console.log(`Fetching line items for invoice ${invoice.id}`);
     const lineItems = await stripe.invoiceItems.list({
       invoice: invoice.id
     });
     
-    // Add line items to the event data
+    // Add line items and amount checked flag to the event data
     event.data.lineItems = lineItems.data;
+    event.data.amountChecked = true; // Mark that we've already checked the amount
     
     // Create an order from the invoice
     const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
