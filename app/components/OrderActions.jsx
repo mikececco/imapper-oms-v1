@@ -341,31 +341,16 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
   return (
     <div className="order-pack-dropdown">
       <select
-        value={orderPack}
+        id={`order-pack-${orderId}`}
+        value={currentPack || ''}
         onChange={handleChange}
-        disabled={isUpdating}
-        className="form-control form-control-sm"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        style={{
-          padding: '4px 8px',
-          fontSize: '0.875rem',
-          width: '100%',
-          maxWidth: '180px',
-          backgroundColor: isHovered ? '#e0e0e0' : '#f5f5f5',
-          color: '#000000',
-          border: '1px solid #000000',
-          cursor: isUpdating ? 'wait' : 'pointer',
-          transition: 'all 0.2s ease'
-        }}
+        className="w-full p-2 border border-gray-300 rounded text-sm"
       >
-        <option value="" disabled>Select package</option>
+        <option value="" disabled>Select order pack</option>
         {ORDER_PACK_OPTIONS.map((option, index) => (
-          <option key={index} value={option.value}>
-            {option.label}
-          </option>
+          <option key={index} value={option.value}>{option.label}</option>
         ))}
-        <option value="custom">+ Add custom package...</option>
+        <option value="custom">+ Add custom order pack...</option>
       </select>
       
       <CustomOrderPackModal 

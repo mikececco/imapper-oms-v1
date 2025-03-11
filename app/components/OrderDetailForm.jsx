@@ -496,16 +496,16 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="order_pack" className="text-sm font-medium block">
-              Package Type
+              Order Pack List
             </label>
             <select
               id="order_pack"
               name="order_pack"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('order_pack')}`}
+              className={`w-full px-3 py-2 border ${getFieldBorderClass('order_pack')} rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent`}
               value={formData.order_pack}
               onChange={handleChange}
             >
-              <option value="">Select a package</option>
+              <option value="">Select an order pack</option>
               {orderPackOptions.map((option, index) => (
                 <option key={index} value={option.value}>{option.label}</option>
               ))}

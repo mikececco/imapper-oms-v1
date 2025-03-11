@@ -184,16 +184,15 @@ export default function NewOrderForm() {
       </div>
 
       <div className="form-group">
-        <label htmlFor="order_pack">Order Package</label>
+        <label htmlFor="order_pack">Order Pack List</label>
         <select
           id="order_pack"
           name="order_pack"
-          className="form-control"
           value={formData.order_pack}
           onChange={handleChange}
-          required
+          className="form-control"
         >
-          <option value="" disabled>Select order pack list</option>
+          <option value="">Select an order pack</option>
           {ORDER_PACK_OPTIONS.map((option, index) => (
             <option key={index} value={option.value}>{option.label}</option>
           ))}

@@ -91,9 +91,9 @@ export default async function OrderDetail({ params }) {
               </div>
 
               <div className="info-group">
-                <h3>Package Information</h3>
-                <p><strong>Order Pack List:</strong> {order.order_pack || 'N/A'}</p>
-                <p><strong>Weight:</strong> {order.weight || 'N/A'} kg</p>
+                <h3>Order Pack Information</h3>
+                <p><strong>Order Pack:</strong> {order.order_pack || 'Not specified'}</p>
+                <p><strong>Weight:</strong> {order.weight || '1.000'} kg</p>
                 {/* {order.shipping_method && (
                   <p><strong>Shipping Method:</strong> <span className="capitalize">{order.shipping_method}</span></p>
                 )} */}

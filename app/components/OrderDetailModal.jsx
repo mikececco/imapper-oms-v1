@@ -369,7 +369,7 @@ export default function OrderDetailModal({ children }) {
                     
                     {order.weight && (
                       <div className="mt-4">
-                        <span className="font-medium">Package Weight:</span> {order.weight} kg
+                        <span className="font-medium">Order Pack Weight:</span> {order.weight} kg
                       </div>
                     )}
                   </div>

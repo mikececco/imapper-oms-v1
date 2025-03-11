@@ -111,8 +111,8 @@ export default function CustomOrderPackModal({ isOpen, onClose, onSave, initialV
           )}
           
           {!isDuplicate && similarPackages.length === 0 && (
-            <p className="mt-2 text-sm text-gray-500">
-              Enter a unique name for this package type.
+            <p className="text-sm text-gray-500 mb-4">
+              Enter a unique name for this order pack.
             </p>
           )}
         </div>
@@ -128,10 +128,14 @@ export default function CustomOrderPackModal({ isOpen, onClose, onSave, initialV
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isSubmitting || isDuplicate || !customPack.trim()}
-            className={`px-4 py-2 ${isDuplicate ? 'bg-gray-400' : 'bg-black hover:bg-gray-800'} text-white rounded disabled:opacity-50`}
+            disabled={isSubmitting || isDuplicate || customPack.trim() === ''}
+            className={`px-4 py-2 rounded-md text-white ${
+              isSubmitting || isDuplicate || customPack.trim() === ''
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-black hover:bg-gray-800'
+            }`}
           >
-            {isSubmitting ? 'Saving...' : 'Save Package'}
+            {isSubmitting ? 'Saving...' : 'Save Order Pack'}
           </button>
         </DialogFooter>
       </DialogContent>

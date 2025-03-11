@@ -105,7 +105,7 @@ export default function Dashboard() {
                     <tr>
                       <th>Order ID</th>
                       <th>Customer</th>
-                      <th>Package</th>
+                      <th>Order Pack</th>
                       <th>Status</th>
                       <th>Date</th>
                       <th>Actions</th>
