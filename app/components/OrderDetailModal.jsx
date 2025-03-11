@@ -376,17 +376,27 @@ export default function OrderDetailModal({ children }) {
                 </div>
                 
                 {/* Create Shipping Label Button */}
-                {!order.label_url && !order.shipping_id && (
+                {(!order.shipping_id || !order.label_url) && (
                   <div className="mt-6 w-full">
                     <button
                       onClick={createShippingLabel}
-                      disabled={creatingLabel || !order.shipping_address_line1 || !order.order_pack}
+                      disabled={
+                        creatingLabel || 
+                        !order.shipping_address_line1 || 
+                        !order.order_pack || 
+                        order.order_pack.trim() === '' || 
+                        order.order_pack === 'Select an order pack' ||
+                        !order.phone
+                      }
                       className="w-full px-4 py-3 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {creatingLabel ? 'Creating Label...' : 'Create Shipping Label'}
+                      {creatingLabel ? 'Creating Label...' : order.shipping_id ? 'Create New Shipping Label' : 'Create Shipping Label'}
                     </button>
                     {!order.shipping_address_line1 && <p className="text-sm text-red-600 mt-1">Missing shipping address</p>}
-                    {!order.order_pack && <p className="text-sm text-red-600 mt-1">Order pack is required</p>}
+                    {(!order.order_pack || order.order_pack.trim() === '' || order.order_pack === 'Select an order pack') && 
+                      <p id="order-pack-required-message" className="text-sm text-red-600 mt-1">Please select an order pack from the dropdown</p>
+                    }
+                    {!order.phone && <p id="phone-required-message" className="text-sm text-red-600 mt-1">Phone number is required</p>}
                     {!order.paid && <p className="text-sm text-yellow-600 mt-1">Note: Order is not marked as paid</p>}
                     
                     {labelMessage && (
@@ -404,11 +414,11 @@ export default function OrderDetailModal({ children }) {
                 )}
                 
                 {/* Message when shipping_id exists but no label_url */}
-                {!order.label_url && order.shipping_id && (
+                {order.shipping_id && !order.label_url && (
                   <div className="mt-4">
                     <div className="p-2 bg-yellow-100 text-yellow-800 rounded text-sm">
                       A shipping label has already been created (Parcel ID: {order.shipping_id}), but the label URL is missing. 
-                      Please check SendCloud for the label.
+                      You can create a new shipping label if needed.
                     </div>
                   </div>
                 )}

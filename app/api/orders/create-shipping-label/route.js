@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SENDCLOUD_API_KEY, SENDCLOUD_API_SECRET } from '../../../utils/env';
+import { ORDER_PACK_OPTIONS } from '../../../utils/constants';
 
 // Initialize Supabase client with fallback values for build time
 const supabaseUrl = SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -48,8 +49,13 @@ export async function POST(request) {
     }
     
     // Check if the order pack is filled
-    if (!order.order_pack) {
+    if (!order.order_pack || order.order_pack.trim() === '') {
       return NextResponse.json({ error: 'Order pack is required before creating a shipping label' }, { status: 400 });
+    }
+    
+    // Check if phone number is provided
+    if (!order.phone) {
+      return NextResponse.json({ error: 'Phone number is required before creating a shipping label' }, { status: 400 });
     }
     
     // Create a parcel in SendCloud
@@ -180,10 +186,10 @@ async function createSendCloudParcel(order) {
         country: order.shipping_address_country,
         email: order.email || '',
         telephone: order.phone || '',
-        order_number: order.order_pack || order.id,
-        weight: weight, // Use the weight from the order
-        request_label: false, // Set to true to request a label
-        apply_shipping_rules: false, // Apply shipping rules to get the best carrier
+        order_number: order.order_pack_label || order.order_pack, // Use the stored label, fallback to order_pack if not available
+        weight: weight,
+        request_label: false,
+        apply_shipping_rules: false,
       }
     };
     

@@ -148,8 +148,14 @@ export async function fetchOrders() {
 // Search orders
 export async function searchOrders(query) {
   try {
+    // If query is empty, return all orders
+    if (!query || query.trim() === '') {
+      return await fetchOrders();
+    }
+    
     // Clean the query to prevent SQL injection
     const cleanQuery = query.replace(/[%_]/g, '\\$&');
+    console.log(`Searching for orders with cleaned query: "${cleanQuery}"`);
     
     const { data, error } = await supabase
       .from('orders')
@@ -159,23 +165,30 @@ export async function searchOrders(query) {
         `name.ilike.%${cleanQuery}%,` +
         `email.ilike.%${cleanQuery}%,` +
         `phone.ilike.%${cleanQuery}%,` +
-        `shipping_address.ilike.%${cleanQuery}%,` +
+        `shipping_address_line1.ilike.%${cleanQuery}%,` +
+        `shipping_address_line2.ilike.%${cleanQuery}%,` +
+        `shipping_address_city.ilike.%${cleanQuery}%,` +
+        `shipping_address_postal_code.ilike.%${cleanQuery}%,` +
+        `shipping_address_country.ilike.%${cleanQuery}%,` +
         `order_pack.ilike.%${cleanQuery}%,` +
         `order_notes.ilike.%${cleanQuery}%,` +
         `status.ilike.%${cleanQuery}%,` +
         `shipping_instruction.ilike.%${cleanQuery}%,` +
-        `tracking_number.ilike.%${cleanQuery}%`
+        `tracking_number.ilike.%${cleanQuery}%,` +
+        `stripe_customer_id.ilike.%${cleanQuery}%,` +
+        `stripe_invoice_id.ilike.%${cleanQuery}%`
       )
       .order('created_at', { ascending: false });
-    
+
     if (error) {
       console.error('Error searching orders:', error);
       return [];
     }
-    
+
+    console.log(`Search returned ${data.length} results`);
     return data || [];
   } catch (error) {
-    console.error('Exception searching orders:', error);
+    console.error('Exception in searchOrders:', error);
     return [];
   }
 }

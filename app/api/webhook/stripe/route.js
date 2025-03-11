@@ -240,7 +240,6 @@ async function handleCustomerCreated(event) {
       address_line1: customer.address?.line1 || '',
       address_line2: customer.address?.line2 || '',
       address_city: customer.address?.city || '',
-      address_state: customer.address?.state || '',
       address_postal_code: customer.address?.postal_code || '',
       address_country: customer.address?.country || '',
       metadata: customer.metadata || {}
@@ -251,7 +250,6 @@ async function handleCustomerCreated(event) {
       customerData.address_line1 = customer.shipping.address.line1 || customerData.address_line1;
       customerData.address_line2 = customer.shipping.address.line2 || customerData.address_line2;
       customerData.address_city = customer.shipping.address.city || customerData.address_city;
-      customerData.address_state = customer.shipping.address.state || customerData.address_state;
       customerData.address_postal_code = customer.shipping.address.postal_code || customerData.address_postal_code;
       customerData.address_country = customer.shipping.address.country || customerData.address_country;
     }

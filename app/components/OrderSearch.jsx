@@ -24,14 +24,16 @@ export default function OrderSearch() {
     const params = new URLSearchParams(searchParams);
     
     // Update or remove the 'q' parameter based on searchTerm
-    if (searchTerm) {
-      params.set('q', searchTerm);
+    if (searchTerm && searchTerm.trim()) {
+      params.set('q', searchTerm.trim());
     } else {
       params.delete('q');
     }
     
     // Navigate to the same page with updated query parameters
-    router.push(`${pathname}?${params.toString()}`);
+    const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    console.log(`Navigating to: ${newUrl}`);
+    router.push(newUrl);
   };
 
   const handleClear = () => {
@@ -56,10 +58,12 @@ export default function OrderSearch() {
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search orders by name, email, address, status..."
           className="search-input flex-grow p-2 border border-gray-300 rounded"
+          aria-label="Search orders"
         />
         <button 
           type="submit" 
-          className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
+          className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition-colors duration-200"
+          aria-label="Submit search"
         >
           Search
         </button>
@@ -67,7 +71,8 @@ export default function OrderSearch() {
           <button 
             type="button" 
             onClick={handleClear}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors duration-200"
+            aria-label="Clear search"
           >
             Clear
           </button>

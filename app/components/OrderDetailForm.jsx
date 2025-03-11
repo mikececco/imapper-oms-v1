@@ -24,6 +24,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     shipping_address_postal_code: order.shipping_address_postal_code || '',
     shipping_address_country: normalizeCountryToCode(order.shipping_address_country || ''),
     order_pack: order.order_pack || '',
+    order_pack_label: order.order_pack_label || '',
     order_notes: order.order_notes || '',
     weight: order.weight || '1.000',
     shipping_method: order.shipping_method || 'standard',
@@ -61,6 +62,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       shipping_address_postal_code: order.shipping_address_postal_code || '',
       shipping_address_country: normalizeCountryToCode(order.shipping_address_country || ''),
       order_pack: order.order_pack || '',
+      order_pack_label: order.order_pack_label || '',
       order_notes: order.order_notes || '',
       weight: order.weight || '1.000',
       shipping_method: order.shipping_method || 'standard',
@@ -210,6 +212,14 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         ...prev,
         [name]: normalizedValue
       }));
+    } else if (name === 'order_pack') {
+      // Find the matching order pack option to get the label
+      const orderPackOption = orderPackOptions.find(option => option.value === value);
+      setFormData(prev => ({
+        ...prev,
+        order_pack: value,
+        order_pack_label: orderPackOption ? orderPackOption.label : value
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -248,6 +258,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         shipping_address_postal_code: formData.shipping_address_postal_code,
         shipping_address_country: formData.shipping_address_country,
         order_pack: formData.order_pack,
+        order_pack_label: formData.order_pack_label,
         order_notes: formData.order_notes,
         weight: formData.weight,
         shipping_method: formData.shipping_method,
@@ -501,16 +512,21 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
             <select
               id="order_pack"
               name="order_pack"
-              className={`w-full px-3 py-2 border ${getFieldBorderClass('order_pack')} rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent`}
-              value={formData.order_pack}
+              required
+              className={`w-full px-3 py-2 border ${getFieldBorderClass('order_pack')} rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${(!formData.order_pack || formData.order_pack === '') ? 'text-gray-500' : 'text-black'}`}
+              value={formData.order_pack || ''}
               onChange={handleChange}
+              aria-describedby="order-pack-description"
             >
-              <option value="">Select an order pack</option>
+              <option value="" disabled>Select an order pack</option>
               {orderPackOptions.map((option, index) => (
                 <option key={index} value={option.value}>{option.label}</option>
               ))}
               <option value="custom">+ Add Order Pack</option>
             </select>
+            <p id="order-pack-description" className="text-xs text-gray-500 mt-1">
+              Required for creating shipping labels
+            </p>
             
             <CustomOrderPackModal 
               isOpen={isCustomPackModalOpen}

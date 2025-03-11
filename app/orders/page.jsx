@@ -35,7 +35,9 @@ export default function Orders({ searchParams }) {
         data = await filterOrders(activeFilters);
       } else if (query) {
         // If search query is present but no filters
+        console.log(`Searching for orders with query: "${query}"`);
         data = await searchOrders(query);
+        console.log(`Search returned ${data.length} results`);
       } else {
         // No filters, no search
         data = await fetchOrders();
@@ -52,6 +54,8 @@ export default function Orders({ searchParams }) {
       setFilteredOrders(filtered);
     } catch (error) {
       console.error('Error loading orders:', error);
+      setOrders([]);
+      setFilteredOrders([]);
     } finally {
       setLoading(false);
     }
@@ -151,19 +155,25 @@ export default function Orders({ searchParams }) {
            activeFilters ? 'FILTERED ORDERS' : 
            activeCountry !== 'all' ? `ORDERS FROM ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}` : 'ALL ORDERS'}
         </h2>
-        {query && filteredOrders.length > 0 && (
+        {query && (
           <p className="text-sm text-gray-600 mt-1">
-            Found {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} matching your search
+            {filteredOrders.length > 0 
+              ? `Found ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} matching your search`
+              : 'No orders found matching your search'}
           </p>
         )}
         {activeFilters && (
           <p className="text-sm text-gray-600 mt-1">
-            Showing {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} matching your filters
+            {filteredOrders.length > 0
+              ? `Showing ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} matching your filters`
+              : 'No orders match your filters'}
           </p>
         )}
         {activeCountry !== 'all' && !query && !activeFilters && (
           <p className="text-sm text-gray-600 mt-1">
-            Showing {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} from {COUNTRY_MAPPING[activeCountry]?.name || activeCountry}
+            {filteredOrders.length > 0
+              ? `Showing ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} from ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}`
+              : `No orders found from ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}`}
           </p>
         )}
       </header>
