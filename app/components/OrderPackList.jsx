@@ -9,14 +9,24 @@ import { toast } from 'react-hot-toast';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
-let supabase;
+let supabase = null;
 
 // Initialize Supabase client only on the client side
 if (typeof window !== 'undefined') {
-  supabase = createClient(
-    window.__ENV__.NEXT_PUBLIC_SUPABASE_URL,
-    window.__ENV__.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
+  try {
+    const supabaseUrl = window.__ENV__?.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = window.__ENV__?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Missing Supabase environment variables');
+      toast.error('System configuration error. Please contact support.');
+    } else {
+      supabase = createClient(supabaseUrl, supabaseAnonKey);
+    }
+  } catch (error) {
+    console.error('Error initializing Supabase client:', error);
+    toast.error('Failed to initialize system. Please refresh the page or contact support.');
+  }
 }
 
 export default function OrderPackList() {
@@ -32,6 +42,7 @@ export default function OrderPackList() {
     comment: ''
   });
   const [loadingOrderPacks, setLoadingOrderPacks] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchOrderPacks();
@@ -40,26 +51,45 @@ export default function OrderPackList() {
   const fetchOrderPacks = async () => {
     try {
       if (!supabase) {
-        throw new Error('Supabase client not initialized. Check your environment variables.');
+        throw new Error('Supabase client not initialized. Please check your environment configuration.');
       }
 
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('order_pack_lists')
         .select('*')
         .order('label');
 
-      if (error) {
-        throw error;
+      if (fetchError) {
+        throw fetchError;
       }
 
       setOrderPacks(data || []);
-      setLoadingOrderPacks(false);
+      setError(null);
     } catch (error) {
       console.error('Error fetching order packs:', error);
+      setError(error.message);
       toast.error(error.message || 'Failed to load order packs');
+    } finally {
       setLoadingOrderPacks(false);
     }
   };
+
+  // Show error state if initialization failed
+  if (error) {
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+        <h3 className="text-lg font-semibold text-red-800 mb-2">Error</h3>
+        <p className="text-red-600">{error}</p>
+        <Button
+          onClick={() => window.location.reload()}
+          className="mt-4"
+          variant="outline"
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
