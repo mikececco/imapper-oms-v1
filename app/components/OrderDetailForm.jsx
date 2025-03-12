@@ -22,6 +22,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     email: order.email || '',
     phone: order.phone || '',
     shipping_address_line1: order.shipping_address_line1 || '',
+    shipping_address_house_number: order.shipping_address_house_number || '',
     shipping_address_line2: order.shipping_address_line2 || '',
     shipping_address_city: order.shipping_address_city || '',
     shipping_address_postal_code: order.shipping_address_postal_code || '',
@@ -61,6 +62,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       email: order.email || '',
       phone: order.phone || '',
       shipping_address_line1: order.shipping_address_line1 || '',
+      shipping_address_house_number: order.shipping_address_house_number || '',
       shipping_address_line2: order.shipping_address_line2 || '',
       shipping_address_city: order.shipping_address_city || '',
       shipping_address_postal_code: order.shipping_address_postal_code || '',
@@ -208,25 +210,32 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         
         setOrderPackLists(data || []);
         
-        // If there's a selected pack, update the weight
+        // If there's a selected pack, update the form data with all pack details
         if (order.order_pack_list_id) {
           const selectedPack = data?.find(pack => pack.id === order.order_pack_list_id);
           if (selectedPack) {
             setFormData(prev => ({
               ...prev,
+              order_pack_list_id: selectedPack.id,
+              order_pack: selectedPack.value,
+              order_pack_label: selectedPack.label,
               weight: selectedPack.weight
             }));
           }
         }
       } catch (error) {
         console.error('Error fetching order packs:', error);
+        setUpdateMessage({ 
+          text: 'Failed to load order packs. Please try refreshing the page.', 
+          type: 'error' 
+        });
       } finally {
         setLoadingOrderPacks(false);
       }
     };
 
     fetchOrderPacks();
-  }, [order.order_pack_list_id]);
+  }, [order.order_pack_list_id, supabase]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -253,13 +262,24 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     } else if (name === 'order_pack_list_id') {
       // Find the selected order pack from the database options
       const selectedPack = orderPackLists.find(pack => pack.id === value);
-      setFormData(prev => ({
-        ...prev,
-        order_pack_list_id: value,
-        order_pack: selectedPack?.value || '',
-        order_pack_label: selectedPack?.label || '',
-        weight: selectedPack?.weight || '1.000'  // Set the weight from the selected pack
-      }));
+      if (selectedPack) {
+        setFormData(prev => ({
+          ...prev,
+          order_pack_list_id: selectedPack.id,
+          order_pack: selectedPack.value,
+          order_pack_label: selectedPack.label,
+          weight: selectedPack.weight
+        }));
+      } else {
+        // Reset order pack related fields if no pack is selected
+        setFormData(prev => ({
+          ...prev,
+          order_pack_list_id: '',
+          order_pack: '',
+          order_pack_label: '',
+          weight: '1.000'
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -293,6 +313,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         email: formData.email,
         phone: formData.phone,
         shipping_address_line1: formData.shipping_address_line1,
+        shipping_address_house_number: formData.shipping_address_house_number,
         shipping_address_line2: formData.shipping_address_line2,
         shipping_address_city: formData.shipping_address_city,
         shipping_address_postal_code: formData.shipping_address_postal_code,
@@ -460,6 +481,21 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               type="text"
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_line1')}`}
               value={formData.shipping_address_line1}
+              onChange={handleChange}
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="shipping_address_house_number" className="text-sm font-medium block">
+              House Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="shipping_address_house_number"
+              name="shipping_address_house_number"
+              type="text"
+              required
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_house_number')}`}
+              value={formData.shipping_address_house_number}
               onChange={handleChange}
             />
           </div>

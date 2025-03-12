@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { StatusBadge, PaymentBadge, ShippingToggle, OrderPackDropdown } from "./OrderActions";
+import { StatusBadge, PaymentBadge, ShippingToggle, OrderPackDropdown, StatusSelector } from "./OrderActions";
 import ShippingMethodDropdown from "./ShippingMethodDropdown";
 import { useOrderDetailModal } from "./OrderDetailModal";
 import { calculateOrderInstruction } from "../utils/order-instructions";
@@ -578,22 +578,11 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                       {order.tracking_number || 'N/A'}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <div className={`order-status ${(order.delivery_status || 'empty').toLowerCase().replace(/\s+/g, '-')} px-2 py-1 rounded text-sm`}>
-                          {order.delivery_status || 'EMPTY'}
-                        </div>
-                        {order.tracking_number && (
-                          <button
-                            onClick={() => updateDeliveryStatus(order.id)}
-                            className="text-gray-500 hover:text-black"
-                            title="Refresh delivery status"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
+                      <StatusSelector 
+                        currentStatus={order.status || 'pending'} 
+                        orderId={order.id} 
+                        onUpdate={handleOrderUpdate}
+                      />
                     </TableCell>
                     <TableCell>
                       {order.label_url ? (

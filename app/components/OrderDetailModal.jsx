@@ -9,6 +9,13 @@ import OrderDetailForm from './OrderDetailForm';
 import PaymentStatusEditor from './PaymentStatusEditor';
 import { ORDER_PACK_OPTIONS } from '../utils/constants';
 import { normalizeCountryToCode, getCountryDisplayName } from '../utils/country-utils';
+import OrderActivityLog from './OrderActivityLog';
+import { useSupabase } from './Providers';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { TableCell } from './ui/table';
+import { calculateOrderInstruction } from '../utils/order-instructions';
 
 // Create context for the OrderDetailModal
 export const OrderDetailModalContext = createContext({
@@ -107,6 +114,7 @@ export function OrderDetailModalProvider({ children }) {
 
 export default function OrderDetailModal({ children }) {
   const router = useRouter();
+  const supabase = useSupabase();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [order, setOrder] = useState(null);
@@ -378,36 +386,78 @@ export default function OrderDetailModal({ children }) {
                 {/* Create Shipping Label Button */}
                 {(!order.shipping_id || !order.label_url) && (
                   <div className="mt-6 w-full">
-                    <button
-                      onClick={createShippingLabel}
-                      disabled={
-                        creatingLabel || 
-                        !order.shipping_address_line1 || 
-                        !order.order_pack_list_id ||
-                        !order.phone
-                      }
-                      className="w-full px-4 py-3 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {creatingLabel ? 'Creating Label...' : order.shipping_id ? 'Create New Shipping Label' : 'Create Shipping Label'}
-                    </button>
-                    {!order.shipping_address_line1 && <p className="text-sm text-red-600 mt-1">Missing shipping address</p>}
-                    {!order.order_pack_list_id && 
-                      <p className="text-sm text-red-600 mt-1">Please select an order pack from the dropdown</p>
-                    }
-                    {!order.phone && <p className="text-sm text-red-600 mt-1">Phone number is required</p>}
-                    {!order.paid && <p className="text-sm text-yellow-600 mt-1">Note: Order is not marked as paid</p>}
-                    
-                    {labelMessage && (
-                      <div className={`mt-3 p-3 rounded-md text-center ${
-                        labelMessage.type === 'success' 
-                          ? 'bg-green-100 text-green-800' 
-                          : labelMessage.type === 'warning'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                      }`}>
-                        {labelMessage.text}
-                      </div>
-                    )}
+                    <div className="p-4">
+                      {order.label_url ? (
+                        <a 
+                          href={order.label_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          View Label
+                        </a>
+                      ) : order.shipping_id ? (
+                        <div className="relative tooltip-container">
+                          <span className="text-yellow-500 cursor-help">Pending</span>
+                          <div className="tooltip">
+                            Label created (ID: {order.shipping_id.substring(0, 8)}...) but URL not available
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <button
+                            onClick={createShippingLabel}
+                            className={`px-4 py-2 text-white rounded ${
+                              order.ok_to_ship && order.paid && order.shipping_address_line1 && 
+                              order.shipping_address_house_number && order.shipping_address_city && 
+                              order.shipping_address_postal_code && order.shipping_address_country && 
+                              order.phone && order.email && order.name && order.order_pack
+                                ? 'bg-green-500 hover:bg-green-600'
+                                : 'bg-gray-400 cursor-not-allowed'
+                            }`}
+                            disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || 
+                                    !order.shipping_address_house_number || !order.shipping_address_city || 
+                                    !order.shipping_address_postal_code || !order.shipping_address_country || 
+                                    !order.phone || !order.email || !order.name || !order.order_pack || 
+                                    creatingLabel}
+                          >
+                            {creatingLabel ? 'Creating...' : 'Create Shipping Label'}
+                          </button>
+                          {labelMessage && (
+                            <div className={`mt-2 p-2 rounded ${
+                              labelMessage.type === 'success' 
+                                ? 'bg-green-100 text-green-800' 
+                                : labelMessage.type === 'warning'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                            }`}>
+                              {labelMessage.text}
+                            </div>
+                          )}
+                          {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || 
+                            !order.shipping_address_house_number || !order.shipping_address_city || 
+                            !order.shipping_address_postal_code || !order.shipping_address_country || 
+                            !order.phone || !order.email || !order.name || !order.order_pack) && (
+                            <div className="text-red-500 mt-2">
+                              Missing required fields for shipping label:
+                              <ul className="list-disc list-inside mt-2">
+                                {!order.shipping_address_line1 && <li>Address line 1</li>}
+                                {!order.shipping_address_house_number && <li>House number</li>}
+                                {!order.shipping_address_city && <li>City</li>}
+                                {!order.shipping_address_postal_code && <li>Postal code</li>}
+                                {!order.shipping_address_country && <li>Country</li>}
+                                {!order.phone && <li>Phone number</li>}
+                                {!order.email && <li>Email</li>}
+                                {!order.name && <li>Name</li>}
+                                {!order.order_pack && <li>Order pack</li>}
+                                {!order.ok_to_ship && <li>Order not ready to ship</li>}
+                                {!order.paid && <li>Order not paid</li>}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 
@@ -498,6 +548,18 @@ export default function OrderDetailModal({ children }) {
               </div>
             </div>
           )}
+          
+          {/* Order Activity Log */}
+          <div className="bg-white p-4 rounded border border-gray-200 mt-6">
+            <h2 className="text-lg font-semibold mb-4">Activity Log</h2>
+            {order?.id ? (
+              <OrderActivityLog orderId={order.id} />
+            ) : (
+              <div className="text-gray-500 text-center py-4">
+                No activities available
+              </div>
+            )}
+          </div>
           
           <DialogFooter className="w-full">
             <button 

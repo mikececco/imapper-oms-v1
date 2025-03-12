@@ -27,16 +27,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
     
-    // Fetch the order from Supabase with the order pack list
+    // Fetch the order from Supabase
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select(`
-        *,
-        order_pack_list:order_pack_lists (
-          value,
-          label
-        )
-      `)
+      .select('*')
       .eq('id', orderId)
       .single();
     
@@ -49,19 +43,29 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     
-    // Check if the order has the required shipping address information
-    if (!order.shipping_address_line1 || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country) {
-      return NextResponse.json({ error: 'Shipping address is incomplete' }, { status: 400 });
+    // Check if the order has all required shipping address information
+    if (!order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || 
+        !order.shipping_address_postal_code || !order.shipping_address_country || !order.phone || 
+        !order.email || !order.name || !order.order_pack_list_id) {
+      const missingFields = [];
+      if (!order.shipping_address_line1) missingFields.push('address line 1');
+      if (!order.shipping_address_house_number) missingFields.push('house number');
+      if (!order.shipping_address_city) missingFields.push('city');
+      if (!order.shipping_address_postal_code) missingFields.push('postal code');
+      if (!order.shipping_address_country) missingFields.push('country code');
+      if (!order.phone) missingFields.push('phone number');
+      if (!order.email) missingFields.push('email');
+      if (!order.name) missingFields.push('name');
+      if (!order.order_pack_list_id) missingFields.push('order pack');
+
+      return NextResponse.json({ 
+        error: `Missing required fields: ${missingFields.join(', ')}` 
+      }, { status: 400 });
     }
     
-    // Check if the order pack list is selected
-    if (!order.order_pack_list_id) {
-      return NextResponse.json({ error: 'Order pack must be selected before creating a shipping label' }, { status: 400 });
-    }
-    
-    // Check if phone number is provided
-    if (!order.phone) {
-      return NextResponse.json({ error: 'Phone number is required before creating a shipping label' }, { status: 400 });
+    // Check if the order pack is filled
+    if (!order.order_pack || order.order_pack.trim() === '') {
+      return NextResponse.json({ error: 'Order pack is required before creating a shipping label' }, { status: 400 });
     }
     
     // Create a parcel in SendCloud
@@ -180,9 +184,6 @@ async function createSendCloudParcel(order) {
     // Get shipping method or use default
     const shippingMethod = order.shipping_method || 'standard';
     
-    // Get the order pack label from the relationship
-    const orderPackLabel = order.order_pack_list?.label || order.order_pack_label || order.order_pack;
-    
     // Prepare the parcel data
     const parcelData = {
       parcel: {
@@ -195,7 +196,7 @@ async function createSendCloudParcel(order) {
         country: order.shipping_address_country,
         email: order.email || '',
         telephone: order.phone || '',
-        order_number: orderPackLabel,
+        order_number: order.order_pack_label || order.order_pack, // Use the stored label, fallback to order_pack if not available
         weight: weight,
         request_label: false,
         apply_shipping_rules: false,

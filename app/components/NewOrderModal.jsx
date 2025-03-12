@@ -17,16 +17,18 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
   const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [formData, setFormData] = useState({
     customer_id: '',
-    order_pack_list_id: '',
     name: '',
     email: '',
     phone: '',
     shipping_address_line1: '',
+    shipping_address_house_number: '',
     shipping_address_line2: '',
     shipping_address_city: '',
     shipping_address_postal_code: '',
     shipping_address_country: '',
-    weight: null
+    order_pack_list_id: '',
+    weight: '',
+    order_notes: ''
   });
   const [newPackData, setNewPackData] = useState({
     name: '',
@@ -508,7 +510,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Shipping Address Line 1</label>
+            <label className="block text-sm font-medium mb-1">Address Line 1</label>
             <Input
               name="shipping_address_line1"
               value={formData.shipping_address_line1}
@@ -518,7 +520,19 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Shipping Address Line 2</label>
+            <label className="block text-sm font-medium mb-1">
+              House Number <span className="text-red-500">*</span>
+            </label>
+            <Input
+              name="shipping_address_house_number"
+              value={formData.shipping_address_house_number}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Address Line 2</label>
             <Input
               name="shipping_address_line2"
               value={formData.shipping_address_line2}
