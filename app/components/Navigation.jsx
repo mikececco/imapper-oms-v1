@@ -4,11 +4,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import OrderPackList from './OrderPackList';
+import NewOrderModal from './NewOrderModal';
 import { Dialog, DialogContent } from './ui/dialog';
 
 export default function Navigation() {
   const pathname = usePathname();
   const [isOrderPackModalOpen, setIsOrderPackModalOpen] = useState(false);
+  const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+
+  const handleOrderCreated = (newOrder) => {
+    // You can handle the newly created order here
+    // For example, redirect to the order details page
+    window.location.href = `/orders/${newOrder.id}`;
+  };
 
   return (
     <nav className="main-nav">
@@ -37,12 +45,12 @@ export default function Navigation() {
           >
             Customers
           </Link>
-          <Link 
-            href="/orders/new" 
-            className={pathname === '/orders/new' ? 'active' : ''}
+          <button
+            onClick={() => setIsNewOrderModalOpen(true)}
+            className={`nav-button ${pathname === '/orders/new' ? 'active' : ''}`}
           >
             New Order
-          </Link>
+          </button>
           <button
             onClick={() => setIsOrderPackModalOpen(true)}
             className={`nav-button ${pathname === '/order-packs' ? 'active' : ''}`}
@@ -57,6 +65,12 @@ export default function Navigation() {
           <OrderPackList />
         </DialogContent>
       </Dialog>
+
+      <NewOrderModal
+        isOpen={isNewOrderModalOpen}
+        onClose={() => setIsNewOrderModalOpen(false)}
+        onOrderCreated={handleOrderCreated}
+      />
     </nav>
   );
 } 

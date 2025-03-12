@@ -195,26 +195,38 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     }
   };
 
-  // Fetch order pack lists from the database
+  // Fetch order packs when component mounts
   useEffect(() => {
-    const fetchOrderPackLists = async () => {
+    const fetchOrderPacks = async () => {
       try {
         const { data, error } = await supabase
           .from('order_pack_lists')
           .select('*')
           .order('label');
-
+        
         if (error) throw error;
+        
         setOrderPackLists(data || []);
+        
+        // If there's a selected pack, update the weight
+        if (order.order_pack_list_id) {
+          const selectedPack = data?.find(pack => pack.id === order.order_pack_list_id);
+          if (selectedPack) {
+            setFormData(prev => ({
+              ...prev,
+              weight: selectedPack.weight
+            }));
+          }
+        }
       } catch (error) {
-        console.error('Error fetching order pack lists:', error);
+        console.error('Error fetching order packs:', error);
       } finally {
         setLoadingOrderPacks(false);
       }
     };
 
-    fetchOrderPackLists();
-  }, []);
+    fetchOrderPacks();
+  }, [order.order_pack_list_id]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -245,7 +257,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         ...prev,
         order_pack_list_id: value,
         order_pack: selectedPack?.value || '',
-        order_pack_label: selectedPack?.label || ''
+        order_pack_label: selectedPack?.label || '',
+        weight: selectedPack?.weight || '1.000'  // Set the weight from the selected pack
       }));
     } else {
       setFormData(prev => ({
@@ -567,12 +580,13 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               name="weight"
               type="text"
               placeholder="1.000"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('weight')}`}
+              className="w-full px-3 py-2 border rounded-md bg-gray-50 cursor-not-allowed"
               value={formData.weight}
-              onChange={handleChange}
+              readOnly
+              disabled
             />
             <p className="text-xs text-gray-500 mt-1">
-              Used for shipping label creation (e.g., 1.000 for 1kg)
+              Weight is automatically set from the selected order pack and cannot be modified.
             </p>
           </div>
         </div>
@@ -592,7 +606,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          {/* Shipping Method dropdown hidden */}
           {/* Hidden input to maintain the shipping_method value */}
           <input type="hidden" name="shipping_method" value={formData.shipping_method} />
           
@@ -607,9 +620,16 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               Based on order status, payment, and tracking information.
             </p>
           </div>
-          
+        </div>
+      </div>
+
+      {/* Shipping & Tracking Information Section */}
+      <div className="mt-8 pt-6 border-t border-gray-200">
+        <h3 className="font-medium text-black mb-4">Shipping & Tracking Information</h3>
+        
+        <div className="space-y-4">
           <div>
-            <label htmlFor="status" className="text-sm font-medium block">
+            <label htmlFor="status" className="text-sm font-medium block mb-2">
               Delivery Status (From SendCloud)
             </label>
             <div className={`order-status ${calculatedStatus?.toLowerCase().replace(/\s+/g, '-') || 'unknown'} p-2 rounded`}>
@@ -619,49 +639,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               Status from SendCloud when tracking link is present.
             </p>
           </div>
-        </div>
-        
-        {/* Tracking Information */}
-        <div className="mt-4">
-          <label htmlFor="tracking_link" className="text-sm font-medium block">
-            Tracking Link
-          </label>
-          <div className="flex items-center mt-1">
-            <input
-              type="text"
-              id="tracking_link"
-              name="tracking_link"
-              value={formData.tracking_link}
-              onChange={handleChange}
-              placeholder="Enter tracking link"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-            />
-            {formData.tracking_link && (
-              <a 
-                href={formData.tracking_link} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="ml-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Open
-              </a>
-            )}
-          </div>
-          <div className="mt-2">
-            <label htmlFor="tracking_number" className="text-sm font-medium block">
-              Tracking Number
-            </label>
-            <input
-              type="text"
-              id="tracking_number"
-              name="tracking_number"
-              value={formData.tracking_number}
-              onChange={handleChange}
-              placeholder="Enter tracking number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent mt-1"
-            />
-          </div>
-          <div className="mt-2">
+
+          <div>
             <label htmlFor="shipping_id" className="text-sm font-medium block">
               SendCloud Parcel ID
               {formData.shipping_id && (
@@ -693,7 +672,50 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               </p>
             )}
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+
+          <div>
+            <label htmlFor="tracking_link" className="text-sm font-medium block">
+              Tracking Link
+            </label>
+            <div className="flex items-center mt-1">
+              <input
+                type="text"
+                id="tracking_link"
+                name="tracking_link"
+                value={formData.tracking_link}
+                onChange={handleChange}
+                placeholder="Enter tracking link"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              />
+              {formData.tracking_link && (
+                <a 
+                  href={formData.tracking_link} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Open
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="tracking_number" className="text-sm font-medium block">
+              Tracking Number
+            </label>
+            <input
+              type="text"
+              id="tracking_number"
+              name="tracking_number"
+              value={formData.tracking_number}
+              onChange={handleChange}
+              placeholder="Enter tracking number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent mt-1"
+            />
+          </div>
+
+          <p className="text-sm text-gray-600 italic">
             You can manually update tracking information if needed.
           </p>
         </div>

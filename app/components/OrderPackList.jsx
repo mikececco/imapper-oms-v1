@@ -270,13 +270,13 @@ export default function OrderPackList() {
       </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="h-full flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {editingPack ? 'Edit Order Pack' : 'Add Order Pack'}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Name</label>
               <Input
@@ -341,7 +341,7 @@ export default function OrderPackList() {
                 rows={3}
               />
             </div>
-            <div className="flex justify-end space-x-2 pt-4">
+            <div className="flex justify-end space-x-2 pt-4 sticky bottom-0 bg-white border-t py-4">
               <Button
                 type="button"
                 variant="outline"
