@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, use } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { fetchOrders, searchOrders, filterOrders } from "../utils/supabase-client";
 import OrderSearch from "../components/OrderSearch";
 import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
@@ -11,8 +11,9 @@ import { calculateOrderInstruction } from "../utils/order-instructions";
 import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
 import "./orders.css";
 
-export default function Orders({ searchParams }) {
+export default function Orders() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,9 +21,8 @@ export default function Orders({ searchParams }) {
   const [activeCountry, setActiveCountry] = useState('all');
   const [isMounted, setIsMounted] = useState(false);
 
-  // Get search query from URL parameters - properly unwrapped with use()
-  const unwrappedParams = use(searchParams);
-  const query = unwrappedParams?.q || '';
+  // Get search query from URL parameters using useSearchParams hook
+  const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
   
   // Fetch orders with search functionality
   const loadOrders = async () => {

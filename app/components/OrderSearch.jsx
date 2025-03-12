@@ -25,7 +25,7 @@ export default function OrderSearch() {
     
     // Update or remove the 'q' parameter based on searchTerm
     if (searchTerm && searchTerm.trim()) {
-      params.set('q', searchTerm.trim());
+      params.set('q', encodeURIComponent(searchTerm.trim()));
     } else {
       params.delete('q');
     }
@@ -33,7 +33,7 @@ export default function OrderSearch() {
     // Navigate to the same page with updated query parameters
     const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
     console.log(`Navigating to: ${newUrl}`);
-    router.push(newUrl);
+    router.replace(newUrl);
   };
 
   const handleClear = () => {
@@ -46,7 +46,7 @@ export default function OrderSearch() {
     params.delete('q');
     
     // Navigate to the same page without the query parameter
-    router.push(pathname);
+    router.replace(pathname);
   };
 
   return (
