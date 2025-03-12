@@ -3,13 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import OrderPackList from './OrderPackList';
 import NewOrderModal from './NewOrderModal';
 import { Dialog, DialogContent } from './ui/dialog';
 
 export default function Navigation() {
   const pathname = usePathname();
-  const [isOrderPackModalOpen, setIsOrderPackModalOpen] = useState(false);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
 
   const handleOrderCreated = (newOrder) => {
@@ -45,26 +43,20 @@ export default function Navigation() {
           >
             Customers
           </Link>
+          <Link 
+            href="/order-packs" 
+            className={pathname.startsWith('/order-packs') ? 'active' : ''}
+          >
+            Order Packs
+          </Link>
           <button
             onClick={() => setIsNewOrderModalOpen(true)}
             className={`nav-button ${pathname === '/orders/new' ? 'active' : ''}`}
           >
             New Order
           </button>
-          <button
-            onClick={() => setIsOrderPackModalOpen(true)}
-            className={`nav-button ${pathname === '/order-packs' ? 'active' : ''}`}
-          >
-            Order Packs
-          </button>
         </div>
       </div>
-
-      <Dialog open={isOrderPackModalOpen} onOpenChange={setIsOrderPackModalOpen}>
-        <DialogContent className="max-w-3xl">
-          <OrderPackList />
-        </DialogContent>
-      </Dialog>
 
       <NewOrderModal
         isOpen={isNewOrderModalOpen}
