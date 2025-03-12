@@ -41,29 +41,26 @@ export default function Providers({ children }) {
     initializeSupabase();
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-      </div>
-    );
-  }
-
-  if (!supabase) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-red-500">
-          Failed to initialize Supabase client. Please check your environment variables.
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <SupabaseContext.Provider value={supabase}>
-      <OrderDetailModalProvider>
-        {children}
-      </OrderDetailModalProvider>
-    </SupabaseContext.Provider>
+    <div className="container">
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+        </div>
+      ) : !supabase ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-red-500 text-center">
+            <p className="font-medium">Failed to initialize Supabase client.</p>
+            <p className="text-sm mt-2">Please check your environment variables.</p>
+          </div>
+        </div>
+      ) : (
+        <SupabaseContext.Provider value={supabase}>
+          <OrderDetailModalProvider>
+            {children}
+          </OrderDetailModalProvider>
+        </SupabaseContext.Provider>
+      )}
+    </div>
   );
 } 

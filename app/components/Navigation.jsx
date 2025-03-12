@@ -18,7 +18,7 @@ export default function Navigation() {
 
   return (
     <nav className="main-nav">
-      <div className="nav-container">
+      <div className="container nav-container">
         <div className="nav-logo">
           <Link href="/dashboard">
             Order Management System
