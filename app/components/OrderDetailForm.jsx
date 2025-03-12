@@ -512,27 +512,17 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
             <label htmlFor="shipping_address_country" className="text-sm font-medium block">
               Country Code (e.g. FR, GB, US)
             </label>
-            {isMounted ? (
-              <input
-                id="shipping_address_country"
-                name="shipping_address_country"
-                type="text"
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_country')}`}
-                value={formData.shipping_address_country}
-                onChange={handleChange}
-                placeholder="Enter country code (e.g. FR, GB, US)"
-              />
-            ) : (
-              <input
-                id="shipping_address_country"
-                name="shipping_address_country"
-                type="text"
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_country')}`}
-                value={formData.shipping_address_country}
-                readOnly
-              />
-            )}
-            {formData.shipping_address_country && COUNTRY_MAPPING[formData.shipping_address_country.toUpperCase()] && (
+            <input
+              id="shipping_address_country"
+              name="shipping_address_country"
+              type="text"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_country')}`}
+              value={formData.shipping_address_country}
+              onChange={handleChange}
+              placeholder="Enter country code (e.g. FR, GB, US)"
+              disabled={!isMounted}
+            />
+            {isMounted && formData.shipping_address_country && COUNTRY_MAPPING[formData.shipping_address_country.toUpperCase()] && (
               <p className="mt-1 text-sm text-gray-600">
                 {getCountryDisplayName(formData.shipping_address_country.toUpperCase())}
               </p>
