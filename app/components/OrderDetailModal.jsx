@@ -383,9 +383,7 @@ export default function OrderDetailModal({ children }) {
                       disabled={
                         creatingLabel || 
                         !order.shipping_address_line1 || 
-                        !order.order_pack || 
-                        order.order_pack.trim() === '' || 
-                        order.order_pack === 'Select an order pack' ||
+                        !order.order_pack_list_id ||
                         !order.phone
                       }
                       className="w-full px-4 py-3 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -393,10 +391,10 @@ export default function OrderDetailModal({ children }) {
                       {creatingLabel ? 'Creating Label...' : order.shipping_id ? 'Create New Shipping Label' : 'Create Shipping Label'}
                     </button>
                     {!order.shipping_address_line1 && <p className="text-sm text-red-600 mt-1">Missing shipping address</p>}
-                    {(!order.order_pack || order.order_pack.trim() === '' || order.order_pack === 'Select an order pack') && 
-                      <p id="order-pack-required-message" className="text-sm text-red-600 mt-1">Please select an order pack from the dropdown</p>
+                    {!order.order_pack_list_id && 
+                      <p className="text-sm text-red-600 mt-1">Please select an order pack from the dropdown</p>
                     }
-                    {!order.phone && <p id="phone-required-message" className="text-sm text-red-600 mt-1">Phone number is required</p>}
+                    {!order.phone && <p className="text-sm text-red-600 mt-1">Phone number is required</p>}
                     {!order.paid && <p className="text-sm text-yellow-600 mt-1">Note: Order is not marked as paid</p>}
                     
                     {labelMessage && (

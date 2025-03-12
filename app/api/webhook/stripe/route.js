@@ -262,7 +262,7 @@ async function handleCustomerCreated(event) {
       console.log(`Successfully created/updated customer ${customerResult.customerId} from Stripe customer ${customer.id}`);
     }
     
-    // Check for any paid invoices for this customer (no amount filter for customer.create events)
+    // Check for any paid invoices for this customer
     console.log(`Checking for paid invoices for customer ${customer.id}`);
     const invoices = await stripe.invoices.list({
       customer: customer.id,
@@ -270,56 +270,52 @@ async function handleCustomerCreated(event) {
       limit: 10
     });
     
-    if (!invoices.data || invoices.data.length === 0) {
-      console.log(`No paid invoices found for customer ${customer.id}`);
-      return { 
-        success: false, 
-        message: 'No paid invoices found',
-        customerId: customerResult.customerId 
-      };
+    // Create an order regardless of paid invoices
+    console.log(`Creating order for customer ${customer.id}`);
+    
+    // If we have a paid invoice, use its data
+    if (invoices.data && invoices.data.length > 0) {
+      const eligibleInvoice = invoices.data[0];
+      const amountPaid = eligibleInvoice.amount_paid / 100; // Convert from cents to euros
+      console.log(`Using invoice ${eligibleInvoice.id} with amount paid: ${amountPaid} euros`);
+      
+      // Fetch line items for the eligible invoice
+      console.log(`Fetching line items for invoice ${eligibleInvoice.id}`);
+      const lineItems = await stripe.invoiceItems.list({
+        invoice: eligibleInvoice.id
+      });
+      
+      // Add the invoice ID and line items to the event data
+      event.data.invoiceId = eligibleInvoice.id;
+      event.data.lineItems = lineItems.data;
+      event.data.amountChecked = true;
     }
     
-    // Use the first paid invoice
-    const eligibleInvoice = invoices.data[0];
-    const amountPaid = eligibleInvoice.amount_paid / 100; // Convert from cents to euros
-    console.log(`Using invoice ${eligibleInvoice.id} with amount paid: ${amountPaid} euros`);
-    
-    // Fetch line items for the eligible invoice
-    console.log(`Fetching line items for invoice ${eligibleInvoice.id}`);
-    const lineItems = await stripe.invoiceItems.list({
-      invoice: eligibleInvoice.id
-    });
-    
-    // Create an order for the eligible invoice
-    console.log(`Creating order for customer ${customer.id} with invoice ${eligibleInvoice.id}`);
-    
-    // Add the invoice ID, line items, and amount checked flag to the event data for reference
-    event.data.invoiceId = eligibleInvoice.id;
-    event.data.lineItems = lineItems.data;
-    event.data.amountChecked = true; // Mark that we've already checked the amount
-    
+    // Create the order
     const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
     
     if (success) {
-      console.log(`Successfully created order ${orderId} from customer ${customer.id} with invoice ${eligibleInvoice.id}`);
+      console.log(`Successfully created order ${orderId} from customer ${customer.id}`);
       
-      // Update the order with the invoice ID
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ 
-          stripe_invoice_id: eligibleInvoice.id,
-          paid: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-      
-      if (updateError) {
-        console.error(`Error updating order ${orderId} with invoice ID:`, updateError);
+      // If we have an invoice, update the order with the invoice ID and mark as paid
+      if (event.data.invoiceId) {
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({ 
+            stripe_invoice_id: event.data.invoiceId,
+            paid: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', orderId);
+        
+        if (updateError) {
+          console.error(`Error updating order ${orderId} with invoice ID:`, updateError);
+        }
       }
       
       return { 
         success: true, 
-        message: `Order created from customer ${customer.id} with invoice ${eligibleInvoice.id}`,
+        message: `Order created from customer ${customer.id}${event.data.invoiceId ? ` with invoice ${event.data.invoiceId}` : ''}`,
         orderId,
         customerId: customerResult.customerId
       };

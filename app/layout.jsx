@@ -1,19 +1,7 @@
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css"; // Using our new global CSS file with Tailwind
 import Navigation from "./components/Navigation";
 import Providers from "./components/Providers";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap", // Ensure text remains visible during font loading
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap", // Ensure text remains visible during font loading
-});
+import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: "Order Management System",
@@ -39,13 +27,14 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className="antialiased font-sans">
         <Navigation />
         <div className="page-content">
           <Providers>
             {children}
           </Providers>
         </div>
+        <Toaster position="top-right" />
       </body>
     </html>
   );

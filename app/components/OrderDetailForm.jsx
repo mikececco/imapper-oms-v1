@@ -14,6 +14,9 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   // Use useRef to track client-side rendering
   const hasMounted = useRef(false);
   
+  const [orderPackLists, setOrderPackLists] = useState([]);
+  const [loadingOrderPacks, setLoadingOrderPacks] = useState(true);
+  
   const [formData, setFormData] = useState({
     name: order.name || '',
     email: order.email || '',
@@ -31,6 +34,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     tracking_link: order.tracking_link || '',
     tracking_number: order.tracking_number || '',
     shipping_id: order.shipping_id || '',
+    order_pack_list_id: order.order_pack_list_id || '',
   });
   
   const [calculatedInstruction, setCalculatedInstruction] = useState(order.instruction || 'ACTION REQUIRED');
@@ -69,6 +73,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       tracking_link: order.tracking_link || '',
       tracking_number: order.tracking_number || '',
       shipping_id: order.shipping_id || '',
+      order_pack_list_id: order.order_pack_list_id || '',
     };
     
     setFormData(initialData);
@@ -190,6 +195,27 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     }
   };
 
+  // Fetch order pack lists from the database
+  useEffect(() => {
+    const fetchOrderPackLists = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('order_pack_lists')
+          .select('*')
+          .order('label');
+
+        if (error) throw error;
+        setOrderPackLists(data || []);
+      } catch (error) {
+        console.error('Error fetching order pack lists:', error);
+      } finally {
+        setLoadingOrderPacks(false);
+      }
+    };
+
+    fetchOrderPackLists();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -212,13 +238,14 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         ...prev,
         [name]: normalizedValue
       }));
-    } else if (name === 'order_pack') {
-      // Find the matching order pack option to get the label
-      const orderPackOption = orderPackOptions.find(option => option.value === value);
+    } else if (name === 'order_pack_list_id') {
+      // Find the selected order pack from the database options
+      const selectedPack = orderPackLists.find(pack => pack.id === value);
       setFormData(prev => ({
         ...prev,
-        order_pack: value,
-        order_pack_label: orderPackOption ? orderPackOption.label : value
+        order_pack_list_id: value,
+        order_pack: selectedPack?.value || '',
+        order_pack_label: selectedPack?.label || ''
       }));
     } else {
       setFormData(prev => ({
@@ -264,6 +291,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         shipping_method: formData.shipping_method,
         tracking_link: formData.tracking_link,
         tracking_number: formData.tracking_number,
+        order_pack_list_id: formData.order_pack_list_id,
         updated_at: new Date().toISOString()
       };
       
@@ -506,33 +534,28 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="order_pack" className="text-sm font-medium block">
+            <label htmlFor="order_pack_list_id" className="text-sm font-medium block">
               Order Pack List
             </label>
             <select
-              id="order_pack"
-              name="order_pack"
+              id="order_pack_list_id"
+              name="order_pack_list_id"
               required
-              className={`w-full px-3 py-2 border ${getFieldBorderClass('order_pack')} rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${(!formData.order_pack || formData.order_pack === '') ? 'text-gray-500' : 'text-black'}`}
-              value={formData.order_pack || ''}
+              className={`w-full px-3 py-2 border ${getFieldBorderClass('order_pack_list_id')} rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${(!formData.order_pack_list_id) ? 'text-gray-500' : 'text-black'}`}
+              value={formData.order_pack_list_id || ''}
               onChange={handleChange}
-              aria-describedby="order-pack-description"
+              disabled={loadingOrderPacks}
             >
               <option value="" disabled>Select an order pack</option>
-              {orderPackOptions.map((option, index) => (
-                <option key={index} value={option.value}>{option.label}</option>
+              {orderPackLists.map((pack) => (
+                <option key={pack.id} value={pack.id}>
+                  {pack.label}
+                </option>
               ))}
-              <option value="custom">+ Add Order Pack</option>
             </select>
-            <p id="order-pack-description" className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Required for creating shipping labels
             </p>
-            
-            <CustomOrderPackModal 
-              isOpen={isCustomPackModalOpen}
-              onClose={() => setIsCustomPackModalOpen(false)}
-              onSave={handleSaveCustomPack}
-            />
           </div>
           
           <div>

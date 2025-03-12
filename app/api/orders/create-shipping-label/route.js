@@ -27,10 +27,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
     
-    // Fetch the order from Supabase
+    // Fetch the order from Supabase with the order pack list
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('*')
+      .select(`
+        *,
+        order_pack_list:order_pack_lists (
+          value,
+          label
+        )
+      `)
       .eq('id', orderId)
       .single();
     
@@ -48,9 +54,9 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Shipping address is incomplete' }, { status: 400 });
     }
     
-    // Check if the order pack is filled
-    if (!order.order_pack || order.order_pack.trim() === '') {
-      return NextResponse.json({ error: 'Order pack is required before creating a shipping label' }, { status: 400 });
+    // Check if the order pack list is selected
+    if (!order.order_pack_list_id) {
+      return NextResponse.json({ error: 'Order pack must be selected before creating a shipping label' }, { status: 400 });
     }
     
     // Check if phone number is provided
@@ -174,6 +180,9 @@ async function createSendCloudParcel(order) {
     // Get shipping method or use default
     const shippingMethod = order.shipping_method || 'standard';
     
+    // Get the order pack label from the relationship
+    const orderPackLabel = order.order_pack_list?.label || order.order_pack_label || order.order_pack;
+    
     // Prepare the parcel data
     const parcelData = {
       parcel: {
@@ -186,7 +195,7 @@ async function createSendCloudParcel(order) {
         country: order.shipping_address_country,
         email: order.email || '',
         telephone: order.phone || '',
-        order_number: order.order_pack_label || order.order_pack, // Use the stored label, fallback to order_pack if not available
+        order_number: orderPackLabel,
         weight: weight,
         request_label: false,
         apply_shipping_rules: false,
