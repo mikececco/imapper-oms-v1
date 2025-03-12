@@ -3,18 +3,33 @@ import Navigation from "./components/Navigation";
 import Providers from "./components/Providers";
 import { Toaster } from 'react-hot-toast';
 
-// Validate environment variables
-const requiredEnvVars = {
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+// Get environment variables with fallbacks
+const getEnvVar = (key) => {
+  // Try all possible environment variable names
+  const possibleKeys = [
+    `NEXT_PUBLIC_${key}`,
+    `NEXT_${key}`,
+    key
+  ];
+
+  for (const possibleKey of possibleKeys) {
+    if (process.env[possibleKey]) {
+      return process.env[possibleKey];
+    }
+  }
+  return '';
 };
 
-// Check for missing environment variables during build/runtime
-Object.entries(requiredEnvVars).forEach(([key, value]) => {
-  if (!value) {
-    console.error(`Missing required environment variable: ${key}`);
-  }
-});
+// Get Supabase configuration
+const supabaseUrl = getEnvVar('SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('SUPABASE_ANON_KEY');
+
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing required Supabase configuration.');
+  if (!supabaseUrl) console.error('Missing SUPABASE_URL');
+  if (!supabaseAnonKey) console.error('Missing SUPABASE_ANON_KEY');
+}
 
 export const metadata = {
   title: "Order Management System",
@@ -22,11 +37,10 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  // Ensure environment variables are available
+  // Create environment variables object for client
   const envVars = {
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '',
+    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
   };
 
   return (
@@ -35,11 +49,11 @@ export default function RootLayout({ children }) {
         {/* Force consistent rendering across environments */}
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+        {/* Ensure consistent environment variables between server and client */}
         <script
+          id="env-script"
           dangerouslySetInnerHTML={{
-            __html: `
-              window.__ENV__ = ${JSON.stringify(envVars)};
-            `,
+            __html: `window.__ENV__ = ${JSON.stringify(envVars)};`,
           }}
         />
       </head>

@@ -8,27 +8,6 @@ import { Textarea } from './ui/textarea';
 import { toast } from 'react-hot-toast';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-let supabase = null;
-
-// Initialize Supabase client only on the client side
-if (typeof window !== 'undefined') {
-  try {
-    const supabaseUrl = window.__ENV__?.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = window.__ENV__?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error('Missing Supabase environment variables');
-      toast.error('System configuration error. Please contact support.');
-    } else {
-      supabase = createClient(supabaseUrl, supabaseAnonKey);
-    }
-  } catch (error) {
-    console.error('Error initializing Supabase client:', error);
-    toast.error('Failed to initialize system. Please refresh the page or contact support.');
-  }
-}
-
 export default function OrderPackList() {
   const [isOpen, setIsOpen] = useState(false);
   const [orderPacks, setOrderPacks] = useState([]);
@@ -43,17 +22,39 @@ export default function OrderPackList() {
   });
   const [loadingOrderPacks, setLoadingOrderPacks] = useState(true);
   const [error, setError] = useState(null);
+  const [supabase, setSupabase] = useState(null);
+  const [mounted, setMounted] = useState(false);
 
+  // Initialize Supabase client on mount
   useEffect(() => {
-    fetchOrderPacks();
+    if (typeof window !== 'undefined') {
+      try {
+        const supabaseUrl = window.__ENV__?.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseAnonKey = window.__ENV__?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseAnonKey) {
+          console.error('Missing Supabase configuration:', {
+            url: supabaseUrl ? 'present' : 'missing',
+            key: supabaseAnonKey ? 'present' : 'missing'
+          });
+          setError('System configuration error. Please contact support.');
+        } else {
+          console.log('Initializing Supabase client with URL:', supabaseUrl.substring(0, 20) + '...');
+          const client = createClient(supabaseUrl, supabaseAnonKey);
+          setSupabase(client);
+        }
+      } catch (error) {
+        console.error('Error initializing Supabase client:', error);
+        setError('Failed to initialize system. Please refresh the page or contact support.');
+      }
+      setMounted(true);
+    }
   }, []);
 
   const fetchOrderPacks = async () => {
+    if (!supabase) return;
+    
     try {
-      if (!supabase) {
-        throw new Error('Supabase client not initialized. Please check your environment configuration.');
-      }
-
       const { data, error: fetchError } = await supabase
         .from('order_pack_lists')
         .select('*')
@@ -73,6 +74,18 @@ export default function OrderPackList() {
       setLoadingOrderPacks(false);
     }
   };
+
+  // Fetch order packs when Supabase client is initialized
+  useEffect(() => {
+    if (supabase) {
+      fetchOrderPacks();
+    }
+  }, [supabase]);
+
+  // Don't render anything until mounted
+  if (!mounted) {
+    return null;
+  }
 
   // Show error state if initialization failed
   if (error) {
@@ -101,6 +114,8 @@ export default function OrderPackList() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!supabase) return;
+    
     try {
       // Normalize the value to match the database format
       const normalizedValue = formData.name
@@ -168,6 +183,7 @@ export default function OrderPackList() {
   };
 
   const handleDelete = async (id) => {
+    if (!supabase) return;
     if (!confirm('Are you sure you want to delete this order pack?')) return;
 
     try {
