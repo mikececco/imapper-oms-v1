@@ -12,7 +12,7 @@ export async function POST(request) {
     const pathParts = url.pathname.split('/');
     const id = pathParts[pathParts.length - 2]; // Get the ID from the URL path
     
-    const { orderPack } = await request.json();
+    const { orderPack, orderPackId, orderPackLabel, weight } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -33,6 +33,9 @@ export async function POST(request) {
       .from('orders')
       .update({ 
         order_pack: orderPack,
+        order_pack_list_id: orderPackId,
+        order_pack_label: orderPackLabel,
+        weight: weight,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)

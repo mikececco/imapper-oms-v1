@@ -162,8 +162,8 @@ async function createOrderFromAnyEvent(event) {
           // Fetch the invoice from Stripe
           const invoice = await stripe.invoices.retrieve(invoiceId);
           
-          // Only check amount for invoice.paid events
-          if (event.type === 'invoice.paid') {
+          // Only check amount for customer.created events
+          if (event.type === 'customer.created') {
             // Check if the amount is greater than 300 euros
             const amountPaid = invoice.amount_paid / 100; // Convert from cents to euros
             console.log(`Invoice ${invoiceId} amount paid: ${amountPaid} euros`);
@@ -175,10 +175,6 @@ async function createOrderFromAnyEvent(event) {
                 message: `Invoice amount (${amountPaid} euros) is not greater than 300 euros` 
               };
             }
-          } else {
-            // For other event types, just log the amount but don't filter
-            const amountPaid = invoice.amount_paid / 100; // Convert from cents to euros
-            console.log(`Invoice ${invoiceId} amount paid: ${amountPaid} euros (no filter applied for ${event.type} events)`);
           }
           
           // Add the invoice ID and amount checked flag to the event data
@@ -351,17 +347,9 @@ async function handleInvoicePaid(event) {
       return { success: true, message: 'Invoice already processed', orderId: existingOrders[0].id };
     }
     
-    // Check if the invoice amount is greater than 300 euros
+    // Log the invoice amount but don't restrict based on it
     const amountPaid = invoice.amount_paid / 100; // Convert from cents to euros
     console.log(`Invoice ${invoice.id} amount paid: ${amountPaid} euros`);
-    
-    if (amountPaid <= 300) {
-      console.log(`Invoice amount (${amountPaid} euros) is not greater than 300 euros, skipping order creation`);
-      return { 
-        success: false, 
-        message: `Invoice amount (${amountPaid} euros) is not greater than 300 euros` 
-      };
-    }
     
     // Fetch line items for the invoice
     console.log(`Fetching line items for invoice ${invoice.id}`);
@@ -371,7 +359,7 @@ async function handleInvoicePaid(event) {
     
     // Add line items and amount checked flag to the event data
     event.data.lineItems = lineItems.data;
-    event.data.amountChecked = true; // Mark that we've already checked the amount
+    event.data.amountChecked = true;
     
     // Create an order from the invoice
     const { success, data, orderId, error } = await createOrderFromStripeEvent(event);

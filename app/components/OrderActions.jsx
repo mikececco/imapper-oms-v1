@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { updateOrderStatus, updatePaymentStatus, updateShippingStatus } from '../utils/supabase-client';
 import { ORDER_PACK_OPTIONS } from '../utils/constants';
 import CustomOrderPackModal from './CustomOrderPackModal';
+import { useSupabase } from './Providers';
 
 export function StatusBadge({ status }) {
   return (
@@ -220,27 +221,50 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
   const [orderPack, setOrderPack] = useState(currentPack || '');
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [orderPackLists, setOrderPackLists] = useState([]);
+  const [loadingOrderPacks, setLoadingOrderPacks] = useState(true);
+  const supabase = useSupabase();
   
-  // Check if the current pack is not in the predefined options
+  // Fetch order packs when component mounts
   useEffect(() => {
-    if (currentPack && !ORDER_PACK_OPTIONS.some(option => option.value === currentPack)) {
-      setOrderPack(currentPack);
+    const fetchOrderPacks = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('order_pack_lists')
+          .select('*')
+          .order('label');
+        
+        if (error) throw error;
+        
+        setOrderPackLists(data || []);
+      } catch (error) {
+        console.error('Error fetching order packs:', error);
+      } finally {
+        setLoadingOrderPacks(false);
+      }
+    };
+
+    if (supabase) {
+      fetchOrderPacks();
     }
-  }, [currentPack]);
+  }, [supabase]);
   
   const handleChange = async (e) => {
-    const newValue = e.target.value;
+    const packId = e.target.value;
     
     // If "Add custom..." option is selected, show the modal
-    if (newValue === 'custom') {
+    if (packId === 'custom') {
       setIsModalOpen(true);
       return;
     }
     
+    const selectedPack = orderPackLists.find(pack => pack.id === packId);
+    if (!selectedPack) return;
+    
     const previousValue = orderPack;
     
     // Optimistic update - immediately update the UI
-    setOrderPack(newValue);
+    setOrderPack(selectedPack.value);
     setIsUpdating(true);
     
     try {
@@ -249,7 +273,12 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ orderPack: newValue }),
+        body: JSON.stringify({ 
+          orderPack: selectedPack.value,
+          orderPackId: selectedPack.id,
+          orderPackLabel: selectedPack.label,
+          weight: selectedPack.weight
+        }),
       });
       
       const data = await response.json();
@@ -259,13 +288,14 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
       }
       
       // If onUpdate is provided, call it with the updated order data
-      // This allows parent components to update their state without a full refresh
       if (onUpdate) {
         // Create an updated order object with the new pack
         const updatedOrder = {
           id: orderId,
-          order_pack: newValue,
-          // Include any other fields that might be needed by the parent component
+          order_pack: selectedPack.value,
+          order_pack_list_id: selectedPack.id,
+          order_pack_label: selectedPack.label,
+          weight: selectedPack.weight,
           updated_at: new Date().toISOString()
         };
         
@@ -286,8 +316,8 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
   
   const handleSaveCustomPack = async (customValue) => {
     // Check if the custom value already exists in the predefined options
-    const isDuplicate = ORDER_PACK_OPTIONS.some(option => 
-      option.value.toLowerCase() === customValue.toLowerCase()
+    const isDuplicate = orderPackLists.some(pack => 
+      pack.value.toLowerCase() === customValue.toLowerCase()
     );
     
     if (isDuplicate) {
@@ -301,12 +331,40 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
     setIsUpdating(true);
     
     try {
+      // First create the new order pack in the database
+      const normalizedValue = customValue
+        .trim()
+        .toUpperCase()
+        .replace(/[\s-]+/g, '_')
+        .replace(/[^A-Z0-9_+-]/g, '');
+
+      const { data: newPack, error: insertError } = await supabase
+        .from('order_pack_lists')
+        .insert([{
+          value: normalizedValue,
+          label: customValue.trim(),
+          weight: 1.000, // Default weight
+          height: 20.00, // Default dimensions
+          width: 15.00,
+          length: 10.00
+        }])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Then update the order with the new pack
       const response = await fetch(`/api/orders/${orderId}/update-pack`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ orderPack: customValue }),
+        body: JSON.stringify({ 
+          orderPack: newPack.value,
+          orderPackId: newPack.id,
+          orderPackLabel: newPack.label,
+          weight: newPack.weight
+        }),
       });
       
       const data = await response.json();
@@ -319,12 +377,18 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
       if (onUpdate) {
         const updatedOrder = {
           id: orderId,
-          order_pack: customValue,
+          order_pack: newPack.value,
+          order_pack_list_id: newPack.id,
+          order_pack_label: newPack.label,
+          weight: newPack.weight,
           updated_at: new Date().toISOString()
         };
         
         onUpdate(updatedOrder);
       }
+      
+      // Update the order packs list
+      setOrderPackLists(prev => [...prev, newPack]);
       
       // Update the router cache without navigating
       router.refresh();
@@ -345,10 +409,13 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
         value={currentPack || ''}
         onChange={handleChange}
         className="w-full p-2 border border-gray-300 rounded text-sm"
+        disabled={loadingOrderPacks}
       >
         <option value="" disabled>Select order pack</option>
-        {ORDER_PACK_OPTIONS.map((option, index) => (
-          <option key={index} value={option.value}>{option.label}</option>
+        {orderPackLists.map((pack) => (
+          <option key={pack.id} value={pack.id}>
+            {pack.label} ({pack.weight}kg)
+          </option>
         ))}
         <option value="custom">+ Add custom order pack...</option>
       </select>
