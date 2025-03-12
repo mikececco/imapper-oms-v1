@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { fetchCustomerById, fetchOrdersByCustomerId } from '../../utils/supabase';
 import { formatDate, formatCurrency } from '../../utils/helpers';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Phone, MapPin, Package } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, Package, Edit } from 'lucide-react';
+import EditCustomerModal from '../../components/EditCustomerModal';
+import { Button } from '../../components/ui/button';
 
 export default function CustomerDetailPage({ params }) {
   const { id } = params;
@@ -13,6 +15,7 @@ export default function CustomerDetailPage({ params }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -41,10 +44,24 @@ export default function CustomerDetailPage({ params }) {
     router.back();
   };
 
+  const handleCustomerUpdate = (updatedCustomer) => {
+    setCustomer(updatedCustomer);
+  };
+
   const renderCustomerDetails = () => {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Customer Information</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Customer Information</h2>
+          <Button
+            onClick={() => setIsEditModalOpen(true)}
+            className="flex items-center gap-2"
+            variant="outline"
+          >
+            <Edit className="h-4 w-4" />
+            Edit Details
+          </Button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <div className="mb-4">
@@ -226,7 +243,7 @@ export default function CustomerDetailPage({ params }) {
       </div>
 
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{customer.name || 'Customer Details'}</h1>
+        <h1 className="text-2xl font-bold">{customer?.name || 'Customer Details'}</h1>
       </div>
 
       <div className="mb-6">
@@ -279,6 +296,15 @@ export default function CustomerDetailPage({ params }) {
       </div>
 
       {activeTab === 'details' ? renderCustomerDetails() : renderOrdersTab()}
+
+      {customer && (
+        <EditCustomerModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          customer={customer}
+          onUpdate={handleCustomerUpdate}
+        />
+      )}
     </div>
   );
 } 
