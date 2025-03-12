@@ -13,8 +13,9 @@ const getEnvVar = (key) => {
   ];
 
   for (const possibleKey of possibleKeys) {
-    if (process.env[possibleKey]) {
-      return process.env[possibleKey];
+    const value = process.env[possibleKey];
+    if (value && value !== 'build-placeholder') {
+      return value;
     }
   }
   return '';
@@ -26,9 +27,10 @@ const supabaseAnonKey = getEnvVar('SUPABASE_ANON_KEY');
 
 // Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing required Supabase configuration.');
-  if (!supabaseUrl) console.error('Missing SUPABASE_URL');
-  if (!supabaseAnonKey) console.error('Missing SUPABASE_ANON_KEY');
+  console.error('Missing required Supabase configuration:', {
+    url: supabaseUrl ? 'set' : 'missing',
+    key: supabaseAnonKey ? 'set' : 'missing'
+  });
 }
 
 export const metadata = {
@@ -43,6 +45,14 @@ export default function RootLayout({ children }) {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
   };
 
+  // Serialize environment variables safely
+  const serializedEnvVars = JSON.stringify(envVars)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/'/g, '\\u0027')
+    .replace(/"/g, '\\u0022');
+
   return (
     <html lang="en">
       <head>
@@ -53,17 +63,17 @@ export default function RootLayout({ children }) {
         <script
           id="env-script"
           dangerouslySetInnerHTML={{
-            __html: `window.__ENV__ = ${JSON.stringify(envVars)};`,
+            __html: `window.__ENV__ = JSON.parse('${serializedEnvVars}');`,
           }}
         />
       </head>
       <body className="antialiased font-sans">
         <Navigation />
-        <div className="page-content">
+        <main className="page-content">
           <Providers>
             {children}
           </Providers>
-        </div>
+        </main>
         <Toaster position="top-right" />
       </body>
     </html>
