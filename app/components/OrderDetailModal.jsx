@@ -311,164 +311,115 @@ export default function OrderDetailModal({ children }) {
               {/* Order Status and Actions */}
               <div className="bg-white p-4 rounded border border-gray-200">
                 <h2 className="text-lg font-semibold mb-4">Order Status</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="mb-2"><span className="font-medium">Created:</span> {formatDate(order.created_at)}</p>
-                    <p className="mb-2"><span className="font-medium">Updated:</span> {formatDate(order.updated_at)}</p>
-                    <div className="flex items-center mt-2">
-                      <span className="font-medium text-base mr-2">Payment Status:</span>
-                      <PaymentStatusEditor 
-                        orderId={order.id} 
-                        currentStatus={order.paid} 
-                        onUpdate={handleOrderUpdate} 
-                      />
-                    </div>
-                    <div className="flex items-center mt-2">
-                      <span className="font-medium mr-2">Ok to Ship:</span>
-                      <ShippingToggle 
-                        okToShip={order.ok_to_ship} 
-                        orderId={order.id}
-                        onUpdate={handleOrderUpdate}
-                      />
-                    </div>
-                    <div className="mt-2">
-                      <span className="font-medium block mb-1">Shipping Address:</span>
-                      <div className="break-words bg-gray-50 p-2 rounded text-sm max-w-full overflow-hidden">
-                        <p className="text-sm text-gray-600">
-                          {formatCombinedAddress(order, isMounted)}
-                        </p>
-                      </div>
+                <div className="status-section">
+                  {/* Created & Updated Timestamps */}
+                  <div className="status-row">
+                    <span className="status-label">Created</span>
+                    <span>{formatDate(order.created_at)}</span>
+                  </div>
+                  <div className="status-row">
+                    <span className="status-label">Updated</span>
+                    <span>{formatDate(order.updated_at)}</span>
+                  </div>
+
+                  {/* Payment Status */}
+                  <div className="status-row">
+                    <span className="status-label">Payment Status</span>
+                    <PaymentStatusEditor 
+                      orderId={order.id} 
+                      currentStatus={order.paid} 
+                      onUpdate={handleOrderUpdate} 
+                    />
+                  </div>
+
+                  {/* OK TO SHIP Status */}
+                  <div className="status-row">
+                    <span className="status-label">OK TO SHIP</span>
+                    <ShippingToggle 
+                      okToShip={order.ok_to_ship} 
+                      orderId={order.id}
+                      onUpdate={handleOrderUpdate}
+                    />
+                  </div>
+
+                  {/* Delivery Status */}
+                  <div className="status-row">
+                    <span className="status-label">Delivery Status</span>
+                    <div className={`order-status ${(order.delivery_status || 'empty').toLowerCase().replace(/\s+/g, '-')} px-2 py-1 rounded text-sm`}>
+                      {order.delivery_status || 'EMPTY'}
                     </div>
                   </div>
-                  
-                  <div>
-                    {/* Tracking number is now editable in the form, so we don't need to display it here */}
-                    {order.label_url && (
-                      <div className="mb-2">
-                        <span className="font-medium">Shipping Label:</span> 
-                        <a 
-                          href={order.label_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline ml-1"
-                        >
-                          View Label
-                        </a>
-                      </div>
-                    )}
-                    
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Delivery Status:</span>
-                        <div className={`order-status ${(order.delivery_status || 'empty').toLowerCase().replace(/\s+/g, '-')} px-2 py-1 rounded text-sm`}>
-                          {order.delivery_status || 'EMPTY'}
-                        </div>
-                      </div>
-                      
-                      {order.tracking_number && (
-                        <button
-                          onClick={updateDeliveryStatus}
-                          className="mt-2 w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          Update Status from SendCloud
-                        </button>
-                      )}
+
+                  {/* Weight */}
+                  {order.weight && (
+                    <div className="status-row">
+                      <span className="status-label">Order Pack Weight</span>
+                      <span>{order.weight} kg</span>
                     </div>
-                    
-                    {order.weight && (
-                      <div className="mt-4">
-                        <span className="font-medium">Order Pack Weight:</span> {order.weight} kg
-                      </div>
-                    )}
+                  )}
+
+                  {/* Shipping Address */}
+                  <div className="status-row">
+                    <span className="status-label">Shipping Address</span>
+                    <div className="text-right text-sm text-gray-600">
+                      {formatCombinedAddress(order, isMounted)}
+                    </div>
                   </div>
-                </div>
-                
-                {/* Create Shipping Label Button */}
-                {(!order.shipping_id || !order.label_url) && (
-                  <div className="mt-6 w-full">
-                    <div className="p-4">
+
+                  {/* Shipping Label Status */}
+                  <div className="status-row flex-col items-stretch">
+                    <div className="w-full">
                       {order.label_url ? (
                         <a 
                           href={order.label_url} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
+                          className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-base text-center block"
                         >
                           View Label
                         </a>
                       ) : order.shipping_id ? (
-                        <div className="relative tooltip-container">
-                          <span className="text-yellow-500 cursor-help">Pending</span>
-                          <div className="tooltip">
+                        <div className="w-full text-center py-2">
+                          <span className="text-yellow-500 text-base">Pending</span>
+                          <p className="text-sm text-gray-500 mt-1">
                             Label created (ID: {order.shipping_id.substring(0, 8)}...) but URL not available
-                          </div>
+                          </p>
                         </div>
                       ) : (
-                        <div>
+                        <div className="w-full">
                           <button
-                            onClick={createShippingLabel}
-                            className={`px-4 py-2 text-white rounded ${
-                              order.ok_to_ship && order.paid && order.shipping_address_line1 && 
-                              order.shipping_address_house_number && order.shipping_address_city && 
-                              order.shipping_address_postal_code && order.shipping_address_country && 
-                              order.phone && order.email && order.name && order.order_pack
-                                ? 'bg-green-500 hover:bg-green-600'
-                                : 'bg-gray-400 cursor-not-allowed'
+                            onClick={() => createShippingLabel()}
+                            className={`w-full px-4 py-3 text-base rounded font-medium ${
+                              order.ok_to_ship && order.paid && order.shipping_address && order.order_pack
+                                ? 'bg-green-500 text-white hover:bg-green-600'
+                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                             }`}
-                            disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || 
-                                    !order.shipping_address_house_number || !order.shipping_address_city || 
-                                    !order.shipping_address_postal_code || !order.shipping_address_country || 
-                                    !order.phone || !order.email || !order.name || !order.order_pack || 
-                                    creatingLabel}
+                            disabled={!order.ok_to_ship || !order.paid || !order.shipping_address || !order.order_pack}
                           >
-                            {creatingLabel ? 'Creating...' : 'Create Shipping Label'}
+                            Create Shipping Label
                           </button>
-                          {labelMessage && (
-                            <div className={`mt-2 p-2 rounded ${
-                              labelMessage.type === 'success' 
-                                ? 'bg-green-100 text-green-800' 
-                                : labelMessage.type === 'warning'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
-                            }`}>
-                              {labelMessage.text}
-                            </div>
-                          )}
-                          {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || 
-                            !order.shipping_address_house_number || !order.shipping_address_city || 
-                            !order.shipping_address_postal_code || !order.shipping_address_country || 
-                            !order.phone || !order.email || !order.name || !order.order_pack) && (
-                            <div className="text-red-500 mt-2">
-                              Missing required fields for shipping label:
-                              <ul className="list-disc list-inside mt-2">
-                                {!order.shipping_address_line1 && <li>Address line 1</li>}
-                                {!order.shipping_address_house_number && <li>House number</li>}
-                                {!order.shipping_address_city && <li>City</li>}
-                                {!order.shipping_address_postal_code && <li>Postal code</li>}
-                                {!order.shipping_address_country && <li>Country</li>}
-                                {!order.phone && <li>Phone number</li>}
-                                {!order.email && <li>Email</li>}
-                                {!order.name && <li>Name</li>}
-                                {!order.order_pack && <li>Order pack</li>}
-                                {!order.ok_to_ship && <li>Order not ready to ship</li>}
-                                {!order.paid && <li>Order not paid</li>}
-                              </ul>
+                          {(!order.ok_to_ship || !order.paid || !order.shipping_address || !order.order_pack) && (
+                            <div className="mt-2 text-sm space-y-1">
+                              {!order.ok_to_ship && <p className="text-red-500">❌ Not ready to ship</p>}
+                              {!order.paid && <p className="text-red-500">❌ Payment pending</p>}
+                              {!order.shipping_address && <p className="text-red-500">❌ Missing shipping address</p>}
+                              {!order.order_pack && <p className="text-red-500">❌ Order pack required</p>}
                             </div>
                           )}
                         </div>
                       )}
                     </div>
                   </div>
-                )}
-                
-                {/* Message when shipping_id exists but no label_url */}
-                {order.shipping_id && !order.label_url && (
-                  <div className="mt-4">
-                    <div className="p-2 bg-yellow-100 text-yellow-800 rounded text-sm">
-                      A shipping label has already been created (Parcel ID: {order.shipping_id}), but the label URL is missing. 
-                      You can create a new shipping label if needed.
-                    </div>
-                  </div>
+                </div>
+
+                {/* Update Status Button */}
+                {order.tracking_number && (
+                  <button
+                    onClick={updateDeliveryStatus}
+                    className="mt-4 w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Update Status from SendCloud
+                  </button>
                 )}
               </div>
             </div>

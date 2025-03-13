@@ -240,8 +240,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Prevent changes to shipping_id if it already has a value
-    if (name === 'shipping_id' && formData.shipping_id) {
+    // Prevent any changes to shipping_id
+    if (name === 'shipping_id') {
       return;
     }
     
@@ -669,9 +669,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           <div>
             <label htmlFor="shipping_id" className="text-sm font-medium block">
               SendCloud Parcel ID
-              {formData.shipping_id && (
-                <span className="ml-2 px-1.5 py-0.5 bg-gray-200 text-gray-700 text-xs rounded">Locked</span>
-              )}
+              <span className="ml-2 px-1.5 py-0.5 bg-gray-200 text-gray-700 text-xs rounded">Read-only</span>
             </label>
             <div className="relative">
               <input
@@ -679,24 +677,20 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
                 id="shipping_id"
                 name="shipping_id"
                 value={formData.shipping_id}
-                onChange={handleChange}
                 placeholder="SendCloud parcel ID"
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md ${formData.shipping_id ? 'bg-gray-50 text-gray-700' : ''} ${!formData.shipping_id ? 'focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent' : ''}`}
-                readOnly={!!formData.shipping_id}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed"
+                readOnly
+                disabled
               />
-              {formData.shipping_id && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
-              )}
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
             </div>
-            {formData.shipping_id && (
-              <p className="text-xs text-gray-500 mt-1">
-                SendCloud Parcel ID cannot be edited once assigned.
-              </p>
-            )}
+            <p className="text-xs text-gray-500 mt-1">
+              This ID is automatically assigned when you create a shipping label and cannot be edited.
+            </p>
           </div>
 
           <div>

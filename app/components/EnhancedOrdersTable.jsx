@@ -396,7 +396,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 <TableHead className="text-black w-[150px]">Notes</TableHead>
                 <TableHead className="text-black w-[80px]">Weight</TableHead>
                 <TableHead className="text-black w-[80px]">Paid?</TableHead>
-                <TableHead className="text-black w-[100px]">Ok to Ship?</TableHead>
+                <TableHead className="text-black w-[100px]">OK TO SHIP</TableHead>
                 <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
                 <TableHead className="text-black w-[120px]">Tracking #</TableHead>
                 <TableHead className="text-black w-[120px]">Delivery Status</TableHead>
@@ -478,7 +478,9 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         />
                       </TableCell>
                       <TableCell className="enhanced-table-cell-truncate">{order.order_notes || 'N/A'}</TableCell>
-                      <TableCell>{order.weight || '1.000'}</TableCell>
+                      <TableCell>
+                        <span>{order.weight || '1.000'} kg</span>
+                      </TableCell>
                       <TableCell>
                         <PaymentBadge 
                           isPaid={order.paid} 
@@ -524,27 +526,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                             </div>
                           </div>
                         ) : (
-                          <>
-                            {order.ok_to_ship && order.paid && order.shipping_address && order.order_pack ? (
-                              <button
-                                onClick={() => createShippingLabel(order.id)}
-                                className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                              >
-                                Create
-                              </button>
-                            ) : (
-                              <div className="relative tooltip-container">
-                                <span className="text-gray-400 cursor-help">N/A</span>
-                                <div className="tooltip">
-                                  {!order.ok_to_ship ? "Not ready to ship" : 
-                                   !order.paid ? "Order not paid" : 
-                                   !order.shipping_address ? "Missing shipping address" : 
-                                   !order.order_pack ? "Order pack required" :
-                                   "Cannot create label"}
-                                </div>
-                              </div>
-                            )}
-                          </>
+                          <span className="text-gray-400">—</span>
                         )}
                       </TableCell>
                       <TableCell>{formatDate(order.created_at)}</TableCell>
