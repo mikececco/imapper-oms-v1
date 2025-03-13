@@ -208,7 +208,7 @@ async function createSendCloudParcel(order) {
     // Prepare the parcel data
     const parcelData = {
       parcel: {
-        name: order.name || 'Customer',
+        name: (order.name || 'Customer').slice(0, 35), // Truncate name to 35 characters
         company_name: '',
         address: order.shipping_address_line1,
         house_number: order.shipping_address_house_number,

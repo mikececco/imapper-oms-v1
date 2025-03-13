@@ -24,15 +24,17 @@ const ACTIVITY_ICONS = {
 
 // Format activity message based on action type and data
 const formatActivityMessage = (activity) => {
-  const { action_type, data } = activity;
+  const { action_type, changes } = activity;
   
   switch (action_type) {
     case 'payment_status':
-      return `Payment status changed to ${data.new_status}`;
+      return `Payment status changed to ${changes.new_status}`;
     case 'shipping_status':
-      return `Shipping status updated to ${data.new_status}`;
+      return `Shipping status updated to ${changes.new_status}`;
     case 'order_status':
-      return `Order status changed to ${data.new_status}`;
+      return `Order status changed to ${changes.new_status}`;
+    case 'shipping_label_created':
+      return `Shipping label created (ID: ${changes.shipping_id || 'N/A'}, Tracking: ${changes.tracking_number || 'N/A'})`;
     case 'order_update':
       const changes = [];
       if (data.changes) {
@@ -44,7 +46,7 @@ const formatActivityMessage = (activity) => {
       }
       return changes.join(', ') || 'Order details updated';
     default:
-      return activity.message || 'Activity recorded';
+      return activity.message || `Activity: ${action_type.replace(/_/g, ' ')}`;
   }
 };
 

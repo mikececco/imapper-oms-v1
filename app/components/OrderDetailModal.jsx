@@ -407,11 +407,11 @@ export default function OrderDetailModal({ children }) {
                       <button
                         onClick={() => createShippingLabel()}
                         className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
-                          order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack
+                          order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack && order.name && order.email && order.phone
                             ? 'bg-green-500 text-white hover:bg-green-600'
                             : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                         }`}
-                        disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || creatingLabel}
+                        disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || !order.name || !order.email || !order.phone || creatingLabel}
                       >
                         {creatingLabel ? (
                           <>
@@ -422,16 +422,22 @@ export default function OrderDetailModal({ children }) {
                           'Create Shipping Label'
                         )}
                       </button>
-                      {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack) && (
+                      {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || !order.name || !order.email || !order.phone) && (
                         <div className="mt-2 text-sm space-y-1">
-                          {!order.ok_to_ship && <p className="text-red-500">❌ Not ready to ship</p>}
-                          {!order.paid && <p className="text-red-500">❌ Payment pending</p>}
-                          {!order.shipping_address_line1 && <p className="text-red-500">❌ Missing address line 1</p>}
-                          {!order.shipping_address_house_number && <p className="text-red-500">❌ Missing house number</p>}
-                          {!order.shipping_address_city && <p className="text-red-500">❌ Missing city</p>}
-                          {!order.shipping_address_postal_code && <p className="text-red-500">❌ Missing postal code</p>}
-                          {!order.shipping_address_country && <p className="text-red-500">❌ Missing country</p>}
-                          {!order.order_pack && <p className="text-red-500">❌ Order pack required</p>}
+                          <p className="text-gray-600 font-medium mb-2">Required fields (*)</p>
+                          {!order.name && <p className="text-red-500">❌ Name* is required</p>}
+                          {!order.email && <p className="text-red-500">❌ Email* is required</p>}
+                          {!order.phone && <p className="text-red-500">❌ Phone* is required</p>}
+                          {!order.shipping_address_line1 && <p className="text-red-500">❌ Address Line 1* is required</p>}
+                          {!order.shipping_address_city && <p className="text-red-500">❌ City* is required</p>}
+                          {!order.shipping_address_postal_code && <p className="text-red-500">❌ Postal Code* is required</p>}
+                          {!order.shipping_address_country && <p className="text-red-500">❌ Country Code* is required</p>}
+                          {!order.order_pack && <p className="text-red-500">❌ Order Pack* is required</p>}
+                          {!order.ok_to_ship && <p className="text-red-500">❌ Order must be marked as OK TO SHIP</p>}
+                          {!order.paid && <p className="text-red-500">❌ Payment is required</p>}
+                          {order.name && order.name.length > 35 && (
+                            <p className="text-amber-500">⚠️ Name exceeds 35 characters and will be truncated ({order.name.length} chars)</p>
+                          )}
                         </div>
                       )}
                       
