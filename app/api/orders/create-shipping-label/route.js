@@ -1,20 +1,47 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, SENDCLOUD_API_KEY, SENDCLOUD_API_SECRET } from '../../../utils/env';
 import { ORDER_PACK_OPTIONS } from '../../../utils/constants';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
+// Initialize Supabase client with better error handling
+let supabase;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+try {
+  // Log environment variables (without sensitive values) for debugging
+  console.log('Environment check:', {
+    hasSupabaseUrl: !!process.env.NEXT_SUPABASE_URL,
+    hasSupabaseKey: !!process.env.NEXT_SUPABASE_ANON_KEY,
+    nodeEnv: process.env.NODE_ENV
+  });
+
+  const supabaseUrl = process.env.NEXT_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase credentials:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseAnonKey,
+      urlLength: supabaseUrl?.length,
+      keyLength: supabaseAnonKey?.length
+    });
+    throw new Error('Missing Supabase environment variables');
+  }
+
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+} catch (error) {
+  console.error('Failed to initialize Supabase client:', error);
+  // Don't throw here, let the POST handler deal with it
 }
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function POST(request) {
   try {
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      return NextResponse.json({ 
+        error: 'Database connection not available',
+        details: 'Failed to initialize Supabase client'
+      }, { status: 500 });
+    }
+
     const { orderId } = await request.json();
     
     if (!orderId) {
@@ -162,8 +189,8 @@ export async function POST(request) {
 async function createSendCloudParcel(order) {
   try {
     // Check if SendCloud API credentials are available
-    const sendCloudApiKey = SENDCLOUD_API_KEY || process.env.SENDCLOUD_API_KEY;
-    const sendCloudApiSecret = SENDCLOUD_API_SECRET || process.env.SENDCLOUD_API_SECRET;
+    const sendCloudApiKey = process.env.SENDCLOUD_API_KEY;
+    const sendCloudApiSecret = process.env.SENDCLOUD_API_SECRET;
     
     if (!sendCloudApiKey || !sendCloudApiSecret) {
       throw new Error('SendCloud API credentials not available');
