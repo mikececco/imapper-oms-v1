@@ -3,24 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SENDCLOUD_API_KEY, SENDCLOUD_API_SECRET } from '../../../utils/env';
 import { ORDER_PACK_OPTIONS } from '../../../utils/constants';
 
-// Initialize Supabase client with fallback values for build time
-const supabaseUrl = SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
 
-// Only create the client if we have the required values and we're not in a build context
-const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
-const supabase = (!isBuildTime && supabaseUrl && supabaseAnonKey) 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function POST(request) {
   try {
-    // Check if Supabase client is initialized
-    if (!supabase) {
-      console.error('Supabase client not initialized. Missing URL or API key.');
-      return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
-    }
-    
     const { orderId } = await request.json();
     
     if (!orderId) {
