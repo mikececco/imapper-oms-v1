@@ -331,52 +331,53 @@ async function handleCustomerCreated(event) {
 
 // Handle invoice.paid event
 async function handleInvoicePaid(event) {
+  const invoice = event.data.object;
+  console.log('Processing invoice.paid event:', invoice.id);
+
   try {
-    const invoice = event.data.object;
-    
-    // Check if this invoice has already been processed
-    const { data: existingOrders, error: queryError } = await supabase
+    // Check if an order with this invoice ID already exists
+    const { data: existingOrder, error: fetchError } = await supabase
       .from('orders')
-      .select('id')
-      .eq('stripe_invoice_id', invoice.id);
-    
-    if (queryError) {
-      console.error('Error checking for existing orders:', queryError);
-    } else if (existingOrders && existingOrders.length > 0) {
-      console.log(`Invoice ${invoice.id} has already been processed, skipping`);
-      return { success: true, message: 'Invoice already processed', orderId: existingOrders[0].id };
+      .select('*')
+      .eq('stripe_invoice_id', invoice.id)
+      .single();
+
+    if (fetchError) {
+      console.log('Error fetching order:', fetchError);
+      return;
     }
-    
-    // Log the invoice amount but don't restrict based on it
-    const amountPaid = invoice.amount_paid / 100; // Convert from cents to euros
-    console.log(`Invoice ${invoice.id} amount paid: ${amountPaid} euros`);
-    
-    // Fetch line items for the invoice
-    console.log(`Fetching line items for invoice ${invoice.id}`);
-    const lineItems = await stripe.invoiceItems.list({
-      invoice: invoice.id
+
+    if (!existingOrder) {
+      console.log(`No order found for invoice ${invoice.id}. Skipping payment status update.`);
+      return;
+    }
+
+    // Update the payment status of the existing order
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        paid: true,
+        payment_status: 'paid',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingOrder.id);
+
+    if (updateError) {
+      console.error('Error updating order payment status:', updateError);
+      return;
+    }
+
+    // Log the payment activity
+    await supabase.rpc('log_order_activity', {
+      p_order_id: existingOrder.id,
+      p_action_type: 'payment_status_changed',
+      p_changes: JSON.stringify({ payment_status: { old_value: existingOrder.payment_status, new_value: 'paid' } }),
+      p_previous_value: JSON.stringify({ paid: existingOrder.paid, payment_status: existingOrder.payment_status }),
+      p_new_value: JSON.stringify({ paid: true, payment_status: 'paid' })
     });
-    
-    // Add line items and amount checked flag to the event data
-    event.data.lineItems = lineItems.data;
-    event.data.amountChecked = true;
-    
-    // Create an order from the invoice
-    const { success, data, orderId, error } = await createOrderFromStripeEvent(event);
-    
-    if (success) {
-      console.log(`Successfully created order ${orderId} from invoice ${invoice.id}`);
-      return { 
-        success: true, 
-        message: `Order created from invoice ${invoice.id}`,
-        orderId 
-      };
-    } else {
-      console.error(`Failed to create order from invoice ${invoice.id}:`, error);
-      return { success: false, error };
-    }
+
+    console.log(`Successfully updated payment status for order ${existingOrder.id}`);
   } catch (error) {
-    console.error('Error handling invoice.paid event:', error);
-    return { success: false, error };
+    console.error('Error in handleInvoicePaid:', error);
   }
 } 
