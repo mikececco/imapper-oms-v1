@@ -201,6 +201,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   useEffect(() => {
     const fetchOrderPacks = async () => {
       try {
+        setLoadingOrderPacks(true);
         const { data, error } = await supabase
           .from('order_pack_lists')
           .select('*')
@@ -208,6 +209,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         
         if (error) throw error;
         
+        console.log('Fetched order packs:', data); // Debug log
         setOrderPackLists(data || []);
         
         // If there's a selected pack, update the form data with all pack details
@@ -235,7 +237,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     };
 
     fetchOrderPacks();
-  }, [order.order_pack_list_id, supabase]);
+  }, [order.order_pack_list_id]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -404,29 +406,9 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Customer Information */}
         <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium text-black">Customer Information</h3>
-            {order.customer_id && (
-              <Link 
-                href={`/customers/${order.customer_id}`}
-                className="text-xs text-blue-600 hover:text-blue-800"
-              >
-                View Customer Profile
-              </Link>
-            )}
-          </div>
-          
           <div>
             <label htmlFor="name" className="text-sm font-medium block">
               Name
-              {order.customer_id && (
-                <Link 
-                  href={`/customers/${order.customer_id}`}
-                  className="ml-2 text-xs text-blue-600 hover:text-blue-800"
-                >
-                  (View Profile)
-                </Link>
-              )}
             </label>
             <input
               id="name"
@@ -579,16 +561,15 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
             <select
               id="order_pack_list_id"
               name="order_pack_list_id"
-              required
-              className={`w-full px-3 py-2 border ${getFieldBorderClass('order_pack_list_id')} rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${(!formData.order_pack_list_id) ? 'text-gray-500' : 'text-black'}`}
+              className={`w-full px-3 py-2 border-0 ${getFieldBorderClass('order_pack_list_id')} rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${(!formData.order_pack_list_id) ? 'text-gray-400' : 'text-white font-medium'} bg-gray-900 hover:bg-gray-800`}
               value={formData.order_pack_list_id || ''}
               onChange={handleChange}
               disabled={loadingOrderPacks}
             >
-              <option value="" disabled>Select an order pack</option>
+              <option value="" className="bg-white text-gray-500">Select an order pack</option>
               {orderPackLists.map((pack) => (
-                <option key={pack.id} value={pack.id}>
-                  {pack.label}
+                <option key={pack.id} value={pack.id} className="bg-white text-black">
+                  {pack.label} ({pack.weight} kg)
                 </option>
               ))}
             </select>

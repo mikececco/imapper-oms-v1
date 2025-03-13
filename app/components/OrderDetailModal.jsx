@@ -301,6 +301,29 @@ export default function OrderDetailModal({ children }) {
               {/* Edit Order Form */}
               <div className="bg-white p-4 rounded border border-gray-200">
                 <h2 className="text-lg font-semibold mb-4">Edit Order</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-medium text-black">Customer Information</h3>
+                  <div className="flex gap-2">
+                    {order.stripe_customer_id && (
+                      <a 
+                        href={`https://dashboard.stripe.com/customers/${order.stripe_customer_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 bg-violet-600 text-white rounded hover:bg-violet-700 text-sm font-medium"
+                      >
+                        Stripe
+                      </a>
+                    )}
+                    {order.customer_id && (
+                      <a 
+                        href={`/customers/${order.customer_id}`}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+                      >
+                        View Customer
+                      </a>
+                    )}
+                  </div>
+                </div>
                 <OrderDetailForm 
                   order={order} 
                   orderPackOptions={ORDER_PACK_OPTIONS}
