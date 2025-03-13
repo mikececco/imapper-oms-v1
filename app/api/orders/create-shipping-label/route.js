@@ -190,6 +190,7 @@ async function createSendCloudParcel(order) {
         name: order.name || 'Customer',
         company_name: '',
         address: order.shipping_address_line1,
+        house_number: order.shipping_address_house_number,
         address_2: order.shipping_address_line2 || '',
         city: order.shipping_address_city,
         postal_code: order.shipping_address_postal_code,

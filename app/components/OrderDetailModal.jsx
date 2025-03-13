@@ -214,6 +214,26 @@ export default function OrderDetailModal({ children }) {
         throw new Error(data.error || 'Failed to create shipping label');
       }
       
+      // Create activity log entry for shipping label creation
+      const { error: activityError } = await supabase
+        .from('order_activities')
+        .insert([
+          {
+            order_id: order.id,
+            action_type: 'shipping_label_created',
+            changes: {
+              shipping_id: data.shipping_id,
+              tracking_number: data.tracking_number,
+              label_url: data.label_url
+            },
+            created_at: new Date().toISOString()
+          }
+        ]);
+
+      if (activityError) {
+        console.error('Error creating activity log:', activityError);
+      }
+      
       if (data.warning) {
         setLabelMessage({
           type: 'warning',
@@ -383,8 +403,39 @@ export default function OrderDetailModal({ children }) {
 
                   {/* Shipping Label Status */}
                   <div className="status-row flex-col items-stretch">
-                    <div className="w-full">
-                      {order.label_url ? (
+                    <div className="w-full space-y-2">
+                      <button
+                        onClick={() => createShippingLabel()}
+                        className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
+                          order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack
+                            ? 'bg-green-500 text-white hover:bg-green-600'
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        }`}
+                        disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || creatingLabel}
+                      >
+                        {creatingLabel ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                            Creating Label...
+                          </>
+                        ) : (
+                          'Create Shipping Label'
+                        )}
+                      </button>
+                      {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack) && (
+                        <div className="mt-2 text-sm space-y-1">
+                          {!order.ok_to_ship && <p className="text-red-500">❌ Not ready to ship</p>}
+                          {!order.paid && <p className="text-red-500">❌ Payment pending</p>}
+                          {!order.shipping_address_line1 && <p className="text-red-500">❌ Missing address line 1</p>}
+                          {!order.shipping_address_house_number && <p className="text-red-500">❌ Missing house number</p>}
+                          {!order.shipping_address_city && <p className="text-red-500">❌ Missing city</p>}
+                          {!order.shipping_address_postal_code && <p className="text-red-500">❌ Missing postal code</p>}
+                          {!order.shipping_address_country && <p className="text-red-500">❌ Missing country</p>}
+                          {!order.order_pack && <p className="text-red-500">❌ Order pack required</p>}
+                        </div>
+                      )}
+                      
+                      {order.label_url && (
                         <a 
                           href={order.label_url} 
                           target="_blank" 
@@ -393,38 +444,13 @@ export default function OrderDetailModal({ children }) {
                         >
                           View Label
                         </a>
-                      ) : order.shipping_id ? (
+                      )}
+                      {order.shipping_id && !order.label_url && (
                         <div className="w-full text-center py-2">
                           <span className="text-yellow-500 text-base">Pending</span>
                           <p className="text-sm text-gray-500 mt-1">
                             Label created (ID: {order.shipping_id.substring(0, 8)}...) but URL not available
                           </p>
-                        </div>
-                      ) : (
-                        <div className="w-full">
-                          <button
-                            onClick={() => createShippingLabel()}
-                            className={`w-full px-4 py-3 text-base rounded font-medium ${
-                              order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack
-                                ? 'bg-green-500 text-white hover:bg-green-600'
-                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                            }`}
-                            disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack}
-                          >
-                            Create Shipping Label
-                          </button>
-                          {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack) && (
-                            <div className="mt-2 text-sm space-y-1">
-                              {!order.ok_to_ship && <p className="text-red-500">❌ Not ready to ship</p>}
-                              {!order.paid && <p className="text-red-500">❌ Payment pending</p>}
-                              {!order.shipping_address_line1 && <p className="text-red-500">❌ Missing address line 1</p>}
-                              {!order.shipping_address_house_number && <p className="text-red-500">❌ Missing house number</p>}
-                              {!order.shipping_address_city && <p className="text-red-500">❌ Missing city</p>}
-                              {!order.shipping_address_postal_code && <p className="text-red-500">❌ Missing postal code</p>}
-                              {!order.shipping_address_country && <p className="text-red-500">❌ Missing country</p>}
-                              {!order.order_pack && <p className="text-red-500">❌ Order pack required</p>}
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
