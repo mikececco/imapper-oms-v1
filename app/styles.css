@@ -424,7 +424,7 @@ footer {
 }
 
 input:checked + .toggle-slider {
-  background-color: var(--success);
+  background-color: #10b981;
 }
 
 input:checked + .toggle-slider:before {

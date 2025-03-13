@@ -365,14 +365,6 @@ export default function OrderDetailModal({ children }) {
                     />
                   </div>
 
-                  {/* Delivery Status */}
-                  <div className="status-row">
-                    <span className="status-label">Delivery Status</span>
-                    <div className={`order-status ${(order.delivery_status || 'empty').toLowerCase().replace(/\s+/g, '-')} px-2 py-1 rounded text-sm`}>
-                      {order.delivery_status || 'EMPTY'}
-                    </div>
-                  </div>
-
                   {/* Weight */}
                   {order.weight && (
                     <div className="status-row">
@@ -413,19 +405,23 @@ export default function OrderDetailModal({ children }) {
                           <button
                             onClick={() => createShippingLabel()}
                             className={`w-full px-4 py-3 text-base rounded font-medium ${
-                              order.ok_to_ship && order.paid && order.shipping_address && order.order_pack
+                              order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack
                                 ? 'bg-green-500 text-white hover:bg-green-600'
                                 : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                             }`}
-                            disabled={!order.ok_to_ship || !order.paid || !order.shipping_address || !order.order_pack}
+                            disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack}
                           >
                             Create Shipping Label
                           </button>
-                          {(!order.ok_to_ship || !order.paid || !order.shipping_address || !order.order_pack) && (
+                          {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack) && (
                             <div className="mt-2 text-sm space-y-1">
                               {!order.ok_to_ship && <p className="text-red-500">❌ Not ready to ship</p>}
                               {!order.paid && <p className="text-red-500">❌ Payment pending</p>}
-                              {!order.shipping_address && <p className="text-red-500">❌ Missing shipping address</p>}
+                              {!order.shipping_address_line1 && <p className="text-red-500">❌ Missing address line 1</p>}
+                              {!order.shipping_address_house_number && <p className="text-red-500">❌ Missing house number</p>}
+                              {!order.shipping_address_city && <p className="text-red-500">❌ Missing city</p>}
+                              {!order.shipping_address_postal_code && <p className="text-red-500">❌ Missing postal code</p>}
+                              {!order.shipping_address_country && <p className="text-red-500">❌ Missing country</p>}
                               {!order.order_pack && <p className="text-red-500">❌ Order pack required</p>}
                             </div>
                           )}

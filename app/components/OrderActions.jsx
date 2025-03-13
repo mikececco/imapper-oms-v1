@@ -136,8 +136,8 @@ export function ShippingToggle({ okToShip, orderId, onUpdate }) {
         className="toggle-slider" 
         style={{ 
           backgroundColor: isOkToShip 
-            ? (isHovered ? '#333333' : '#000000') 
-            : (isHovered ? '#bbbbbb' : '#cccccc'),
+            ? (isHovered ? '#15803d' : '#22c55e')  // Using green-700 for hover and green-500 for active
+            : (isHovered ? '#dc2626' : '#ef4444'),  // Using red-600 for hover and red-500 for active
           transition: 'all 0.2s ease'
         }}
       ></span>
