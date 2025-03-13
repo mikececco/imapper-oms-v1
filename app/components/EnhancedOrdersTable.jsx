@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { StatusBadge, PaymentBadge, ShippingToggle, OrderPackDropdown, StatusSelector } from "./OrderActions";
+import { StatusBadge, PaymentBadge, ShippingToggle, OrderPackDropdown, StatusSelector, ImportantFlag } from "./OrderActions";
 import ShippingMethodDropdown from "./ShippingMethodDropdown";
 import { useOrderDetailModal } from "./OrderDetailModal";
 import { calculateOrderInstruction } from "../utils/order-instructions";
@@ -387,6 +387,9 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 <TableHead className="text-black w-[60px] sticky left-[40px] z-20 bg-white">
                   Actions
                 </TableHead>
+                <TableHead className="text-black w-[40px]">
+                  Important
+                </TableHead>
                 <TableHead className="text-black w-[60px]">ID</TableHead>
                 <TableHead className="text-black w-[150px]">Name</TableHead>
                 <TableHead className="text-black w-[180px]">Email</TableHead>
@@ -419,7 +422,10 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                   const countryDisplay = getCountryDisplayName(countryCode);
                   
                   return (
-                    <TableRow key={order.id} className="text-black">
+                    <TableRow 
+                      key={order.id} 
+                      className={`text-black ${order.important ? 'bg-red-50 hover:bg-red-100' : ''}`}
+                    >
                       <TableCell className="sticky left-0 z-20 bg-white">
                         <input
                           type="checkbox"
@@ -446,6 +452,13 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         >
                           Open
                         </button>
+                      </TableCell>
+                      <TableCell>
+                        <ImportantFlag
+                          isImportant={order.important}
+                          orderId={order.id}
+                          onUpdate={handleOrderUpdate}
+                        />
                       </TableCell>
                       <TableCell>{order.id}</TableCell>
                       <TableCell className="enhanced-table-cell-truncate">

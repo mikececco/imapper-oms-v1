@@ -5,6 +5,7 @@ import { useState } from 'react';
 export default function OrderFilters({ onFilterChange }) {
   const [instructionFilter, setInstructionFilter] = useState('all');
   const [paidFilter, setPaidFilter] = useState('all');
+  const [importantFilter, setImportantFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -13,6 +14,7 @@ export default function OrderFilters({ onFilterChange }) {
     onFilterChange({
       instruction: instructionFilter,
       paid: paidFilter,
+      important: importantFilter,
       startDate: startDate || null,
       endDate: endDate || null
     });
@@ -21,11 +23,13 @@ export default function OrderFilters({ onFilterChange }) {
   const clearFilters = () => {
     setInstructionFilter('all');
     setPaidFilter('all');
+    setImportantFilter('all');
     setStartDate('');
     setEndDate('');
     onFilterChange({
       instruction: 'all',
       paid: 'all',
+      important: 'all',
       startDate: null,
       endDate: null
     });
@@ -45,6 +49,25 @@ export default function OrderFilters({ onFilterChange }) {
       
       <div className={`filter-content ${isExpanded ? 'expanded' : 'collapsed'}`}>
         <div className="filters-grid">
+          {/* Important Filter */}
+          <div className="filter-group">
+            <label htmlFor="important-filter">
+              Important Orders
+            </label>
+            <select
+              id="important-filter"
+              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              value={importantFilter}
+              onChange={(e) => {
+                setImportantFilter(e.target.value);
+              }}
+            >
+              <option value="all">All Orders</option>
+              <option value="important">Important Only</option>
+              <option value="not-important">Not Important</option>
+            </select>
+          </div>
+
           {/* Instruction Filter */}
           <div className="filter-group">
             <label htmlFor="instruction-filter">

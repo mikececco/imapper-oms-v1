@@ -371,6 +371,11 @@ export async function filterOrders(filters) {
     if (filters.paid && filters.paid !== 'all') {
       query = query.eq('paid', filters.paid === 'paid');
     }
+
+    // Apply important filter
+    if (filters.important && filters.important !== 'all') {
+      query = query.eq('important', filters.important === 'important');
+    }
     
     // Apply date range filter
     if (filters.startDate) {

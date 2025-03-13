@@ -1055,4 +1055,34 @@ input:checked + .toggle-slider:before {
 .status-label {
   font-weight: 500;
   color: black;
+}
+
+/* Important flag styles */
+.bg-red-50 {
+  background-color: rgba(254, 242, 242, 0.8);
+}
+
+.bg-red-50:hover {
+  background-color: rgba(254, 226, 226, 0.9);
+}
+
+.bg-red-100 {
+  background-color: rgba(254, 226, 226, 0.9);
+}
+
+.bg-red-200 {
+  background-color: rgba(254, 202, 202, 0.9);
+}
+
+.text-red-600 {
+  color: rgb(220, 38, 38);
+}
+
+/* Ensure sticky cells maintain background when row is important */
+.bg-red-50 .sticky {
+  background-color: rgba(254, 242, 242, 0.8) !important;
+}
+
+.bg-red-50:hover .sticky {
+  background-color: rgba(254, 226, 226, 0.9) !important;
 } 

@@ -6,6 +6,7 @@ import { updateOrderStatus, updatePaymentStatus, updateShippingStatus } from '..
 import { ORDER_PACK_OPTIONS } from '../utils/constants';
 import CustomOrderPackModal from './CustomOrderPackModal';
 import { useSupabase } from './Providers';
+import { toast } from 'react-hot-toast';
 
 export function StatusBadge({ status }) {
   return (
@@ -53,7 +54,7 @@ export function PaymentBadge({ isPaid, orderId, onUpdate }) {
       console.error('Error updating payment status:', error);
       // Revert to the previous value on error
       setPaid(previousValue);
-      alert('Failed to update payment status. Please try again.');
+      toast.error('Failed to update payment status');
     } finally {
       setIsUpdating(false);
     }
@@ -113,7 +114,7 @@ export function ShippingToggle({ okToShip, orderId, onUpdate }) {
       console.error('Error updating shipping status:', error);
       // Revert to the previous value on error
       setIsOkToShip(previousValue);
-      alert('Failed to update shipping status. Please try again.');
+      toast.error('Failed to update shipping status');
     } finally {
       setIsUpdating(false);
     }
@@ -182,7 +183,7 @@ export function StatusSelector({ currentStatus, orderId, onUpdate }) {
       console.error('Error updating order status:', error);
       // Revert to the previous value on error
       setStatus(previousStatus);
-      alert('Failed to update order status. Please try again.');
+      toast.error('Failed to update order status');
     } finally {
       setIsUpdating(false);
     }
@@ -308,7 +309,7 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
       console.error('Error updating order pack:', error);
       // Revert to the previous value on error
       setOrderPack(previousValue);
-      alert('Failed to update order pack. Please try again.');
+      toast.error('Failed to update order pack');
     } finally {
       setIsUpdating(false);
     }
@@ -426,5 +427,82 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
         onSave={handleSaveCustomPack}
       />
     </div>
+  );
+}
+
+export function ImportantFlag({ isImportant, orderId, onUpdate }) {
+  const router = useRouter();
+  const [important, setImportant] = useState(isImportant || false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const toggleImportant = async () => {
+    const previousValue = important;
+    
+    // Optimistic update - immediately update the UI
+    setImportant(!important);
+    setIsUpdating(true);
+    
+    try {
+      const response = await fetch('/api/orders/toggle-important', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update important status');
+      }
+      
+      // If onUpdate is provided, call it with the updated order data
+      if (onUpdate) {
+        const updatedOrder = {
+          id: orderId,
+          important: !important,
+          updated_at: new Date().toISOString()
+        };
+        onUpdate(updatedOrder);
+      }
+      
+      // Update the router cache without navigating
+      router.refresh();
+    } catch (error) {
+      console.error('Error updating important status:', error);
+      // Revert to the previous value on error
+      setImportant(previousValue);
+      toast.error('Failed to update important status');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={toggleImportant}
+      disabled={isUpdating}
+      className={`p-1.5 rounded-md transition-colors ${
+        important 
+          ? 'bg-red-100 hover:bg-red-200 text-red-600' 
+          : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+      }`}
+      title={important ? 'Mark as not important' : 'Mark as important'}
+      style={{ opacity: isUpdating ? 0.5 : 1 }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="w-5 h-5"
+      >
+        <path
+          fillRule="evenodd"
+          d="M3 2.25a.75.75 0 01.75.75v.54l1.838-.46a9.75 9.75 0 016.725.738l.108.054a8.25 8.25 0 005.58.652l3.109-.732a.75.75 0 01.917.81 47.784 47.784 0 00.005 10.337.75.75 0 01-.574.812l-3.114.733a9.75 9.75 0 01-6.594-.77l-.108-.054a8.25 8.25 0 00-5.69-.625l-2.202.55V21a.75.75 0 01-1.5 0V3A.75.75 0 013 2.25z"
+          clipRule="evenodd"
+        />
+      </svg>
+    </button>
   );
 } 

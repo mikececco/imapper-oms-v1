@@ -36,15 +36,15 @@ const formatActivityMessage = (activity) => {
     case 'shipping_label_created':
       return `Shipping label created (ID: ${changes.shipping_id || 'N/A'}, Tracking: ${changes.tracking_number || 'N/A'})`;
     case 'order_update':
-      const changes = [];
-      if (data.changes) {
-        Object.entries(data.changes).forEach(([field, { old_value, new_value }]) => {
+      const updateChanges = [];
+      if (changes) {
+        Object.entries(changes).forEach(([field, { old_value, new_value }]) => {
           // Format field name for display
           const formattedField = field.replace(/_/g, ' ').toLowerCase();
-          changes.push(`${formattedField} updated from "${old_value}" to "${new_value}"`);
+          updateChanges.push(`${formattedField} updated from "${old_value}" to "${new_value}"`);
         });
       }
-      return changes.join(', ') || 'Order details updated';
+      return updateChanges.join(', ') || 'Order details updated';
     default:
       return activity.message || `Activity: ${action_type.replace(/_/g, ' ')}`;
   }
