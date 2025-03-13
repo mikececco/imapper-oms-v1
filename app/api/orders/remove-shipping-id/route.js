@@ -39,9 +39,24 @@ export async function POST(request) {
       .from('order_activities')
       .insert([{
         order_id: orderId,
-        action_type: 'shipping_label_removed',
+        action_type: 'order_update',
         changes: {
-          message: 'Shipping label and tracking information removed'
+          shipping_id: {
+            old_value: data.shipping_id,
+            new_value: null
+          },
+          tracking_number: {
+            old_value: data.tracking_number,
+            new_value: null
+          },
+          tracking_link: {
+            old_value: data.tracking_link,
+            new_value: null
+          },
+          status: {
+            old_value: data.status,
+            new_value: 'pending'
+          }
         },
         created_at: new Date().toISOString()
       }]);
