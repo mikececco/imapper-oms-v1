@@ -16,6 +16,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { TableCell } from './ui/table';
 import { calculateOrderInstruction } from '../utils/order-instructions';
+import { toast } from 'react-hot-toast';
 
 // Create context for the OrderDetailModal
 export const OrderDetailModalContext = createContext({
@@ -404,6 +405,60 @@ export default function OrderDetailModal({ children }) {
                   {/* Shipping Label Status */}
                   <div className="status-row flex-col items-stretch">
                     <div className="w-full space-y-2">
+                      {order.shipping_id && (
+                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg mb-4">
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-gray-600">SendCloud Parcel ID:</span>
+                            <span className="ml-2 font-mono">{order.shipping_id}</span>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              if (window.confirm('Are you sure you want to remove this shipping label? This action cannot be undone.')) {
+                                try {
+                                  const response = await fetch('/api/orders/remove-shipping-id', {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({ orderId: order.id }),
+                                  });
+
+                                  if (!response.ok) {
+                                    throw new Error('Failed to remove shipping ID');
+                                  }
+
+                                  // Update local state
+                                  setOrder(prev => ({
+                                    ...prev,
+                                    shipping_id: null,
+                                    tracking_number: null,
+                                    tracking_link: null,
+                                    label_url: null,
+                                    status: 'pending',
+                                    updated_at: new Date().toISOString()
+                                  }));
+
+                                  // Show success message
+                                  toast.success('Shipping label removed successfully');
+
+                                  // Refresh order details
+                                  refreshOrder();
+                                } catch (error) {
+                                  console.error('Error removing shipping ID:', error);
+                                  toast.error('Failed to remove shipping label');
+                                }
+                              }
+                            }}
+                            className="flex items-center gap-2 ml-4 px-3 py-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-md transition-colors"
+                            title="Remove shipping label"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      )}
                       <button
                         onClick={() => createShippingLabel()}
                         className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${

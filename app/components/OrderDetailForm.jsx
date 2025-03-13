@@ -8,6 +8,7 @@ import { calculateOrderInstruction, calculateOrderStatus } from '../utils/order-
 import { fetchShippingMethods, DEFAULT_SHIPPING_METHODS } from '../utils/shipping-methods';
 import CustomOrderPackModal from './CustomOrderPackModal';
 import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
+import { toast } from 'react-hot-toast';
 
 export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
   const router = useRouter();
@@ -660,22 +661,70 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               SendCloud Parcel ID
               <span className="ml-2 px-1.5 py-0.5 bg-gray-200 text-gray-700 text-xs rounded">Read-only</span>
             </label>
-            <div className="relative">
+            <div className="relative flex items-center gap-2">
               <input
                 type="text"
                 id="shipping_id"
                 name="shipping_id"
                 value={formData.shipping_id}
                 placeholder="SendCloud parcel ID"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed"
                 readOnly
                 disabled
               />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
+              {formData.shipping_id && (
+                <button
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to remove this shipping label? This action cannot be undone.')) {
+                      try {
+                        const response = await fetch('/api/orders/remove-shipping-id', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({ orderId: order.id }),
+                        });
+
+                        if (!response.ok) {
+                          throw new Error('Failed to remove shipping ID');
+                        }
+
+                        // Update form data
+                        setFormData(prev => ({
+                          ...prev,
+                          shipping_id: null,
+                          tracking_number: null,
+                          tracking_link: null,
+                          label_url: null
+                        }));
+
+                        // Call onUpdate to update parent component
+                        onUpdate({
+                          shipping_id: null,
+                          tracking_number: null,
+                          tracking_link: null,
+                          label_url: null,
+                          status: 'pending'
+                        });
+
+                        // Show success message
+                        toast.success('Shipping label removed successfully');
+
+                      } catch (error) {
+                        console.error('Error removing shipping ID:', error);
+                        toast.error('Failed to remove shipping label');
+                      }
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-md transition-colors"
+                  title="Remove shipping label"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <span>Delete</span>
+                </button>
+              )}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               This ID is automatically assigned when you create a shipping label and cannot be edited.
