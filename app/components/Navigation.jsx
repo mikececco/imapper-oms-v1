@@ -87,6 +87,13 @@ export default function Navigation() {
           >
             Order Packs
           </Link>
+          <Link 
+            href="/how-to-use" 
+            className={pathname === '/how-to-use' ? 'active' : ''}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            How to Use
+          </Link>
           <button
             onClick={() => {
               setIsNewOrderModalOpen(true);

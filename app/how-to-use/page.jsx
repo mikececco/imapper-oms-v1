@@ -1,0 +1,108 @@
+import Link from 'next/link';
+
+export default function HowToUse() {
+  return (
+    <div className="container">
+      <header>
+        <h1>How to Use</h1>
+        <p>Guide to using the Order Management System</p>
+      </header>
+
+      <main className="single-column">
+        <div className="card space-y-8">
+          <div className="actions">
+            <Link href="/" className="btn">
+              Back to Dashboard
+            </Link>
+          </div>
+
+          {/* Process Overview */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">Process Overview</h2>
+            <p className="text-gray-600">
+              The Order Management System helps you manage orders from creation to delivery. Here's how the process works:
+            </p>
+            
+            <div className="space-y-6">
+              {/* Step 1 */}
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-medium mb-2">1. Order Creation</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  <li>Orders are automatically created when customers make a purchase</li>
+                  <li>Each order contains customer details, shipping information, and order contents</li>
+                  <li>Payment status is automatically updated when payment is received</li>
+                </ul>
+              </div>
+
+              {/* Step 2 */}
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-medium mb-2">2. Order Processing</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  <li>Review order details in the Orders table</li>
+                  <li>Verify customer information and shipping address</li>
+                  <li>Select the appropriate Order Pack from the dropdown</li>
+                  <li>Mark the order as "OK TO SHIP" when ready</li>
+                </ul>
+              </div>
+
+              {/* Step 3 */}
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-medium mb-2">3. Creating Shipping Labels</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  <li>Open the order details by clicking the "Open" button</li>
+                  <li>Ensure all required fields are filled out:
+                    <ul className="list-disc list-inside ml-4 mt-2">
+                      <li>Name (max 35 characters)</li>
+                      <li>Email</li>
+                      <li>Phone</li>
+                      <li>Complete shipping address</li>
+                      <li>Order Pack selection</li>
+                    </ul>
+                  </li>
+                  <li>Click "Create Shipping Label" to generate a SendCloud shipping label</li>
+                </ul>
+              </div>
+
+              {/* Step 4 */}
+              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-medium mb-2">4. Tracking & Updates</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">
+                  <li>Track shipments using the provided tracking numbers</li>
+                  <li>Update delivery status manually or automatically via SendCloud</li>
+                  <li>View order history and activities in the Activity Log</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Important Notes */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">Important Notes</h2>
+            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+              <ul className="list-disc list-inside space-y-2 text-amber-800">
+                <li>Ensure all customer information is accurate before creating shipping labels</li>
+                <li>Names longer than 35 characters will be truncated for SendCloud compatibility</li>
+                <li>Orders must be marked as "Paid" and "OK TO SHIP" before creating labels</li>
+                <li>Keep track of order status changes in the Activity Log</li>
+              </ul>
+            </div>
+          </section>
+
+          {/* Support */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">Need Help?</h2>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-blue-800">
+                If you need assistance or encounter any issues, please contact Mike or Pierre Yves
+              </p>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer>
+        <p>Order Management System &copy; {new Date().getFullYear()}</p>
+      </footer>
+    </div>
+  );
+} 
