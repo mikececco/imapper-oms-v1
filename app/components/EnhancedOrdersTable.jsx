@@ -18,6 +18,16 @@ import { useOrderDetailModal } from "./OrderDetailModal";
 import { calculateOrderInstruction } from "../utils/order-instructions";
 import "./order-status.css";
 import { normalizeCountryToCode, getCountryDisplayName } from '../utils/country-utils';
+import { useSupabase } from "./Providers";
+import { toast } from "react-hot-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -124,10 +134,10 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const { openModal } = useOrderDetailModal();
   const [isMounted, setIsMounted] = useState(false);
   const [localOrders, setLocalOrders] = useState(orders || []);
-  const [deletingOrderId, setDeletingOrderId] = useState(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState(new Set());
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [labelMessage, setLabelMessage] = useState(null);
+  const supabase = useSupabase();
 
   // Update localOrders when orders prop changes
   useEffect(() => {
@@ -176,16 +186,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       // First check if the order has an order pack
       const order = localOrders.find(o => o.id === orderId);
       if (!order.order_pack) {
-        setLabelMessage({
-          orderId,
-          type: 'error',
-          text: 'Order pack is required before creating a shipping label'
-        });
-        
-        // Clear message after 5 seconds
-        setTimeout(() => {
-          setLabelMessage(null);
-        }, 5000);
+        toast.error('Order pack is required before creating a shipping label');
         
         return { success: false, error: 'Order pack is required' };
       }
@@ -234,28 +235,10 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
           );
           
           // Show warning message
-          setLabelMessage({
-            orderId,
-            type: 'warning',
-            text: `Shipping label created but there was an issue updating the order: ${data.message}`
-          });
-          
-          // Clear message after 5 seconds
-          setTimeout(() => {
-            setLabelMessage(null);
-          }, 5000);
+          toast.error(`Shipping label created but there was an issue updating the order: ${data.message}`);
         } else {
           // No tracking info available
-          setLabelMessage({
-            orderId,
-            type: 'warning',
-            text: `Warning: ${data.message}`
-          });
-          
-          // Clear message after 5 seconds
-          setTimeout(() => {
-            setLabelMessage(null);
-          }, 5000);
+          toast.error(`Warning: ${data.message}`);
         }
       } else {
         // Success case - update local state with the returned data
@@ -280,16 +263,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         );
         
         // Show success message
-        setLabelMessage({
-          orderId,
-          type: 'success',
-          text: `Shipping label created successfully! SendCloud Parcel ID: ${data.shipping_id || 'N/A'}`
-        });
-        
-        // Clear message after 5 seconds
-        setTimeout(() => {
-          setLabelMessage(null);
-        }, 5000);
+        toast.success(`Shipping label created successfully! SendCloud Parcel ID: ${data.shipping_id || 'N/A'}`);
       }
       
       // Refresh orders to show updated tracking info
@@ -299,16 +273,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     } catch (error) {
       console.error('Error creating shipping label:', error);
       
-      setLabelMessage({
-        orderId,
-        type: 'error',
-        text: `Error: ${error.message}`
-      });
-      
-      // Clear message after 5 seconds
-      setTimeout(() => {
-        setLabelMessage(null);
-      }, 5000);
+      toast.error(`Error: ${error.message}`);
       
       return { success: false, error };
     }
@@ -340,7 +305,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         );
         
         // Show success message
-        alert(`Delivery status updated to: ${data.deliveryStatus || 'Unknown'}`);
+        toast.success(`Delivery status updated to: ${data.deliveryStatus || 'Unknown'}`);
       }
       
       // Refresh orders to show updated status
@@ -349,146 +314,121 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       return { success: true };
     } catch (error) {
       console.error('Error updating delivery status:', error);
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
       return { success: false, error };
     }
   };
 
-  // Function to handle order deletion
-  const handleDeleteOrder = async (orderId) => {
-    setDeletingOrderId(orderId);
-    setShowConfirmation(true);
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
+      }
+      return newSet;
+    });
   };
 
-  // Function to confirm and execute order deletion
-  const confirmDeleteOrder = async () => {
-    if (!deletingOrderId) return;
-    
-    setIsDeleting(true);
-    
-    try {
-      const response = await fetch(`/api/orders/${deletingOrderId}/delete`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete order');
-      }
-      
-      // Remove the order from local state
-      setLocalOrders(prevOrders => prevOrders.filter(order => order.id !== deletingOrderId));
-      
-      // Call the parent's onRefresh if provided
-      if (onRefresh) {
-        onRefresh();
-      } else {
-        // If no parent handler, update the router cache
-        router.refresh();
-      }
-      
-      // Reset state
-      setShowConfirmation(false);
-      setDeletingOrderId(null);
-      
-      // Show success message
-      alert('Order deleted successfully');
-    } catch (error) {
-      console.error('Error deleting order:', error);
-      alert(`Error deleting order: ${error.message}`);
-    } finally {
-      setIsDeleting(false);
+  const handleSelectAll = () => {
+    if (selectedOrders.size === localOrders.length) {
+      setSelectedOrders(new Set());
+    } else {
+      setSelectedOrders(new Set(localOrders.map(order => order.id)));
     }
   };
 
-  // Function to cancel order deletion
-  const cancelDeleteOrder = () => {
-    setShowConfirmation(false);
-    setDeletingOrderId(null);
+  const handleBulkDelete = async () => {
+    if (selectedOrders.size === 0) return;
+    setIsConfirmingDelete(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const ordersToDelete = Array.from(selectedOrders);
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .in('id', ordersToDelete);
+
+      if (error) throw error;
+
+      setLocalOrders(prev => prev.filter(order => !selectedOrders.has(order.id)));
+      setSelectedOrders(new Set());
+      toast.success(`Successfully deleted ${ordersToDelete.length} orders`);
+    } catch (error) {
+      console.error('Error deleting orders:', error);
+      toast.error('Failed to delete orders');
+    } finally {
+      setIsDeleting(false);
+      setIsConfirmingDelete(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+      <div className="flex justify-center items-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
       </div>
     );
   }
 
   return (
-    <div className="enhanced-table-container">
-      {/* Confirmation Dialog */}
-      {showConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
-            <p className="mb-6">Are you sure you want to delete this order? This action cannot be undone.</p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={cancelDeleteOrder}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDeleteOrder}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="enhanced-table-scrollable">
-        <Table>
-          <TableCaption>
-            {loading ? 'Loading orders...' : 
-              localOrders.length > 0 
-                ? `Showing ${localOrders.length} order${localOrders.length === 1 ? '' : 's'}.` 
-                : 'No orders found.'}
-          </TableCaption>
-          <TableHeader className="enhanced-table-header">
-            <TableRow>
-              <TableHead className="text-black w-[60px] sticky-col">Actions</TableHead>
-              <TableHead className="text-black w-[60px]">ID</TableHead>
-              <TableHead className="text-black w-[150px]">Name</TableHead>
-              <TableHead className="text-black w-[180px]">Email</TableHead>
-              <TableHead className="text-black w-[120px]">Phone</TableHead>
-              <TableHead className="text-black w-[200px]">Address</TableHead>
-              <TableHead className="text-black w-[120px]">Order Pack</TableHead>
-              <TableHead className="text-black w-[150px]">Notes</TableHead>
-              <TableHead className="text-black w-[80px]">Weight</TableHead>
-              <TableHead className="text-black w-[80px]">Paid?</TableHead>
-              <TableHead className="text-black w-[100px]">Ok to Ship?</TableHead>
-              <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
-              <TableHead className="text-black w-[120px]">Tracking #</TableHead>
-              <TableHead className="text-black w-[120px]">Delivery Status</TableHead>
-              <TableHead className="text-black w-[80px]">Label</TableHead>
-              <TableHead className="text-black w-[180px]">Created At</TableHead>
-              <TableHead className="text-black w-[180px]">Updated At</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {localOrders && localOrders.length > 0 ? (
-              localOrders.map((order) => {
-                // Only calculate instruction on the client side after mounting
-                // Use the stored instruction during server-side rendering
-                const calculatedInstruction = isMounted
-                  ? calculateOrderInstruction(order)
-                  : (order.instruction || 'ACTION REQUIRED');
-                
-                // When displaying country information
-                const countryCode = normalizeCountryToCode(order.shipping_address?.country);
-                const countryDisplay = getCountryDisplayName(countryCode);
-                
-                return (
-                  <TableRow key={order.id} className="text-black">
-                    <TableCell>
-                      <div className="flex space-x-2">
+    <>
+      <div className="relative">
+        <div className="overflow-x-auto border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-black w-[40px] sticky left-0 z-20 bg-white">
+                </TableHead>
+                <TableHead className="text-black w-[60px] sticky left-[40px] z-20 bg-white">
+                  Actions
+                </TableHead>
+                <TableHead className="text-black w-[60px]">ID</TableHead>
+                <TableHead className="text-black w-[150px]">Name</TableHead>
+                <TableHead className="text-black w-[180px]">Email</TableHead>
+                <TableHead className="text-black w-[120px]">Phone</TableHead>
+                <TableHead className="text-black w-[200px]">Address</TableHead>
+                <TableHead className="text-black w-[120px]">Order Pack</TableHead>
+                <TableHead className="text-black w-[150px]">Notes</TableHead>
+                <TableHead className="text-black w-[80px]">Weight</TableHead>
+                <TableHead className="text-black w-[80px]">Paid?</TableHead>
+                <TableHead className="text-black w-[100px]">Ok to Ship?</TableHead>
+                <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
+                <TableHead className="text-black w-[120px]">Tracking #</TableHead>
+                <TableHead className="text-black w-[120px]">Delivery Status</TableHead>
+                <TableHead className="text-black w-[80px]">Label</TableHead>
+                <TableHead className="text-black w-[180px]">Created At</TableHead>
+                <TableHead className="text-black w-[180px]">Updated At</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {localOrders && localOrders.length > 0 ? (
+                localOrders.map((order) => {
+                  // Only calculate instruction on the client side after mounting
+                  // Use the stored instruction during server-side rendering
+                  const calculatedInstruction = isMounted
+                    ? calculateOrderInstruction(order)
+                    : (order.instruction || 'ACTION REQUIRED');
+                  
+                  // When displaying country information
+                  const countryCode = normalizeCountryToCode(order.shipping_address?.country);
+                  const countryDisplay = getCountryDisplayName(countryCode);
+                  
+                  return (
+                    <TableRow key={order.id} className="text-black">
+                      <TableCell className="sticky left-0 z-20 bg-white">
+                        <input
+                          type="checkbox"
+                          checked={selectedOrders.has(order.id)}
+                          onChange={() => handleSelectOrder(order.id)}
+                          className="rounded border-gray-300 text-black focus:ring-black cursor-pointer"
+                        />
+                      </TableCell>
+                      <TableCell className="sticky left-[40px] z-20 bg-white">
                         <button 
                           onClick={() => openOrderDetail(order.id)}
                           className="open-btn"
@@ -506,153 +446,179 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         >
                           Open
                         </button>
-                        <button 
-                          onClick={() => handleDeleteOrder(order.id)}
-                          className="delete-btn"
-                          onMouseEnter={() => setHoveredDeleteId(order.id)}
-                          onMouseLeave={() => setHoveredDeleteId(null)}
-                          style={{
-                            backgroundColor: hoveredDeleteId === order.id ? '#e53e3e' : '#f56565',
-                            color: '#ffffff',
-                            border: 'none',
-                            padding: '0.25rem 0.5rem',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </TableCell>
-                    <TableCell>{order.id}</TableCell>
-                    <TableCell className="enhanced-table-cell-truncate">
-                      {order.customer_id ? (
-                        <Link 
-                          href={`/customers/${order.customer_id}`}
-                          className="text-blue-600 hover:underline hover:text-blue-800"
-                        >
-                          {order.name || 'N/A'}
-                        </Link>
-                      ) : (
-                        order.name || 'N/A'
-                      )}
-                    </TableCell>
-                    <TableCell className="enhanced-table-cell-truncate">{order.email || 'N/A'}</TableCell>
-                    <TableCell>{order.phone || 'N/A'}</TableCell>
-                    <TableCell className="address-container">
-                      <span className="address-text">
-                        {truncateText(formatAddressForTable(order, isMounted), 25)}
-                      </span>
-                      <div className="address-tooltip">
-                        {formatAddressForTable(order, isMounted)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <OrderPackDropdown 
-                        currentPack={order.order_pack} 
-                        orderId={order.id}
-                        onUpdate={handleOrderUpdate}
-                      />
-                    </TableCell>
-                    <TableCell className="enhanced-table-cell-truncate">{order.order_notes || 'N/A'}</TableCell>
-                    <TableCell>{order.weight || '1.000'}</TableCell>
-                    <TableCell>
-                      <PaymentBadge 
-                        isPaid={order.paid} 
-                        orderId={order.id}
-                        onUpdate={handleOrderUpdate}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <ShippingToggle 
-                        okToShip={order.ok_to_ship} 
-                        orderId={order.id}
-                        onUpdate={handleOrderUpdate}
-                      />
-                    </TableCell>
-                    <TableCell className="enhanced-table-cell-truncate">
-                      {calculatedInstruction}
-                    </TableCell>
-                    <TableCell className="enhanced-table-cell-truncate">
-                      {order.tracking_number || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      <StatusSelector 
-                        currentStatus={order.status || 'pending'} 
-                        orderId={order.id} 
-                        onUpdate={handleOrderUpdate}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {order.label_url ? (
-                        <a 
-                          href={order.label_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          View
-                        </a>
-                      ) : order.shipping_id ? (
-                        <div className="relative tooltip-container">
-                          <span className="text-yellow-500 cursor-help">Pending</span>
-                          <div className="tooltip">
-                            Label created (ID: {order.shipping_id.substring(0, 8)}...) but URL not available
-                          </div>
+                      </TableCell>
+                      <TableCell>{order.id}</TableCell>
+                      <TableCell className="enhanced-table-cell-truncate">
+                        {order.customer_id ? (
+                          <Link 
+                            href={`/customers/${order.customer_id}`}
+                            className="text-blue-600 hover:underline hover:text-blue-800"
+                          >
+                            {order.name || 'N/A'}
+                          </Link>
+                        ) : (
+                          order.name || 'N/A'
+                        )}
+                      </TableCell>
+                      <TableCell className="enhanced-table-cell-truncate">{order.email || 'N/A'}</TableCell>
+                      <TableCell>{order.phone || 'N/A'}</TableCell>
+                      <TableCell className="address-container">
+                        <span className="address-text">
+                          {truncateText(formatAddressForTable(order, isMounted), 25)}
+                        </span>
+                        <div className="address-tooltip">
+                          {formatAddressForTable(order, isMounted)}
                         </div>
-                      ) : (
-                        <>
-                          {order.ok_to_ship && order.paid && order.shipping_address && order.order_pack ? (
-                            <div>
+                      </TableCell>
+                      <TableCell>
+                        <OrderPackDropdown 
+                          currentPack={order.order_pack} 
+                          orderId={order.id}
+                          onUpdate={handleOrderUpdate}
+                        />
+                      </TableCell>
+                      <TableCell className="enhanced-table-cell-truncate">{order.order_notes || 'N/A'}</TableCell>
+                      <TableCell>{order.weight || '1.000'}</TableCell>
+                      <TableCell>
+                        <PaymentBadge 
+                          isPaid={order.paid} 
+                          orderId={order.id}
+                          onUpdate={handleOrderUpdate}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <ShippingToggle 
+                          okToShip={order.ok_to_ship} 
+                          orderId={order.id}
+                          onUpdate={handleOrderUpdate}
+                        />
+                      </TableCell>
+                      <TableCell className="enhanced-table-cell-truncate">
+                        {calculatedInstruction}
+                      </TableCell>
+                      <TableCell className="enhanced-table-cell-truncate">
+                        {order.tracking_number || 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <StatusSelector 
+                          currentStatus={order.status || 'pending'} 
+                          orderId={order.id} 
+                          onUpdate={handleOrderUpdate}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {order.label_url ? (
+                          <a 
+                            href={order.label_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            View
+                          </a>
+                        ) : order.shipping_id ? (
+                          <div className="relative tooltip-container">
+                            <span className="text-yellow-500 cursor-help">Pending</span>
+                            <div className="tooltip">
+                              Label created (ID: {order.shipping_id.substring(0, 8)}...) but URL not available
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {order.ok_to_ship && order.paid && order.shipping_address && order.order_pack ? (
                               <button
                                 onClick={() => createShippingLabel(order.id)}
                                 className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
                               >
                                 Create
                               </button>
-                              {labelMessage && labelMessage.orderId === order.id && (
-                                <div className={`mt-1 p-1 text-xs rounded ${
-                                  labelMessage.type === 'success' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : labelMessage.type === 'warning'
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {labelMessage.text}
+                            ) : (
+                              <div className="relative tooltip-container">
+                                <span className="text-gray-400 cursor-help">N/A</span>
+                                <div className="tooltip">
+                                  {!order.ok_to_ship ? "Not ready to ship" : 
+                                   !order.paid ? "Order not paid" : 
+                                   !order.shipping_address ? "Missing shipping address" : 
+                                   !order.order_pack ? "Order pack required" :
+                                   "Cannot create label"}
                                 </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="relative tooltip-container">
-                              <span className="text-gray-400 cursor-help">N/A</span>
-                              <div className="tooltip">
-                                {!order.ok_to_ship ? "Not ready to ship" : 
-                                 !order.paid ? "Order not paid" : 
-                                 !order.shipping_address ? "Missing shipping address" : 
-                                 !order.order_pack ? "Order pack required" :
-                                 "Cannot create label"}
                               </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </TableCell>
-                    <TableCell>{formatDate(order.created_at)}</TableCell>
-                    <TableCell>{formatDate(order.updated_at)}</TableCell>
-                  </TableRow>
-                );
-              })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={18} className="text-center py-8">
-                  No orders found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                            )}
+                          </>
+                        )}
+                      </TableCell>
+                      <TableCell>{formatDate(order.created_at)}</TableCell>
+                      <TableCell>{formatDate(order.updated_at)}</TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={18} className="text-center py-8">
+                    No orders found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Floating Action Bar */}
+        {selectedOrders.size > 0 && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white border rounded-lg shadow-lg p-4 flex items-center justify-between gap-4 min-w-[300px] max-w-[90%] z-50">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium">
+                {selectedOrders.size} {selectedOrders.size === 1 ? 'order' : 'orders'} selected
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedOrders(new Set())}
+                className="text-sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkDelete}
+                variant="destructive"
+                className="text-sm"
+              >
+                Delete Selected
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation Dialog */}
+        <Dialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p>Are you sure you want to delete {selectedOrders.size} {selectedOrders.size === 1 ? 'order' : 'orders'}?</p>
+              <p className="text-sm text-red-600 mt-2">This action cannot be undone.</p>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsConfirmingDelete(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmBulkDelete}
+                disabled={isDeleting}
+                variant="destructive"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-    </div>
+    </>
   );
 } 
