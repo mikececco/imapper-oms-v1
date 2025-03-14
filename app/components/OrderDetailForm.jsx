@@ -27,7 +27,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     shipping_address_line2: order.shipping_address_line2 || '',
     shipping_address_city: order.shipping_address_city || '',
     shipping_address_postal_code: order.shipping_address_postal_code || '',
-    shipping_address_country: normalizeCountryToCode(order.shipping_address_country || ''),
+    shipping_address_country: order.shipping_address_country || '',
     order_pack: order.order_pack || '',
     order_pack_label: order.order_pack_label || '',
     order_notes: order.order_notes || '',
@@ -67,7 +67,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       shipping_address_line2: order.shipping_address_line2 || '',
       shipping_address_city: order.shipping_address_city || '',
       shipping_address_postal_code: order.shipping_address_postal_code || '',
-      shipping_address_country: normalizeCountryToCode(order.shipping_address_country || ''),
+      shipping_address_country: order.shipping_address_country || '',
       order_pack: order.order_pack || '',
       order_pack_label: order.order_pack_label || '',
       order_notes: order.order_notes || '',
@@ -254,22 +254,13 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       return;
     }
     
-    // Special handling for country field to normalize it
+    // Special handling for country field
     if (name === 'shipping_address_country') {
-      // Convert to uppercase and normalize to country code
-      const normalizedValue = normalizeCountryToCode(value.trim());
-      if (normalizedValue) {
-        setFormData(prev => ({
-          ...prev,
-          [name]: normalizedValue
-        }));
-      } else {
-        // If normalization fails, just store the uppercase value
-        setFormData(prev => ({
-          ...prev,
-          [name]: value.trim().toUpperCase()
-        }));
-      }
+      // Store the raw value, just convert to uppercase
+      setFormData(prev => ({
+        ...prev,
+        [name]: value.trim().toUpperCase()
+      }));
     } else if (name === 'order_pack_list_id') {
       // Find the selected order pack from the database options
       const selectedPack = orderPackLists.find(pack => pack.id === value);

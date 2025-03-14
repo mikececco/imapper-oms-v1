@@ -8,7 +8,7 @@ import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from './Ord
 import OrderDetailForm from './OrderDetailForm';
 import PaymentStatusEditor from './PaymentStatusEditor';
 import { ORDER_PACK_OPTIONS } from '../utils/constants';
-import { normalizeCountryToCode, getCountryDisplayName } from '../utils/country-utils';
+import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
 import OrderActivityLog from './OrderActivityLog';
 import { useSupabase } from './Providers';
 import { Button } from './ui/button';
@@ -55,21 +55,6 @@ const formatDate = (dateString) => {
 const formatCombinedAddress = (order, isMounted = false) => {
   if (!order) return 'N/A';
   
-  // Get normalized country display only on client-side
-  let countryDisplay = '';
-  if (isMounted) {
-    if (order.shipping_address_country) {
-      const countryCode = normalizeCountryToCode(order.shipping_address_country);
-      countryDisplay = getCountryDisplayName(countryCode);
-    } else if (order.shipping_address && order.shipping_address.includes(',')) {
-      const parts = order.shipping_address.split(',').map(part => part.trim());
-      if (parts.length >= 4) {
-        const countryCode = normalizeCountryToCode(parts[3]);
-        countryDisplay = getCountryDisplayName(countryCode);
-      }
-    }
-  }
-  
   // Check if we have individual address components
   if (order.shipping_address_line1 || order.shipping_address_city || order.shipping_address_postal_code || order.shipping_address_country) {
     const addressParts = [
@@ -77,28 +62,60 @@ const formatCombinedAddress = (order, isMounted = false) => {
       order.shipping_address_line2,
       order.shipping_address_city,
       order.shipping_address_postal_code,
-      isMounted ? (countryDisplay || order.shipping_address_country) : order.shipping_address_country
+      order.shipping_address_country // Use raw value from database
     ].filter(Boolean);
     
-    return addressParts.join(', ') || 'N/A';
+    const formattedAddress = addressParts.join(', ') || 'N/A';
+    
+    // Add warning if country code is not valid (only on client side)
+    if (isMounted && order.shipping_address_country) {
+      const upperCountry = order.shipping_address_country.trim().toUpperCase();
+      if (!COUNTRY_MAPPING[upperCountry]) {
+        return (
+          <div>
+            <div>{formattedAddress}</div>
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+              Warning: Country value "{order.shipping_address_country}" is not a valid country code. 
+              It should be a 2-letter code like: FR, GB, US, DE, NL
+            </div>
+          </div>
+        );
+      }
+    }
+    
+    return formattedAddress;
   }
   
   // Fallback to legacy shipping_address field if it exists
   if (order.shipping_address) {
-    if (isMounted) {
-      // Parse the shipping address
-      const parts = order.shipping_address.split(',').map(part => part.trim());
-      const parsedAddress = {
-        street: parts[0] || 'N/A',
-        city: parts[1] || 'N/A',
-        postalCode: parts[2] || 'N/A',
-        country: countryDisplay || parts[3] || 'N/A'
-      };
-      
-      return `${parsedAddress.street}, ${parsedAddress.city}, ${parsedAddress.postalCode}, ${parsedAddress.country}`;
-    } else {
-      return order.shipping_address;
+    // Parse the shipping address
+    const parts = order.shipping_address.split(',').map(part => part.trim());
+    const parsedAddress = {
+      street: parts[0] || 'N/A',
+      city: parts[1] || 'N/A',
+      postalCode: parts[2] || 'N/A',
+      country: parts[3] || 'N/A'
+    };
+    
+    const formattedAddress = `${parsedAddress.street}, ${parsedAddress.city}, ${parsedAddress.postalCode}, ${parsedAddress.country}`;
+    
+    // Add warning if country code is not valid (only on client side)
+    if (isMounted && parsedAddress.country) {
+      const upperCountry = parsedAddress.country.trim().toUpperCase();
+      if (!COUNTRY_MAPPING[upperCountry]) {
+        return (
+          <div>
+            <div>{formattedAddress}</div>
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+              Warning: Country value "{parsedAddress.country}" is not a valid country code. 
+              It should be a 2-letter code like: FR, GB, US, DE, NL
+            </div>
+          </div>
+        );
+      }
     }
+    
+    return formattedAddress;
   }
   
   return 'N/A';
@@ -477,6 +494,57 @@ export default function OrderDetailModal({ children }) {
                           'Create Shipping Label'
                         )}
                       </button>
+                      {/* Display SendCloud error message */}
+                      {labelMessage && labelMessage.type === 'error' && (
+                        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <div className="flex items-start">
+                            <svg className="h-5 w-5 text-red-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="ml-3">
+                              <h3 className="text-sm font-medium text-red-800">SendCloud Error</h3>
+                              <div className="mt-1 text-sm text-red-700">
+                                {labelMessage.text}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Display warning message */}
+                      {labelMessage && labelMessage.type === 'warning' && (
+                        <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-start">
+                            <svg className="h-5 w-5 text-yellow-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div className="ml-3">
+                              <h3 className="text-sm font-medium text-yellow-800">Warning</h3>
+                              <div className="mt-1 text-sm text-yellow-700">
+                                {labelMessage.text}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Display success message */}
+                      {labelMessage && labelMessage.type === 'success' && (
+                        <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-start">
+                            <svg className="h-5 w-5 text-green-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <div className="ml-3">
+                              <h3 className="text-sm font-medium text-green-800">Success</h3>
+                              <div className="mt-1 text-sm text-green-700">
+                                {labelMessage.text}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || !order.name || !order.email || !order.phone) && (
                         <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                           <h4 className="text-sm font-semibold text-yellow-800 mb-2">Missing Required Fields</h4>
