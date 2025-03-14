@@ -233,13 +233,14 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
         shipping_address_city: data.address_city,
         shipping_address_postal_code: data.address_postal_code,
         shipping_address_country: data.address_country,
+        stripe_customer_id: stripeCustomerId
       }));
 
       // Update customers list
       setCustomers(prev => {
         const exists = prev.some(c => c.id === data.id);
         if (!exists) {
-          return [...prev, data];
+          return [...prev, { ...data, stripe_customer_id: stripeCustomerId }];
         }
         return prev;
       });
