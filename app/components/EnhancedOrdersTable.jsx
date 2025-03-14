@@ -423,7 +423,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                       key={order.id} 
                       className={`text-black ${
                         order.important 
-                          ? 'bg-red-100 hover:bg-red-200' 
+                          ? 'bg-red-100 hover:bg-red-200 border-2 border-red-500' 
                           : calculatedInstruction === 'NO ACTION REQUIRED'
                             ? 'bg-green-200 hover:bg-green-300'
                             : calculatedInstruction === 'ACTION REQUIRED'

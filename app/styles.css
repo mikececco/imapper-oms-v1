@@ -612,6 +612,7 @@ input:checked + .toggle-slider:before {
   font-weight: bold;
   text-align: center;
   min-width: 120px;
+  font-size: 0.7rem;
 }
 
 .shipping-instruction.delivered {
