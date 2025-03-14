@@ -625,41 +625,28 @@ input:checked + .toggle-slider:before {
 }
 
 .shipping-instruction.to-be-shipped-but-no-sticker {
-  background-color: #FF9800;
+  background-color: #FB923C;
   color: white;
 }
 
 .shipping-instruction.to-be-shipped-but-wrong-tracking-link {
-  background-color: #FF5722;
+  background-color: #EF4444;
   color: white;
 }
 
 .shipping-instruction.to-ship {
-  background-color: #9C27B0;
+  background-color: #3B82F6;
   color: white;
 }
 
 .shipping-instruction.do-not-ship {
-  background-color: #F44336;
+  background-color: #EF4444;
   color: white;
 }
 
 .shipping-instruction.unknown {
-  background-color: #FF5252;
+  background-color: #6B7280;
   color: white;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-  100% {
-    opacity: 1;
-  }
 }
 
 .shipping-instruction.empty {

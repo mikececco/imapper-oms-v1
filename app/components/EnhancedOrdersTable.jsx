@@ -390,6 +390,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 <TableHead className="text-black w-[40px]">
                   Important
                 </TableHead>
+                <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
                 <TableHead className="text-black w-[60px]">ID</TableHead>
                 <TableHead className="text-black w-[150px]">Name</TableHead>
                 <TableHead className="text-black w-[180px]">Email</TableHead>
@@ -400,7 +401,6 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 <TableHead className="text-black w-[80px]">Weight</TableHead>
                 <TableHead className="text-black w-[80px]">Paid?</TableHead>
                 <TableHead className="text-black w-[100px]">OK TO SHIP</TableHead>
-                <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
                 <TableHead className="text-black w-[180px]">Created At</TableHead>
                 <TableHead className="text-black w-[180px]">Updated At</TableHead>
               </TableRow>
@@ -421,7 +421,17 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                   return (
                     <TableRow 
                       key={order.id} 
-                      className={`text-black ${order.important ? 'bg-red-50 hover:bg-red-100' : ''}`}
+                      className={`text-black ${
+                        order.important 
+                          ? 'bg-red-100 hover:bg-red-200' 
+                          : calculatedInstruction === 'NO ACTION REQUIRED'
+                            ? 'bg-green-200 hover:bg-green-300'
+                            : calculatedInstruction === 'ACTION REQUIRED'
+                              ? 'bg-red-100 hover:bg-red-200'
+                              : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                ? 'bg-orange-400/20 hover:bg-orange-400/30'
+                                : ''
+                      }`}
                     >
                       <TableCell className="sticky left-0 z-20 bg-white">
                         <input
@@ -456,6 +466,11 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                           orderId={order.id}
                           onUpdate={handleOrderUpdate}
                         />
+                      </TableCell>
+                      <TableCell className="enhanced-table-cell-truncate">
+                        <span className={`shipping-instruction ${calculatedInstruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
+                          {calculatedInstruction}
+                        </span>
                       </TableCell>
                       <TableCell>{order.id}</TableCell>
                       <TableCell className="enhanced-table-cell-truncate">
@@ -504,9 +519,6 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                           orderId={order.id}
                           onUpdate={handleOrderUpdate}
                         />
-                      </TableCell>
-                      <TableCell className="enhanced-table-cell-truncate">
-                        {calculatedInstruction}
                       </TableCell>
                       <TableCell>{formatDate(order.created_at)}</TableCell>
                       <TableCell>{formatDate(order.updated_at)}</TableCell>
