@@ -10,7 +10,7 @@ import CustomOrderPackModal from './CustomOrderPackModal';
 import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
 import { toast } from 'react-hot-toast';
 
-export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
+export default function OrderDetailForm({ order, orderPackOptions, onUpdate, calculatedInstruction }) {
   const router = useRouter();
   // Use useRef to track client-side rendering
   const hasMounted = useRef(false);
@@ -39,7 +39,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     order_pack_list_id: order.order_pack_list_id || '',
   });
   
-  const [calculatedInstruction, setCalculatedInstruction] = useState(order.instruction || 'ACTION REQUIRED');
   const [calculatedStatus, setCalculatedStatus] = useState(calculateOrderStatus(order));
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState({ text: '', type: '' });
@@ -342,7 +341,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       
       // Calculate new instruction based on updated data
       const newInstruction = calculateOrderInstruction(data);
-      setCalculatedInstruction(newInstruction);
       
       // Calculate new status based on updated data
       const newStatus = calculateOrderStatus(data);

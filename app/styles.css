@@ -668,6 +668,11 @@ input:checked + .toggle-slider:before {
   border: 1px solid #d1d5db;
 }
 
+.shipping-instruction.no-action-required {
+  background-color: #4CAF50;
+  color: white;
+}
+
 /* Enhanced Table Styles */
 .enhanced-table-container {
   width: 100%;

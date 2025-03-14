@@ -366,6 +366,7 @@ export default function OrderDetailModal({ children }) {
                   order={order} 
                   orderPackOptions={ORDER_PACK_OPTIONS}
                   onUpdate={handleOrderUpdate}
+                  calculatedInstruction={calculateOrderInstruction(order)}
                 />
               </div>
               

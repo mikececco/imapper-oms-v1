@@ -137,7 +137,8 @@ export function calculateOrderInstruction(order) {
     delivery_status,
     paid,
     stripe_customer_id,
-    tracking_link
+    tracking_link,
+    shipping_id
   } = order;
   
   // Check conditions for each instruction value
@@ -177,16 +178,6 @@ export function calculateOrderInstruction(order) {
     return 'TO BE SHIPPED BUT NO STICKER';
   }
   
-  // 4. TO BE SHIPPED BUT WRONG TRACKING LINK
-  if (
-    isEmpty(delivery_status) &&
-    paid === true &&
-    !isEmpty(stripe_customer_id) &&
-    !isEmpty(tracking_link)
-  ) {
-    return 'TO BE SHIPPED BUT WRONG TRACKING LINK';
-  }
-  
   // 5. TO SHIP
   if (
     delivery_status === 'Ready to send' &&
@@ -206,7 +197,18 @@ export function calculateOrderInstruction(order) {
     return 'DO NOT SHIP';
   }
   
-  // 7. Default: ACTION REQUIRED
+  // 7. NO ACTION REQUIRED
+  if (
+    !isEmpty(tracking_link) &&
+    paid === true &&
+    !isEmpty(stripe_customer_id) &&
+    !isEmpty(shipping_id) &&
+    delivery_status !== 'Delivered'
+  ) {
+    return 'NO ACTION REQUIRED';
+  }
+  
+  // 8. Default: ACTION REQUIRED
   return 'ACTION REQUIRED';
 }
 

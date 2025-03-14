@@ -124,6 +124,7 @@ export default async function OrderDetail({ params }) {
           <OrderDetailForm 
             order={order} 
             orderPackOptions={ORDER_PACK_OPTIONS}
+            calculatedInstruction={calculatedInstruction}
           />
         </div>
 
