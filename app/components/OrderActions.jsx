@@ -216,10 +216,10 @@ export function StatusSelector({ currentStatus, orderId, onUpdate }) {
   );
 }
 
-export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
+export function OrderPackDropdown({ order, orderId, onUpdate }) {
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
-  const [orderPack, setOrderPack] = useState(currentPack || '');
+  const [orderPack, setOrderPack] = useState(order?.order_pack || '');
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [orderPackLists, setOrderPackLists] = useState([]);
@@ -407,7 +407,7 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
     <div className="order-pack-dropdown">
       <select
         id={`order-pack-${orderId}`}
-        value={currentPack || ''}
+        value={order?.order_pack_list_id || ''}
         onChange={handleChange}
         className="w-full min-w-[350px] p-2 border border-gray-300 rounded text-sm bg-white"
         disabled={loadingOrderPacks}

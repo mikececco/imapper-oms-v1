@@ -482,7 +482,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                       </TableCell>
                       <TableCell>
                         <OrderPackDropdown 
-                          currentPack={order.order_pack} 
+                          order={order}
                           orderId={order.id}
                           onUpdate={handleOrderUpdate}
                         />
