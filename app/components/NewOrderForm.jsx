@@ -34,7 +34,7 @@ export default function NewOrderForm() {
 
     try {
       // Insert the order into Supabase
-      const { error } = await supabase.from('orders').insert({
+      const { data, error } = await supabase.from('orders').insert({
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -48,7 +48,7 @@ export default function NewOrderForm() {
         status: 'pending',
         paid: false,
         ok_to_ship: false
-      });
+      }).select().single();
 
       if (error) throw error;
 
