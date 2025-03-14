@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { toast } from 'react-hot-toast';
@@ -9,7 +8,6 @@ import { toast } from 'react-hot-toast';
 export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,15 +26,13 @@ export default function AuthPage() {
         throw new Error('Invalid password');
       }
 
-      // Set authentication cookie with a small delay to ensure it's set
-      document.cookie = 'authenticated=true; path=/';
+      // Set authentication cookie with secure settings
+      document.cookie = 'authenticated=true; path=/; max-age=86400; SameSite=Strict';
       
       toast.success('Authentication successful');
       
-      // Add a small delay before redirecting to ensure cookie is set
-      setTimeout(() => {
-        router.push('/orders');
-      }, 100);
+      // Use window.location.href for immediate redirection
+      window.location.href = '/orders';
     } catch (error) {
       toast.error('Invalid password');
     } finally {
