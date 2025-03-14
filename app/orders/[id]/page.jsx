@@ -1,3 +1,5 @@
+'use client';
+
 import Link from "next/link";
 import { supabase } from "../../utils/supabase";
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from "../../components/OrderActions";
