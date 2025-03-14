@@ -1,13 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import NewOrderModal from './NewOrderModal';
 import { Dialog, DialogContent } from './ui/dialog';
+import { Button } from './ui/button';
+import { toast } from 'react-hot-toast';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -15,6 +18,13 @@ export default function Navigation() {
     // You can handle the newly created order here
     // For example, redirect to the order details page
     window.location.href = `/orders/${newOrder.id}`;
+  };
+
+  const handleLogout = () => {
+    // Remove the authentication cookie
+    document.cookie = 'authenticated=false; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    toast.success('Logged out successfully');
+    router.push('/auth');
   };
 
   return (
@@ -27,7 +37,9 @@ export default function Navigation() {
         </div>
 
         {/* Mobile menu button */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           className="mobile-menu-button"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           aria-label="Toggle menu"
@@ -55,7 +67,7 @@ export default function Navigation() {
               />
             )}
           </svg>
-        </button>
+        </Button>
 
         {/* Navigation links - shown/hidden based on mobile menu state */}
         <div className={`nav-links ${isMobileMenuOpen ? 'nav-links-mobile-open' : ''}`}>
@@ -94,7 +106,8 @@ export default function Navigation() {
           >
             How to Use
           </Link>
-          <button
+          <Button
+            variant="outline"
             onClick={() => {
               setIsNewOrderModalOpen(true);
               setIsMobileMenuOpen(false);
@@ -102,7 +115,14 @@ export default function Navigation() {
             className={`nav-button ${pathname === '/orders/new' ? 'active' : ''}`}
           >
             New Order
-          </button>
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            Logout
+          </Button>
         </div>
       </div>
 
