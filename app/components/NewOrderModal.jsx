@@ -266,9 +266,15 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
     }
 
     try {
+      // Get the selected order pack to include its value
+      const selectedPack = orderPacks.find(p => p.id === formData.order_pack_list_id);
+      
       const { data, error } = await supabase
         .from('orders')
-        .insert([formData])
+        .insert([{
+          ...formData,
+          order_pack: selectedPack.value // Add the order_pack value from the selected pack
+        }])
         .select()
         .single();
 
