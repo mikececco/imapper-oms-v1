@@ -28,11 +28,15 @@ export default function AuthPage() {
         throw new Error('Invalid password');
       }
 
-      // Set authentication cookie
+      // Set authentication cookie with a small delay to ensure it's set
       document.cookie = 'authenticated=true; path=/';
       
       toast.success('Authentication successful');
-      router.push('/orders');
+      
+      // Add a small delay before redirecting to ensure cookie is set
+      setTimeout(() => {
+        router.push('/orders');
+      }, 100);
     } catch (error) {
       toast.error('Invalid password');
     } finally {
