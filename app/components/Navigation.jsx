@@ -15,9 +15,8 @@ export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleOrderCreated = (newOrder) => {
-    // You can handle the newly created order here
-    // For example, redirect to the order details page
-    window.location.href = `/orders/${newOrder.id}`;
+    // Redirect to the orders page
+    window.location.href = '/orders';
   };
 
   const handleLogout = () => {
