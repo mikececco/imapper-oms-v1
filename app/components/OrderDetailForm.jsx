@@ -310,33 +310,28 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     setUpdateMessage({ text: '', type: '' });
     
     try {
-      // Create update object
-      const updateData = {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        shipping_address_line1: formData.shipping_address_line1,
-        shipping_address_house_number: formData.shipping_address_house_number,
-        shipping_address_line2: formData.shipping_address_line2,
-        shipping_address_city: formData.shipping_address_city,
-        shipping_address_postal_code: formData.shipping_address_postal_code,
-        shipping_address_country: formData.shipping_address_country,
-        order_pack: formData.order_pack,
-        order_pack_label: formData.order_pack_label,
-        order_notes: formData.order_notes,
-        weight: formData.weight,
-        shipping_method: formData.shipping_method,
-        tracking_link: formData.tracking_link,
-        tracking_number: formData.tracking_number,
-        order_pack_list_id: formData.order_pack_list_id,
-        updated_at: new Date().toISOString()
-      };
+      // Create update object with only modified fields
+      const updateData = {};
       
-      // Only include shipping_id in the update if it wasn't already set in the original order
-      if (!order.shipping_id && formData.shipping_id) {
-        updateData.shipping_id = formData.shipping_id;
+      // Compare each field and only include changed ones
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== originalFormData[key]) {
+          updateData[key] = formData[key];
+        }
+      });
+      
+      // Add updated_at timestamp
+      updateData.updated_at = new Date().toISOString();
+      
+      // Only proceed if there are changes
+      if (Object.keys(updateData).length === 0) {
+        setUpdateMessage({ 
+          text: 'No changes to update', 
+          type: 'info' 
+        });
+        return;
       }
-      
+
       const { data, error } = await supabase
         .from('orders')
         .update(updateData)
@@ -353,6 +348,9 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
       // Calculate new status based on updated data
       const newStatus = calculateOrderStatus(data);
       setCalculatedStatus(newStatus);
+      
+      // Update original form data to reflect new state
+      setOriginalFormData(formData);
       
       // If onUpdate is provided, call it with the updated order data
       if (onUpdate) {
@@ -409,13 +407,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         <div className="space-y-2">
           <div>
             <label htmlFor="name" className="text-sm font-medium block">
-              Name <span className="text-red-500">*</span>
+              Name
             </label>
             <input
               id="name"
               name="name"
               type="text"
-              required
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('name')}`}
               value={formData.name}
               onChange={handleChange}
@@ -424,13 +421,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           
           <div>
             <label htmlFor="email" className="text-sm font-medium block">
-              Email <span className="text-red-500">*</span>
+              Email
             </label>
             <input
               id="email"
               name="email"
               type="email"
-              required
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('email')}`}
               value={formData.email}
               onChange={handleChange}
@@ -439,13 +435,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           
           <div>
             <label htmlFor="phone" className="text-sm font-medium block">
-              Phone <span className="text-red-500">*</span>
+              Phone
             </label>
             <input
               id="phone"
               name="phone"
               type="text"
-              required
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('phone')}`}
               value={formData.phone}
               onChange={handleChange}
@@ -459,13 +454,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           
           <div>
             <label htmlFor="shipping_address_line1" className="text-sm font-medium block">
-              Address Line 1 <span className="text-red-500">*</span>
+              Address Line 1
             </label>
             <input
               id="shipping_address_line1"
               name="shipping_address_line1"
               type="text"
-              required
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_line1')}`}
               value={formData.shipping_address_line1}
               onChange={handleChange}
@@ -474,13 +468,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           
           <div>
             <label htmlFor="shipping_address_house_number" className="text-sm font-medium block">
-              House Number <span className="text-red-500">*</span>
+              House Number
             </label>
             <input
               id="shipping_address_house_number"
               name="shipping_address_house_number"
               type="text"
-              required
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_house_number')}`}
               value={formData.shipping_address_house_number}
               onChange={handleChange}
@@ -504,13 +497,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label htmlFor="shipping_address_city" className="text-sm font-medium block">
-                City <span className="text-red-500">*</span>
+                City
               </label>
               <input
                 id="shipping_address_city"
                 name="shipping_address_city"
                 type="text"
-                required
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_city')}`}
                 value={formData.shipping_address_city}
                 onChange={handleChange}
@@ -519,13 +511,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
             
             <div>
               <label htmlFor="shipping_address_postal_code" className="text-sm font-medium block">
-                Postal Code <span className="text-red-500">*</span>
+                Postal Code
               </label>
               <input
                 id="shipping_address_postal_code"
                 name="shipping_address_postal_code"
                 type="text"
-                required
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_postal_code')}`}
                 value={formData.shipping_address_postal_code}
                 onChange={handleChange}
@@ -535,13 +526,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
           
           <div>
             <label htmlFor="shipping_address_country" className="text-sm font-medium block">
-              Country Code (e.g. FR, GB, US) <span className="text-red-500">*</span>
+              Country Code (e.g. FR, GB, US)
             </label>
             <input
               id="shipping_address_country"
               name="shipping_address_country"
               type="text"
-              required
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_address_country')}`}
               value={formData.shipping_address_country}
               onChange={handleChange}
@@ -564,12 +554,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="order_pack_list_id" className="text-sm font-medium block">
-              Order Pack List <span className="text-red-500">*</span>
+              Order Pack List
             </label>
             <select
               id="order_pack_list_id"
               name="order_pack_list_id"
-              required
               className={`w-full px-3 py-2 border-0 ${getFieldBorderClass('order_pack_list_id')} rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${(!formData.order_pack_list_id) ? 'text-gray-400' : 'text-white font-medium'} bg-gray-900 hover:bg-gray-800`}
               value={formData.order_pack_list_id || ''}
               onChange={handleChange}
