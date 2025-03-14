@@ -159,7 +159,6 @@ export function calculateOrderInstruction(order) {
     paid === true &&
     !isEmpty(stripe_customer_id) &&
     delivery_status !== 'Delivered' &&
-    tracking_link !== "Empty label" &&
     !isEmpty(tracking_link)
   ) {
     return 'SHIPPED';
@@ -171,7 +170,6 @@ export function calculateOrderInstruction(order) {
     paid === true &&
     !isEmpty(stripe_customer_id) &&
     (
-      tracking_link === "Empty label" ||
       isEmpty(tracking_link) ||
       (tracking_link && !tracking_link.trim().toLowerCase().startsWith("https"))
     )
@@ -184,7 +182,6 @@ export function calculateOrderInstruction(order) {
     isEmpty(delivery_status) &&
     paid === true &&
     !isEmpty(stripe_customer_id) &&
-    tracking_link !== "Empty label" &&
     !isEmpty(tracking_link)
   ) {
     return 'TO BE SHIPPED BUT WRONG TRACKING LINK';
@@ -202,7 +199,7 @@ export function calculateOrderInstruction(order) {
   
   // 6. DO NOT SHIP
   if (
-    tracking_link === "Empty label" &&
+    !isEmpty(tracking_link) &&
     paid === false &&
     isEmpty(delivery_status)
   ) {
