@@ -15,6 +15,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
 
+    // First, fetch the current order data
+    const { data: orderData, error: fetchError } = await supabase
+      .from('orders')
+      .select('shipping_id, tracking_number, tracking_link, status')
+      .eq('id', orderId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching order:', fetchError);
+      return NextResponse.json({ error: 'Failed to fetch order data' }, { status: 500 });
+    }
+
     // Update the order to remove shipping-related fields
     const { error } = await supabase
       .from('orders')
@@ -42,19 +54,19 @@ export async function POST(request) {
         action_type: 'order_update',
         changes: {
           shipping_id: {
-            old_value: data.shipping_id,
+            old_value: orderData.shipping_id,
             new_value: null
           },
           tracking_number: {
-            old_value: data.tracking_number,
+            old_value: orderData.tracking_number,
             new_value: null
           },
           tracking_link: {
-            old_value: data.tracking_link,
+            old_value: orderData.tracking_link,
             new_value: null
           },
           status: {
-            old_value: data.status,
+            old_value: orderData.status,
             new_value: 'pending'
           }
         },
