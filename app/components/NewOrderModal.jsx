@@ -134,12 +134,14 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
       setFormData(prev => ({
         ...prev,
         order_pack_list_id: packId,
+        order_pack: selectedPack.value,
         weight: selectedPack.weight
       }));
     } else {
       setFormData(prev => ({
         ...prev,
         order_pack_list_id: '',
+        order_pack: '',
         weight: ''
       }));
     }
@@ -180,6 +182,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
       setFormData(prev => ({
         ...prev,
         order_pack_list_id: newPack.id,
+        order_pack: newPack.value,
         weight: newPack.weight
       }));
 
