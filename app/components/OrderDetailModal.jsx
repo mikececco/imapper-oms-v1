@@ -478,21 +478,50 @@ export default function OrderDetailModal({ children }) {
                         )}
                       </button>
                       {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || !order.name || !order.email || !order.phone) && (
-                        <div className="mt-2 text-sm space-y-1">
-                          <p className="text-gray-600 font-medium mb-2">Required fields (*)</p>
-                          {!order.name && <p className="text-red-500">❌ Name* is required</p>}
-                          {!order.email && <p className="text-red-500">❌ Email* is required</p>}
-                          {!order.phone && <p className="text-red-500">❌ Phone* is required</p>}
-                          {!order.shipping_address_line1 && <p className="text-red-500">❌ Address Line 1* is required</p>}
-                          {!order.shipping_address_city && <p className="text-red-500">❌ City* is required</p>}
-                          {!order.shipping_address_postal_code && <p className="text-red-500">❌ Postal Code* is required</p>}
-                          {!order.shipping_address_country && <p className="text-red-500">❌ Country Code* is required</p>}
-                          {!order.order_pack && <p className="text-red-500">❌ Order Pack* is required</p>}
-                          {!order.ok_to_ship && <p className="text-red-500">❌ Order must be marked as OK TO SHIP</p>}
-                          {!order.paid && <p className="text-red-500">❌ Payment is required</p>}
-                          {order.name && order.name.length > 35 && (
-                            <p className="text-amber-500">⚠️ Name exceeds 35 characters and will be truncated ({order.name.length} chars)</p>
-                          )}
+                        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <h4 className="text-sm font-semibold text-yellow-800 mb-2">Missing Required Fields</h4>
+                          <div className="space-y-2">
+                            {/* Customer Information */}
+                            {(!order.name || !order.email || !order.phone) && (
+                              <div className="border-b border-yellow-200 pb-2">
+                                <p className="text-xs font-medium text-yellow-800 mb-1">Customer Information:</p>
+                                <div className="space-y-1">
+                                  {!order.name && <p className="text-sm text-red-600">❌ Name is required</p>}
+                                  {order.name && order.name.length > 35 && (
+                                    <p className="text-sm text-amber-600">⚠️ Name exceeds 35 characters and will be truncated ({order.name.length} chars)</p>
+                                  )}
+                                  {!order.email && <p className="text-sm text-red-600">❌ Email is required</p>}
+                                  {!order.phone && <p className="text-sm text-red-600">❌ Phone is required</p>}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Shipping Address */}
+                            {(!order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country) && (
+                              <div className="border-b border-yellow-200 pb-2">
+                                <p className="text-xs font-medium text-yellow-800 mb-1">Shipping Address:</p>
+                                <div className="space-y-1">
+                                  {!order.shipping_address_line1 && <p className="text-sm text-red-600">❌ Address Line 1 is required</p>}
+                                  {!order.shipping_address_house_number && <p className="text-sm text-red-600">❌ House Number is required</p>}
+                                  {!order.shipping_address_city && <p className="text-sm text-red-600">❌ City is required</p>}
+                                  {!order.shipping_address_postal_code && <p className="text-sm text-red-600">❌ Postal Code is required</p>}
+                                  {!order.shipping_address_country && <p className="text-sm text-red-600">❌ Country Code is required</p>}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Order Details */}
+                            {(!order.order_pack || !order.ok_to_ship || !order.paid) && (
+                              <div>
+                                <p className="text-xs font-medium text-yellow-800 mb-1">Order Details:</p>
+                                <div className="space-y-1">
+                                  {!order.order_pack && <p className="text-sm text-red-600">❌ Order Pack is required</p>}
+                                  {!order.ok_to_ship && <p className="text-sm text-red-600">❌ Order must be marked as OK TO SHIP</p>}
+                                  {!order.paid && <p className="text-sm text-red-600">❌ Payment is required</p>}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                       

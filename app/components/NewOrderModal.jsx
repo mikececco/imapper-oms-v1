@@ -92,10 +92,21 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+
+    // Special handling for country field to normalize it
+    if (name === 'shipping_address_country') {
+      // Convert to uppercase and normalize to country code
+      const normalizedValue = normalizeCountryToCode(value.trim());
+      setFormData(prev => ({
+        ...prev,
+        [name]: normalizedValue || value.trim().toUpperCase()
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleNewPackInputChange = (e) => {

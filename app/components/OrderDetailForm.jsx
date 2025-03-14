@@ -256,12 +256,20 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
     
     // Special handling for country field to normalize it
     if (name === 'shipping_address_country') {
-      // Convert to uppercase and trim
-      const normalizedValue = value.trim().toUpperCase();
-      setFormData(prev => ({
-        ...prev,
-        [name]: normalizedValue
-      }));
+      // Convert to uppercase and normalize to country code
+      const normalizedValue = normalizeCountryToCode(value.trim());
+      if (normalizedValue) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: normalizedValue
+        }));
+      } else {
+        // If normalization fails, just store the uppercase value
+        setFormData(prev => ({
+          ...prev,
+          [name]: value.trim().toUpperCase()
+        }));
+      }
     } else if (name === 'order_pack_list_id') {
       // Find the selected order pack from the database options
       const selectedPack = orderPackLists.find(pack => pack.id === value);
