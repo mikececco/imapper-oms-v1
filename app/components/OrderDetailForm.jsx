@@ -575,7 +575,9 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate }) {
               onChange={handleChange}
               disabled={loadingOrderPacks}
             >
-              <option value="" className="bg-white text-gray-500">Select an order pack</option>
+              <option value="" className="bg-white text-gray-500">
+                {loadingOrderPacks ? 'Loading order packs...' : 'Select an order pack'}
+              </option>
               {orderPackLists.map((pack) => (
                 <option key={pack.id} value={pack.id} className="bg-white text-black">
                   {pack.label} ({pack.weight} kg)

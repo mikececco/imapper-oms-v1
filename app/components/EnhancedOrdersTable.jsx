@@ -395,15 +395,12 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 <TableHead className="text-black w-[180px]">Email</TableHead>
                 <TableHead className="text-black w-[120px]">Phone</TableHead>
                 <TableHead className="text-black w-[200px]">Address</TableHead>
-                <TableHead className="text-black w-[120px]">Order Pack</TableHead>
+                <TableHead className="text-black w-[400px]">Order Pack</TableHead>
                 <TableHead className="text-black w-[150px]">Notes</TableHead>
                 <TableHead className="text-black w-[80px]">Weight</TableHead>
                 <TableHead className="text-black w-[80px]">Paid?</TableHead>
                 <TableHead className="text-black w-[100px]">OK TO SHIP</TableHead>
                 <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
-                <TableHead className="text-black w-[120px]">Tracking #</TableHead>
-                <TableHead className="text-black w-[120px]">Delivery Status</TableHead>
-                <TableHead className="text-black w-[80px]">Label</TableHead>
                 <TableHead className="text-black w-[180px]">Created At</TableHead>
                 <TableHead className="text-black w-[180px]">Updated At</TableHead>
               </TableRow>
@@ -510,37 +507,6 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                       </TableCell>
                       <TableCell className="enhanced-table-cell-truncate">
                         {calculatedInstruction}
-                      </TableCell>
-                      <TableCell className="enhanced-table-cell-truncate">
-                        {order.tracking_number || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        <StatusSelector 
-                          currentStatus={order.status || 'pending'} 
-                          orderId={order.id} 
-                          onUpdate={handleOrderUpdate}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {order.label_url ? (
-                          <a 
-                            href={order.label_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            View
-                          </a>
-                        ) : order.shipping_id ? (
-                          <div className="relative tooltip-container">
-                            <span className="text-yellow-500 cursor-help">Pending</span>
-                            <div className="tooltip">
-                              Label created (ID: {order.shipping_id.substring(0, 8)}...) but URL not available
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
                       </TableCell>
                       <TableCell>{formatDate(order.created_at)}</TableCell>
                       <TableCell>{formatDate(order.updated_at)}</TableCell>

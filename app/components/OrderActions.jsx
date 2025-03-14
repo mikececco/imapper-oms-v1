@@ -409,8 +409,9 @@ export function OrderPackDropdown({ currentPack, orderId, onUpdate }) {
         id={`order-pack-${orderId}`}
         value={currentPack || ''}
         onChange={handleChange}
-        className="w-full p-2 border border-gray-300 rounded text-sm"
+        className="w-full min-w-[350px] p-2 border border-gray-300 rounded text-sm bg-white"
         disabled={loadingOrderPacks}
+        style={{ maxWidth: '100%' }}
       >
         <option value="" disabled>Select order pack</option>
         {orderPackLists.map((pack) => (
