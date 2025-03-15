@@ -146,14 +146,10 @@ export default function Orders() {
   return (
     <div className="container">
       <header className="orders-header">
-        <h1 className="text-2xl font-bold mb-4">
-          {activeCountry === 'all' ? 'All Orders' : 
-            (isMounted ? `${getCountryDisplayName(activeCountry)} Orders` : `${activeCountry} Orders`)}
-        </h1>
         <h2 className="text-black">
           {query ? `SEARCH RESULTS FOR "${query}"` : 
-           activeFilters ? 'FILTERED ORDERS' : 
-           activeCountry !== 'all' ? `ORDERS FROM ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}` : 'ALL ORDERS'}
+           activeCountry === 'all' ? 'ALL ORDERS' :
+           `${COUNTRY_MAPPING[activeCountry]?.name || activeCountry} ORDERS`}
         </h2>
         {query && (
           <p className="text-sm text-gray-600 mt-1">
@@ -181,9 +177,12 @@ export default function Orders() {
       <OrderSearch />
 
       <div className="orders-layout">
-        <div className="filters-sidebar">
-          <OrderFilters onFilterChange={handleFilterChange} />
+        <div className="sidebar-container">
+          <div className="filters-sidebar open">
+            <OrderFilters onFilterChange={handleFilterChange} />
+          </div>
         </div>
+        
         <div className="orders-content">
           <CountryTabs 
             orders={orders} 

@@ -54,7 +54,7 @@ export default function CountryTabs({ orders, activeTab, setActiveTab }) {
               : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
           }`}
         >
-          {isMounted ? getCountryDisplayName(country) : (country === 'all' ? 'All Orders' : country)} ({count})
+          {isMounted ? getCountryDisplayName(country) : (country === 'all' ? 'All' : country)} ({count})
         </button>
       ))}
     </div>

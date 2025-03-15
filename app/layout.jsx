@@ -68,12 +68,16 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className="antialiased font-sans">
-        <Navigation />
-        <main className="page-content">
-          <Providers>
-            {children}
-          </Providers>
-        </main>
+        <div className="layout-wrapper">
+          <Navigation />
+          <div className="content-wrapper">
+            <main className="main-content">
+              <Providers>
+                {children}
+              </Providers>
+            </main>
+          </div>
+        </div>
         <Toaster position="top-right" />
       </body>
     </html>

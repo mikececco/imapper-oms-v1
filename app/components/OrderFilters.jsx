@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function OrderFilters({ onFilterChange }) {
   const [instructionFilter, setInstructionFilter] = useState('all');
@@ -8,7 +8,11 @@ export default function OrderFilters({ onFilterChange }) {
   const [importantFilter, setImportantFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Apply filters automatically when any filter changes
+  useEffect(() => {
+    handleFilterChange();
+  }, [instructionFilter, paidFilter, importantFilter, startDate, endDate]);
 
   const handleFilterChange = () => {
     onFilterChange({
@@ -26,28 +30,16 @@ export default function OrderFilters({ onFilterChange }) {
     setImportantFilter('all');
     setStartDate('');
     setEndDate('');
-    onFilterChange({
-      instruction: 'all',
-      paid: 'all',
-      important: 'all',
-      startDate: null,
-      endDate: null
-    });
+    // No need to call onFilterChange here as the useEffect will handle it
   };
 
   return (
     <div className="order-filters">
       <div className="filter-header">
         <h3>Filters</h3>
-        <button 
-          className="filter-toggle px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          {isExpanded ? 'Hide Filters' : 'Show Filters'}
-        </button>
       </div>
       
-      <div className={`filter-content ${isExpanded ? 'expanded' : 'collapsed'}`}>
+      <div className="filter-content">
         <div className="filters-grid">
           {/* Important Filter */}
           <div className="filter-group">
@@ -56,7 +48,7 @@ export default function OrderFilters({ onFilterChange }) {
             </label>
             <select
               id="important-filter"
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
               value={importantFilter}
               onChange={(e) => {
                 setImportantFilter(e.target.value);
@@ -75,7 +67,7 @@ export default function OrderFilters({ onFilterChange }) {
             </label>
             <select
               id="instruction-filter"
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
               value={instructionFilter}
               onChange={(e) => {
                 setInstructionFilter(e.target.value);
@@ -98,7 +90,7 @@ export default function OrderFilters({ onFilterChange }) {
             </label>
             <select
               id="paid-filter"
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
               value={paidFilter}
               onChange={(e) => {
                 setPaidFilter(e.target.value);
@@ -120,7 +112,7 @@ export default function OrderFilters({ onFilterChange }) {
                   type="date"
                   id="start-date"
                   placeholder="Start"
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+                  className="w-full border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
                   value={startDate}
                   onChange={(e) => {
                     setStartDate(e.target.value);
@@ -133,7 +125,7 @@ export default function OrderFilters({ onFilterChange }) {
                   type="date"
                   id="end-date"
                   placeholder="End"
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+                  className="w-full border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
                   value={endDate}
                   onChange={(e) => {
                     setEndDate(e.target.value);
@@ -147,15 +139,9 @@ export default function OrderFilters({ onFilterChange }) {
         <div className="filter-actions">
           <button
             onClick={clearFilters}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 w-full text-sm"
           >
-            Clear
-          </button>
-          <button
-            onClick={handleFilterChange}
-            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
-          >
-            Apply
+            Clear Filters
           </button>
         </div>
       </div>

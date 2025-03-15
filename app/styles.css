@@ -41,7 +41,7 @@ body {
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 0.5rem 1rem 2rem 1rem;
 }
 
 header {
@@ -296,24 +296,19 @@ footer {
 /* Orders page specific styles */
 .orders-header {
   text-align: left;
-  margin-bottom: 1.5rem;
-}
-
-.orders-header h1 {
-  font-size: 2rem;
   margin-bottom: 0.5rem;
-  text-align: left;
 }
 
 .orders-header h2 {
   font-size: 1.5rem;
   font-weight: bold;
   margin-top: 0;
+  margin-bottom: 0.5rem;
   text-align: left;
 }
 
 .search-container {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .search-input {
@@ -836,7 +831,7 @@ input:checked + .toggle-slider:before {
 
 .filter-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 1rem;
   background-color: #f9fafb;
@@ -850,21 +845,9 @@ input:checked + .toggle-slider:before {
   color: var(--foreground);
 }
 
-.filter-toggle {
-  cursor: pointer;
-}
-
 .filter-content {
   padding: 1rem;
   background-color: white;
-}
-
-.filter-content.collapsed {
-  display: none;
-}
-
-.filter-content.expanded {
-  display: block;
 }
 
 .filters-grid {
@@ -916,7 +899,7 @@ input:checked + .toggle-slider:before {
 
 .filter-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 0.5rem;
   margin-top: 1rem;
 }

@@ -16,15 +16,28 @@
   --hover-background: #e0e0e0;
   --hover-foreground: #333333;
   --max-width: 1280px;
+  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 70px;
 }
 
 /* Layout */
-.page-content {
-  min-height: calc(100vh - 4rem); /* 4rem is the height of the navigation bar */
+.layout-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.content-wrapper {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  transition: margin-left 0.3s ease;
+}
+
+.main-content {
   width: 100%;
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0 2rem 2rem 2rem;
   background-color: var(--background);
 }
 
@@ -35,9 +48,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
   width: 100%;
-  padding-top: 4rem; /* Add padding to account for fixed header */
 }
 
 main {
@@ -45,64 +56,154 @@ main {
   width: 100%;
   display: flex;
   flex-direction: column;
+}
+
+/* Sidebar Styles */
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background-color: white;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease, transform 0.3s ease;
+  z-index: 50;
+  overflow-y: auto;
+}
+
+.sidebar-collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-collapsed ~ .content-wrapper {
+  margin-left: var(--sidebar-collapsed-width);
+}
+
+.sidebar-header {
+  height: 4rem;
+  display: flex;
   align-items: center;
-}
-
-.container {
-  width: 100%;
-  max-width: var(--max-width);
-  margin: 0 auto;
+  justify-content: space-between;
   padding: 0 1rem;
+  border-bottom: 1px solid var(--border);
 }
 
-button, 
-input, 
-select, 
-textarea {
-  background-color: var(--input);
+.sidebar-logo {
+  font-weight: 600;
   color: var(--foreground);
-  border: 1px solid var(--border);
-  transition: all 0.2s ease;
+  font-size: 1.125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-button:hover,
-select:hover,
-input[type="submit"]:hover {
+.sidebar-toggle {
+  padding: 0.5rem;
+  color: var(--muted-foreground);
+  border: none;
+  background: none;
+}
+
+.sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+  overflow-y: auto;
+}
+
+.sidebar-link, .sidebar-button {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: background-color 0.2s;
+  margin: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  white-space: nowrap;
+}
+
+.sidebar-link span, .sidebar-button span {
+  margin-left: 0.75rem;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+.sidebar-link:hover, .sidebar-button:hover {
   background-color: var(--hover-background);
 }
 
-.btn, 
-.open-btn {
-  background-color: var(--foreground) !important;
-  color: var(--background) !important;
-  border: 1px solid var(--foreground) !important;
-  transition: all 0.2s ease !important;
+.sidebar-link.active, .sidebar-button.active {
+  background-color: var(--muted-background);
+  color: var(--foreground);
 }
 
-.btn:hover, 
-.open-btn:hover {
-  background-color: var(--hover-foreground) !important;
-  color: var(--background) !important;
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.card, 
-.bg-gray-50, 
-.orders-table th {
-  background-color: var(--muted-background) !important;
-  color: var(--foreground) !important;
+.logout-button {
+  color: #e11d48;
 }
 
-.status-badge, 
-.paid-badge {
-  background-color: var(--foreground) !important;
-  color: var(--background) !important;
-  transition: all 0.2s ease !important;
-  cursor: pointer;
+.logout-button:hover {
+  background-color: rgba(225, 29, 72, 0.1);
 }
 
-.status-badge:hover, 
-.paid-badge:hover {
-  background-color: var(--hover-foreground) !important;
+/* Mobile sidebar styles */
+.sidebar-mobile {
+  width: var(--sidebar-width);
+  transform: translateX(-100%);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-mobile-open {
+  transform: translateX(0);
+}
+
+.sidebar-mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 60;
+  background-color: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-close {
+  display: flex;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .content-wrapper {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .sidebar-mobile-toggle {
+    display: flex;
+  }
+  
+  .main-content {
+    padding: 0 1rem 1rem 1rem;
+    padding-top: 4rem;
+  }
 }
 
 /* Table row hover effect */

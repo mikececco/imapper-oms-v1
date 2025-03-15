@@ -38,4 +38,295 @@
 .order-status.unknown {
   background-color: #e5e7eb;
   color: #4b5563;
+}
+
+/* ===== Enhanced Table Styles ===== */
+
+/* Main table container */
+.table-container {
+  position: relative;
+  height: 70vh; /* Fixed height */
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+}
+
+/* Scrollable wrapper for the entire table */
+.table-scroll-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+/* Table styles */
+.table-container table {
+  width: 100%;
+  table-layout: fixed; /* Force fixed table layout */
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0;
+}
+
+/* Fixed header */
+.table-container thead {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: white;
+}
+
+.table-container thead tr {
+  display: table-row;
+}
+
+.table-container thead th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #111827;
+  background-color: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Table body */
+.table-container tbody {
+  /* No display: block here as it breaks the table layout */
+}
+
+.table-container tbody tr {
+  /* No display: table here as it breaks the table layout */
+}
+
+.table-container tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Column width classes */
+.table-container th.w-\[50px\],
+.table-container td.w-\[50px\] {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+}
+
+.table-container th.w-\[60px\],
+.table-container td.w-\[60px\] {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+}
+
+.table-container th.w-\[80px\],
+.table-container td.w-\[80px\] {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+}
+
+.table-container th.w-\[90px\],
+.table-container td.w-\[90px\] {
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+}
+
+.table-container th.w-\[100px\],
+.table-container td.w-\[100px\] {
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+}
+
+.table-container th.w-\[120px\],
+.table-container td.w-\[120px\] {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+}
+
+.table-container th.w-\[150px\],
+.table-container td.w-\[150px\] {
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
+}
+
+.table-container th.w-\[180px\],
+.table-container td.w-\[180px\] {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+}
+
+.table-container th.w-\[200px\],
+.table-container td.w-\[200px\] {
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+}
+
+.table-container th.w-\[400px\],
+.table-container td.w-\[400px\] {
+  width: 400px;
+  min-width: 400px;
+  max-width: 400px;
+}
+
+/* Sticky left columns */
+.table-container th.sticky.left-0,
+.table-container td.sticky.left-0 {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background-color: inherit;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+.table-container th.sticky.left-\[50px\],
+.table-container td.sticky.left-\[50px\] {
+  position: sticky;
+  left: 50px;
+  z-index: 20;
+  background-color: inherit;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+.table-container th.sticky.left-\[130px\],
+.table-container td.sticky.left-\[130px\] {
+  position: sticky;
+  left: 130px;
+  z-index: 20;
+  background-color: inherit;
+  box-shadow: 4px 0 6px rgba(0, 0, 0, 0.08);
+  padding-right: 1.5rem; /* Add extra padding to the right of the last fixed column */
+}
+
+/* Fixed section background colors */
+.table-container thead th.sticky {
+  background-color: #f9fafb !important;
+}
+
+/* Add a visual separator after the fixed columns */
+.first-non-sticky-column {
+  padding-left: 1.75rem !important;
+  position: relative;
+}
+
+/* Add a subtle vertical line to separate fixed and scrollable sections */
+.first-non-sticky-column::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 25%;
+  height: 50%;
+  width: 2px;
+  background-color: #e5e7eb;
+}
+
+/* Increase z-index for header cells that are both sticky top and left */
+.table-container th.sticky.left-0 {
+  z-index: 40;
+}
+
+.table-container th.sticky.left-\[50px\] {
+  z-index: 40;
+}
+
+.table-container th.sticky.left-\[130px\] {
+  z-index: 40;
+}
+
+/* Row hover effect */
+.table-container tbody tr:hover:not(.bg-red-100):not(.bg-green-200):not(.bg-orange-400\/20) {
+  background-color: #f9fafb;
+}
+
+/* Scrollbar styling */
+.table-scroll-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-scroll-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Firefox scrollbar */
+.table-scroll-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* Remove duplicate scrollbars */
+.orders-content {
+  overflow: hidden;
+}
+
+/* Pagination styles */
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+/* Cell truncation */
+.enhanced-table-cell-truncate {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Address tooltip container */
+.address-container {
+  position: relative;
+}
+
+.address-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.address-tooltip {
+  display: none;
+  position: absolute;
+  background-color: #333;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  z-index: 50;
+  max-width: 300px;
+  white-space: normal;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.address-container:hover .address-tooltip {
+  display: block;
 } 

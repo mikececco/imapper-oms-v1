@@ -3,7 +3,51 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 0.25rem;
+}
+
+/* Filters sidebar styles for mobile and desktop */
+.filters-sidebar {
+  font-size: 0.875rem;
+  overflow: hidden;
+}
+
+.filters-sidebar .order-filters {
+  margin-bottom: 0;
+  transform: scale(0.95);
+  transform-origin: top left;
+}
+
+.filters-sidebar .filter-header {
+  padding: 0.5rem;
+}
+
+.filters-sidebar .filter-content {
+  padding: 0.5rem;
+}
+
+.filters-sidebar .filter-group {
+  margin-bottom: 0.25rem;
+}
+
+.filters-sidebar .filter-group label {
+  font-size: 0.75rem;
+  margin-bottom: 0.125rem;
+}
+
+.filters-sidebar select,
+.filters-sidebar input {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.filters-sidebar .filter-actions {
+  margin-top: 0.5rem;
+}
+
+.filters-sidebar .filter-actions button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
 }
 
 @media (min-width: 1024px) {
@@ -13,7 +57,7 @@
   }
   
   .filters-sidebar {
-    width: 250px;
+    width: 220px;
     flex-shrink: 0;
     position: sticky;
     top: 1rem;
@@ -21,7 +65,8 @@
   
   .orders-content {
     flex-grow: 1;
-    min-width: 0; /* Ensures the content can shrink below its min-content width */
+    min-width: 0;
+    overflow: hidden; /* Prevent double scrollbars */
   }
 }
 
@@ -32,6 +77,18 @@
 
 .filters-sidebar .filters-grid {
   grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+/* Mobile view adjustments */
+@media (max-width: 1023px) {
+  .filters-sidebar {
+    margin-bottom: 1rem;
+  }
+  
+  .orders-content {
+    overflow: hidden; /* Prevent double scrollbars on mobile too */
+  }
 }
 
 /* Add these styles for the country tabs */

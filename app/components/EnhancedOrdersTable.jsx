@@ -129,6 +129,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const hasMounted = useRef(false);
   const [hoveredButtonId, setHoveredButtonId] = useState(null);
   const [hoveredDeleteId, setHoveredDeleteId] = useState(null);
+  const [hoveredOrderId, setHoveredOrderId] = useState(null);
+  const [copiedOrderId, setCopiedOrderId] = useState(null);
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const { openModal } = useOrderDetailModal();
@@ -138,6 +140,10 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const supabase = useSupabase();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 20;
 
   // Update localOrders when orders prop changes
   useEffect(() => {
@@ -155,6 +161,17 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     // This will only run on the client, after the component has mounted
     setIsMounted(true);
   }, []);
+
+  // Calculate pagination values
+  const indexOfLastOrder = currentPage * ordersPerPage;
+  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+  const currentOrders = localOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+  const totalPages = Math.ceil(localOrders.length / ordersPerPage);
+
+  // Pagination controls
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
 
   const openOrderDetail = (orderId) => {
     openModal(orderId);
@@ -367,6 +384,22 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     }
   };
 
+  // Function to copy order ID to clipboard
+  const copyOrderId = (orderId) => {
+    navigator.clipboard.writeText(orderId.toString())
+      .then(() => {
+        setCopiedOrderId(orderId);
+        // Reset copied state after 2 seconds
+        setTimeout(() => {
+          setCopiedOrderId(null);
+        }, 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy order ID: ', err);
+        toast.error('Failed to copy order ID');
+      });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -378,162 +411,241 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   return (
     <>
       <div className="relative">
-        <div className="overflow-x-auto border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-black w-[40px] sticky left-0 z-20 bg-white">
-                </TableHead>
-                <TableHead className="text-black w-[60px] sticky left-[40px] z-20 bg-white">
-                  Actions
-                </TableHead>
-                <TableHead className="text-black w-[40px]">
-                  Important
-                </TableHead>
-                <TableHead className="text-black w-[150px]">INSTRUCTION</TableHead>
-                <TableHead className="text-black w-[60px]">ID</TableHead>
-                <TableHead className="text-black w-[150px]">Name</TableHead>
-                <TableHead className="text-black w-[180px]">Email</TableHead>
-                <TableHead className="text-black w-[120px]">Phone</TableHead>
-                <TableHead className="text-black w-[200px]">Address</TableHead>
-                <TableHead className="text-black w-[400px]">Order Pack</TableHead>
-                <TableHead className="text-black w-[150px]">Notes</TableHead>
-                <TableHead className="text-black w-[80px]">Weight</TableHead>
-                <TableHead className="text-black w-[80px]">Paid?</TableHead>
-                <TableHead className="text-black w-[100px]">OK TO SHIP</TableHead>
-                <TableHead className="text-black w-[180px]">Created At</TableHead>
-                <TableHead className="text-black w-[180px]">Updated At</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {localOrders && localOrders.length > 0 ? (
-                localOrders.map((order) => {
-                  // Only calculate instruction on the client side after mounting
-                  // Use the stored instruction during server-side rendering
-                  const calculatedInstruction = isMounted
-                    ? calculateOrderInstruction(order)
-                    : (order.instruction || 'ACTION REQUIRED');
-                  
-                  // When displaying country information
-                  const countryCode = normalizeCountryToCode(order.shipping_address?.country);
-                  const countryDisplay = getCountryDisplayName(countryCode);
-                  
-                  return (
-                    <TableRow 
-                      key={order.id} 
-                      className={`text-black ${
-                        order.important 
-                          ? 'bg-red-100 hover:bg-red-200 border-2 border-red-500' 
-                          : calculatedInstruction === 'NO ACTION REQUIRED'
-                            ? 'bg-green-200 hover:bg-green-300'
-                            : calculatedInstruction === 'ACTION REQUIRED'
-                              ? 'bg-red-100 hover:bg-red-200'
-                              : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
-                                ? 'bg-orange-400/20 hover:bg-orange-400/30'
-                                : ''
-                      }`}
-                    >
-                      <TableCell className="sticky left-0 z-20 bg-white">
-                        <input
-                          type="checkbox"
-                          checked={selectedOrders.has(order.id)}
-                          onChange={() => handleSelectOrder(order.id)}
-                          className="rounded border-gray-300 text-black focus:ring-black cursor-pointer"
-                        />
-                      </TableCell>
-                      <TableCell className="sticky left-[40px] z-20 bg-white">
-                        <button 
-                          onClick={() => openOrderDetail(order.id)}
-                          className="open-btn"
-                          onMouseEnter={() => setHoveredButtonId(order.id)}
-                          onMouseLeave={() => setHoveredButtonId(null)}
-                          style={{
-                            backgroundColor: hoveredButtonId === order.id ? '#333333' : '#000000',
-                            color: '#ffffff',
-                            border: 'none',
-                            padding: '0.25rem 0.5rem',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          Open
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        <ImportantFlag
-                          isImportant={order.important}
-                          orderId={order.id}
-                          onUpdate={handleOrderUpdate}
-                        />
-                      </TableCell>
-                      <TableCell className="enhanced-table-cell-truncate">
-                        <span className={`shipping-instruction ${calculatedInstruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
-                          {calculatedInstruction}
-                        </span>
-                      </TableCell>
-                      <TableCell>{order.id}</TableCell>
-                      <TableCell className="enhanced-table-cell-truncate">
-                        {order.customer_id ? (
-                          <Link 
-                            href={`/customers/${order.customer_id}`}
-                            className="text-blue-600 hover:underline hover:text-blue-800"
-                          >
-                            {order.name || 'N/A'}
-                          </Link>
-                        ) : (
-                          order.name || 'N/A'
-                        )}
-                      </TableCell>
-                      <TableCell className="enhanced-table-cell-truncate">{order.email || 'N/A'}</TableCell>
-                      <TableCell>{order.phone || 'N/A'}</TableCell>
-                      <TableCell className="address-container">
-                        <span className="address-text">
-                          {truncateText(formatAddressForTable(order, isMounted), 25)}
-                        </span>
-                        <div className="address-tooltip">
-                          {formatAddressForTable(order, isMounted)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <OrderPackDropdown 
-                          order={order}
-                          orderId={order.id}
-                          onUpdate={handleOrderUpdate}
-                        />
-                      </TableCell>
-                      <TableCell className="enhanced-table-cell-truncate">{order.order_notes || 'N/A'}</TableCell>
-                      <TableCell>
-                        <span>{order.weight || '1.000'} kg</span>
-                      </TableCell>
-                      <TableCell>
-                        <PaymentBadge 
-                          isPaid={order.paid} 
-                          orderId={order.id}
-                          onUpdate={handleOrderUpdate}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <ShippingToggle 
-                          okToShip={order.ok_to_ship} 
-                          orderId={order.id}
-                          onUpdate={handleOrderUpdate}
-                        />
-                      </TableCell>
-                      <TableCell>{formatDate(order.created_at)}</TableCell>
-                      <TableCell>{formatDate(order.updated_at)}</TableCell>
-                    </TableRow>
-                  );
-                })
-              ) : (
+        <div className="table-container">
+          <div className="table-scroll-wrapper">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={18} className="text-center py-8">
-                    No orders found.
-                  </TableCell>
+                  <TableHead className="text-black w-[50px] sticky left-0">
+                    {/* Checkbox column - no label */}
+                  </TableHead>
+                  <TableHead className="text-black w-[80px] sticky left-[50px]">
+                    Actions
+                  </TableHead>
+                  <TableHead className="text-black w-[90px] sticky left-[130px]">
+                    Important
+                  </TableHead>
+                  <TableHead className="text-black w-[150px] first-non-sticky-column">INSTRUCTION</TableHead>
+                  <TableHead className="text-black w-[60px]">ID</TableHead>
+                  <TableHead className="text-black w-[150px]">Name</TableHead>
+                  <TableHead className="text-black w-[180px]">Email</TableHead>
+                  <TableHead className="text-black w-[120px]">Phone</TableHead>
+                  <TableHead className="text-black w-[200px]">Address</TableHead>
+                  <TableHead className="text-black w-[400px]">Order Pack</TableHead>
+                  <TableHead className="text-black w-[150px]">Notes</TableHead>
+                  <TableHead className="text-black w-[80px]">Weight</TableHead>
+                  <TableHead className="text-black w-[80px]">Paid?</TableHead>
+                  <TableHead className="text-black w-[100px]">OK TO SHIP</TableHead>
+                  <TableHead className="text-black w-[180px]">Created At</TableHead>
+                  <TableHead className="text-black w-[180px]">Updated At</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {currentOrders && currentOrders.length > 0 ? (
+                  currentOrders.map((order) => {
+                    // Only calculate instruction on the client side after mounting
+                    // Use the stored instruction during server-side rendering
+                    const calculatedInstruction = isMounted
+                      ? calculateOrderInstruction(order)
+                      : (order.instruction || 'ACTION REQUIRED');
+                    
+                    // When displaying country information
+                    const countryCode = normalizeCountryToCode(order.shipping_address?.country);
+                    const countryDisplay = getCountryDisplayName(countryCode);
+                    
+                    return (
+                      <TableRow 
+                        key={order.id} 
+                        className={`text-black ${
+                          order.important 
+                            ? 'bg-red-100 hover:bg-red-200 border-2 border-red-500' 
+                            : calculatedInstruction === 'NO ACTION REQUIRED'
+                              ? 'bg-green-200 hover:bg-green-300'
+                              : calculatedInstruction === 'ACTION REQUIRED'
+                                ? 'bg-red-100 hover:bg-red-200'
+                                : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                  ? 'bg-orange-400/20 hover:bg-orange-400/30'
+                                  : ''
+                        }`}
+                      >
+                        <TableCell className={`sticky left-0 w-[50px] ${
+                          order.important 
+                            ? 'bg-red-100 hover:bg-red-200' 
+                            : calculatedInstruction === 'NO ACTION REQUIRED'
+                              ? 'bg-green-200'
+                              : calculatedInstruction === 'ACTION REQUIRED'
+                                ? 'bg-red-100'
+                                : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                  ? 'bg-orange-400/20'
+                                  : 'bg-white'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedOrders.has(order.id)}
+                            onChange={() => handleSelectOrder(order.id)}
+                            className="rounded border-gray-300 text-black focus:ring-black cursor-pointer"
+                          />
+                        </TableCell>
+                        <TableCell className={`sticky left-[50px] w-[80px] ${
+                          order.important 
+                            ? 'bg-red-100 hover:bg-red-200' 
+                            : calculatedInstruction === 'NO ACTION REQUIRED'
+                              ? 'bg-green-200'
+                              : calculatedInstruction === 'ACTION REQUIRED'
+                                ? 'bg-red-100'
+                                : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                  ? 'bg-orange-400/20'
+                                  : 'bg-white'
+                        }`}>
+                          <button 
+                            onClick={() => openOrderDetail(order.id)}
+                            className="open-btn"
+                            onMouseEnter={() => setHoveredButtonId(order.id)}
+                            onMouseLeave={() => setHoveredButtonId(null)}
+                            style={{
+                              backgroundColor: hoveredButtonId === order.id ? '#333333' : '#000000',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            Open
+                          </button>
+                        </TableCell>
+                        <TableCell className={`w-[90px] sticky left-[130px] ${
+                          order.important 
+                            ? 'bg-red-100 hover:bg-red-200' 
+                            : calculatedInstruction === 'NO ACTION REQUIRED'
+                              ? 'bg-green-200'
+                              : calculatedInstruction === 'ACTION REQUIRED'
+                                ? 'bg-red-100'
+                                : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                  ? 'bg-orange-400/20'
+                                  : 'bg-white'
+                        }`}>
+                          <ImportantFlag
+                            isImportant={order.important}
+                            orderId={order.id}
+                            onUpdate={handleOrderUpdate}
+                          />
+                        </TableCell>
+                        <TableCell className="enhanced-table-cell-truncate w-[150px] first-non-sticky-column">
+                          <span className={`shipping-instruction ${calculatedInstruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
+                            {calculatedInstruction}
+                          </span>
+                        </TableCell>
+                        <TableCell className="w-[60px]">
+                          <div 
+                            className="cursor-pointer flex items-center"
+                            onClick={() => copyOrderId(order.id)}
+                            onMouseEnter={() => setHoveredOrderId(order.id)}
+                            onMouseLeave={() => setHoveredOrderId(null)}
+                            style={{
+                              position: 'relative',
+                              textDecoration: hoveredOrderId === order.id ? 'underline' : 'none',
+                              color: hoveredOrderId === order.id ? '#2563eb' : 'inherit'
+                            }}
+                          >
+                            {order.id}
+                            {hoveredOrderId === order.id && (
+                              <span style={{
+                                position: 'absolute',
+                                top: '-20px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                backgroundColor: '#333',
+                                color: 'white',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                Click to copy
+                              </span>
+                            )}
+                            {copiedOrderId === order.id && (
+                              <span style={{
+                                position: 'absolute',
+                                top: '-20px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                backgroundColor: '#10b981',
+                                color: 'white',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                Copied!
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="enhanced-table-cell-truncate w-[150px]">
+                          {order.customer_id ? (
+                            <Link 
+                              href={`/customers/${order.customer_id}`}
+                              className="text-blue-600 hover:underline hover:text-blue-800"
+                            >
+                              {order.name || 'N/A'}
+                            </Link>
+                          ) : (
+                            order.name || 'N/A'
+                          )}
+                        </TableCell>
+                        <TableCell className="enhanced-table-cell-truncate w-[180px]">{order.email || 'N/A'}</TableCell>
+                        <TableCell className="w-[120px]">{order.phone || 'N/A'}</TableCell>
+                        <TableCell className="address-container w-[200px]">
+                          <span className="address-text">
+                            {truncateText(formatAddressForTable(order, isMounted), 25)}
+                          </span>
+                          <div className="address-tooltip">
+                            {formatAddressForTable(order, isMounted)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="w-[400px]">
+                          <OrderPackDropdown 
+                            order={order}
+                            orderId={order.id}
+                            onUpdate={handleOrderUpdate}
+                          />
+                        </TableCell>
+                        <TableCell className="enhanced-table-cell-truncate w-[150px]">{order.order_notes || 'N/A'}</TableCell>
+                        <TableCell className="w-[80px]">
+                          <span>{order.weight || '1.000'} kg</span>
+                        </TableCell>
+                        <TableCell className="w-[80px]">
+                          <PaymentBadge 
+                            isPaid={order.paid} 
+                            orderId={order.id}
+                            onUpdate={handleOrderUpdate}
+                          />
+                        </TableCell>
+                        <TableCell className="w-[100px]">
+                          <ShippingToggle 
+                            okToShip={order.ok_to_ship} 
+                            orderId={order.id}
+                            onUpdate={handleOrderUpdate}
+                          />
+                        </TableCell>
+                        <TableCell className="w-[180px]">{formatDate(order.created_at)}</TableCell>
+                        <TableCell className="w-[180px]">{formatDate(order.updated_at)}</TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={18} className="text-center py-8">
+                      No orders found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         {/* Floating Action Bar */}
@@ -591,6 +703,73 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Pagination Controls */}
+        {localOrders.length > ordersPerPage && (
+          <div className="pagination-controls">
+            <div className="text-sm text-gray-600">
+              Showing {indexOfFirstOrder + 1} to {Math.min(indexOfLastOrder, localOrders.length)} of {localOrders.length} orders
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+              >
+                First
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                // Show pages around current page
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePageChange(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                Last
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
