@@ -64,6 +64,21 @@ export default function HowToUse() {
                     />
                   </div>
                 </div>
+
+                {/* Third Video */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">CREATING AND MANAGING ORDERS</h3>
+                  <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
+                    <iframe 
+                      src="https://www.loom.com/embed/a9ea8ea2cffa400482992fef552c9b86?sid=823e0e66-3be0-466b-bdfb-5b865c78a3ac" 
+                      frameBorder="0" 
+                      webkitallowfullscreen="true"
+                      mozallowfullscreen="true"
+                      allowFullScreen
+                      className="absolute top-0 left-0 w-full h-full rounded-lg"
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </section>
