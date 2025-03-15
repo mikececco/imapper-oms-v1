@@ -7,6 +7,7 @@ import OrderSearch from "../components/OrderSearch";
 import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
 import OrderFilters from "../components/OrderFilters";
 import CountryTabs from "../components/CountryTabs";
+import NewOrderModal from "../components/NewOrderModal";
 import { calculateOrderInstruction } from "../utils/order-instructions";
 import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
 import "./orders.css";
@@ -20,6 +21,7 @@ export default function Orders() {
   const [activeFilters, setActiveFilters] = useState(null);
   const [activeCountry, setActiveCountry] = useState('all');
   const [isMounted, setIsMounted] = useState(false);
+  const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
 
   // Get search query from URL parameters using useSearchParams hook
   const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
@@ -143,35 +145,49 @@ export default function Orders() {
     }
   }, [orders, activeCountry, isMounted]);
 
+  // Handle order creation
+  const handleOrderCreated = (newOrder) => {
+    // Refresh the orders list
+    loadOrders();
+  };
+
   return (
     <div className="container">
-      <header className="orders-header">
-        <h2 className="text-black">
-          {query ? `SEARCH RESULTS FOR "${query}"` : 
-           activeCountry === 'all' ? 'ALL ORDERS' :
-           `${COUNTRY_MAPPING[activeCountry]?.name || activeCountry} ORDERS`}
-        </h2>
-        {query && (
-          <p className="text-sm text-gray-600 mt-1">
-            {filteredOrders.length > 0 
-              ? `Found ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} matching your search`
-              : 'No orders found matching your search'}
-          </p>
-        )}
-        {activeFilters && (
-          <p className="text-sm text-gray-600 mt-1">
-            {filteredOrders.length > 0
-              ? `Showing ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} matching your filters`
-              : 'No orders match your filters'}
-          </p>
-        )}
-        {activeCountry !== 'all' && !query && !activeFilters && (
-          <p className="text-sm text-gray-600 mt-1">
-            {filteredOrders.length > 0
-              ? `Showing ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} from ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}`
-              : `No orders found from ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}`}
-          </p>
-        )}
+      <header className="orders-header flex justify-between items-center">
+        <div>
+          <h2 className="text-black">
+            {query ? `SEARCH RESULTS FOR "${query}"` : 
+             activeCountry === 'all' ? 'ALL ORDERS' :
+             `${COUNTRY_MAPPING[activeCountry]?.name || activeCountry} ORDERS`}
+          </h2>
+          {query && (
+            <p className="text-sm text-gray-600 mt-1">
+              {filteredOrders.length > 0 
+                ? `Found ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} matching your search`
+                : 'No orders found matching your search'}
+            </p>
+          )}
+          {activeFilters && (
+            <p className="text-sm text-gray-600 mt-1">
+              {filteredOrders.length > 0
+                ? `Showing ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} matching your filters`
+                : 'No orders match your filters'}
+            </p>
+          )}
+          {activeCountry !== 'all' && !query && !activeFilters && (
+            <p className="text-sm text-gray-600 mt-1">
+              {filteredOrders.length > 0
+                ? `Showing ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} from ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}`
+                : `No orders found from ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}`}
+            </p>
+          )}
+        </div>
+        <button 
+          onClick={() => setIsNewOrderModalOpen(true)}
+          className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
+        >
+          New Order
+        </button>
       </header>
 
       <OrderSearch />
@@ -197,6 +213,12 @@ export default function Orders() {
           />
         </div>
       </div>
+
+      <NewOrderModal
+        isOpen={isNewOrderModalOpen}
+        onClose={() => setIsNewOrderModalOpen(false)}
+        onOrderCreated={handleOrderCreated}
+      />
     </div>
   );
 }
