@@ -9,20 +9,14 @@ export default function HowToUse() {
   const [showProcess, setShowProcess] = useState(false);
 
   return (
-    <div className="container">
-      <header>
-        <h1>How to Use</h1>
-        <p>Guide to using the Order Management System</p>
+    <div className="w-full max-w-none px-4 py-8">
+      <header className="mb-8 text-center">
+        <h1 className="text-3xl font-bold">How to Use</h1>
+        <p className="text-gray-600">Guide to using the Order Management System</p>
       </header>
 
-      <main className="single-column">
-        <div className="card space-y-8">
-          <div className="actions">
-            <Link href="/" className="btn">
-              Back to Dashboard
-            </Link>
-          </div>
-
+      <main className="w-full">
+        <div className="space-y-8">
           {/* Video Tutorial */}
           <section className="space-y-4">
             <button 
@@ -34,65 +28,51 @@ export default function HowToUse() {
             </button>
             
             {showVideos && (
-              <div className="space-y-8 mt-4">
-                {/* First Video */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">First steps with OMS</h3>
-                  <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
-                    <iframe 
-                      src="https://www.loom.com/embed/07a8703a252c4e4cbebd60058a551f53?sid=3ee23857-08a0-404a-b8b6-ab4e23784a5c" 
-                      frameBorder="0" 
-                      webkitallowfullscreen="true"
-                      mozallowfullscreen="true"
-                      allowFullScreen
-                      className="absolute top-0 left-0 w-full h-full rounded-lg"
-                    />
+              <div className="mt-4 w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* First Video */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">First steps with OMS</h3>
+                    <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
+                      <iframe 
+                        src="https://www.loom.com/embed/07a8703a252c4e4cbebd60058a551f53?sid=3ee23857-08a0-404a-b8b6-ab4e23784a5c" 
+                        frameBorder="0" 
+                        webkitallowfullscreen="true"
+                        mozallowfullscreen="true"
+                        allowFullScreen
+                        className="absolute top-0 left-0 w-full h-full rounded-lg"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {/* Second Video
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">COPY TRACKING LINK FROM SENDCLOUD TO OMS</h3>
-                  <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
-                    <iframe 
-                      src="https://www.loom.com/embed/067725f5b7804ca5bfee7d1853828e04?sid=9732ab47-2558-4c9f-a0a9-466e31a9b06d" 
-                      frameBorder="0" 
-                      webkitallowfullscreen="true"
-                      mozallowfullscreen="true"
-                      allowFullScreen
-                      className="absolute top-0 left-0 w-full h-full rounded-lg"
-                    />
+                  {/* Third Video */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">How to create a new order</h3>
+                    <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
+                      <iframe 
+                        src="https://www.loom.com/embed/a9ea8ea2cffa400482992fef552c9b86?sid=823e0e66-3be0-466b-bdfb-5b865c78a3ac" 
+                        frameBorder="0" 
+                        webkitallowfullscreen="true"
+                        mozallowfullscreen="true"
+                        allowFullScreen
+                        className="absolute top-0 left-0 w-full h-full rounded-lg"
+                      />
+                    </div>
                   </div>
-                </div> */}
 
-                {/* Third Video */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">How to create a new order</h3>
-                  <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
-                    <iframe 
-                      src="https://www.loom.com/embed/a9ea8ea2cffa400482992fef552c9b86?sid=823e0e66-3be0-466b-bdfb-5b865c78a3ac" 
-                      frameBorder="0" 
-                      webkitallowfullscreen="true"
-                      mozallowfullscreen="true"
-                      allowFullScreen
-                      className="absolute top-0 left-0 w-full h-full rounded-lg"
-                    />
-                  </div>
-                </div>
-
-                {/* Fourth Video (New) */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">How to create a shipping label</h3>
-                  <div style={{ position: 'relative', paddingBottom: '62.5%', height: 0 }}>
-                    <iframe 
-                      src="https://www.loom.com/embed/27f9461d7ec941eb96a0f577314c951a?sid=c6693e64-8495-444e-9883-c16c64ce7bea" 
-                      frameBorder="0" 
-                      webkitallowfullscreen="true"
-                      mozallowfullscreen="true"
-                      allowFullScreen 
-                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-                      className="rounded-lg"
-                    />
+                  {/* Fourth Video (New) */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">How to create a shipping label</h3>
+                    <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
+                      <iframe 
+                        src="https://www.loom.com/embed/27f9461d7ec941eb96a0f577314c951a?sid=c6693e64-8495-444e-9883-c16c64ce7bea" 
+                        frameBorder="0" 
+                        webkitallowfullscreen="true"
+                        mozallowfullscreen="true"
+                        allowFullScreen 
+                        className="absolute top-0 left-0 w-full h-full rounded-lg"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -115,7 +95,7 @@ export default function HowToUse() {
                   The Order Management System helps you manage orders from creation to delivery. Here's how the process works:
                 </p>
                 
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Step 1 */}
                   <div className="bg-white p-4 rounded-lg border border-gray-200">
                     <h3 className="text-lg font-medium mb-2">1. Order Creation</h3>
@@ -194,7 +174,7 @@ export default function HowToUse() {
         </div>
       </main>
 
-      <footer>
+      <footer className="mt-12 text-center text-gray-500 text-sm">
         <p>Order Management System &copy; {new Date().getFullYear()}</p>
       </footer>
     </div>
