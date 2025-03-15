@@ -102,6 +102,43 @@
   /* No display: table here as it breaks the table layout */
 }
 
+/* Important row styling - only apply border, preserve background color */
+.table-container tbody tr.important-row {
+  position: relative;
+  z-index: 10;
+}
+
+/* Override the default border with a more prominent one */
+.table-container tbody tr.important-row td {
+  border-top: 3px solid #ef4444;
+  border-bottom: 3px solid #ef4444;
+}
+
+/* Add left border to first cell in important rows */
+.table-container tbody tr.important-row td:first-child {
+  border-left: 3px solid #ef4444;
+}
+
+/* Add right border to last cell in important rows */
+.table-container tbody tr.important-row td:last-child {
+  border-right: 3px solid #ef4444;
+}
+
+/* Ensure sticky cells in important rows maintain the styling */
+.table-container tbody tr.important-row td.sticky.left-0 {
+  border-left: 3px solid #ef4444;
+}
+
+.table-container tbody tr.important-row td.sticky.left-\[50px\] {
+  border-left: none;
+}
+
+.table-container tbody tr.important-row td.sticky.left-\[130px\] {
+  border-left: none;
+  border-right: 3px solid #ef4444;
+  padding-right: calc(1.5rem + 3px);
+}
+
 .table-container tbody td {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #e5e7eb;

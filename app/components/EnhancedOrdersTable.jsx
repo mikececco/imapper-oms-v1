@@ -136,6 +136,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const { openModal } = useOrderDetailModal();
   const [isMounted, setIsMounted] = useState(false);
   const [localOrders, setLocalOrders] = useState(orders || []);
+  const [filteredOrders, setFilteredOrders] = useState(orders || []);
   const [selectedOrders, setSelectedOrders] = useState(new Set());
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -152,6 +153,34 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     }
   }, [orders]);
 
+  // Filter orders based on search query
+  useEffect(() => {
+    if (!query || query.trim() === '') {
+      setFilteredOrders(localOrders);
+      return;
+    }
+
+    const lowercaseQuery = query.toLowerCase();
+    const filtered = localOrders.filter(order => {
+      // Check various fields for the search term
+      return (
+        (order.id && order.id.toString().includes(lowercaseQuery)) ||
+        (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
+        (order.email && order.email.toLowerCase().includes(lowercaseQuery)) ||
+        (order.phone && order.phone.toLowerCase().includes(lowercaseQuery)) ||
+        (order.shipping_address && order.shipping_address.toLowerCase().includes(lowercaseQuery)) ||
+        (order.order_pack && order.order_pack.toLowerCase().includes(lowercaseQuery)) ||
+        (order.order_notes && order.order_notes.toLowerCase().includes(lowercaseQuery)) ||
+        (order.status && order.status.toLowerCase().includes(lowercaseQuery)) ||
+        (order.tracking_number && order.tracking_number.toLowerCase().includes(lowercaseQuery))
+      );
+    });
+    
+    setFilteredOrders(filtered);
+    // Reset to first page when search changes
+    setCurrentPage(1);
+  }, [localOrders, query]);
+
   // Only run this effect after the component has mounted on the client
   useEffect(() => {
     hasMounted.current = true;
@@ -165,8 +194,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   // Calculate pagination values
   const indexOfLastOrder = currentPage * ordersPerPage;
   const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = localOrders.slice(indexOfFirstOrder, indexOfLastOrder);
-  const totalPages = Math.ceil(localOrders.length / ordersPerPage);
+  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
 
   // Pagination controls
   const handlePageChange = (pageNumber) => {
@@ -181,6 +210,15 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const handleOrderUpdate = (updatedOrder) => {
     // Update the local orders state with the updated order
     setLocalOrders(prevOrders => 
+      prevOrders.map(order => 
+        order.id === updatedOrder.id 
+          ? { ...order, ...updatedOrder, instruction: calculateOrderInstruction({ ...order, ...updatedOrder }) } 
+          : order
+      )
+    );
+    
+    // Also update filtered orders
+    setFilteredOrders(prevOrders => 
       prevOrders.map(order => 
         order.id === updatedOrder.id 
           ? { ...order, ...updatedOrder, instruction: calculateOrderInstruction({ ...order, ...updatedOrder }) } 
@@ -373,6 +411,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       if (error) throw error;
 
       setLocalOrders(prev => prev.filter(order => !selectedOrders.has(order.id)));
+      setFilteredOrders(prev => prev.filter(order => !selectedOrders.has(order.id)));
       setSelectedOrders(new Set());
       toast.success(`Successfully deleted ${ordersToDelete.length} orders`);
     } catch (error) {
@@ -411,6 +450,13 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   return (
     <>
       <div className="relative">
+        {query && (
+          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded">
+            <p className="text-sm text-blue-800">
+              Showing {filteredOrders.length} results for search: <strong>"{query}"</strong>
+            </p>
+          </div>
+        )}
         <div className="table-container">
           <div className="table-scroll-wrapper">
             <Table>
@@ -453,31 +499,31 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                     const countryCode = normalizeCountryToCode(order.shipping_address?.country);
                     const countryDisplay = getCountryDisplayName(countryCode);
                     
+                    // Determine the background color based on instruction
+                    const getBgColorClass = (instruction) => {
+                      if (instruction === 'NO ACTION REQUIRED') return 'bg-green-200 hover:bg-green-300';
+                      if (instruction === 'ACTION REQUIRED') return 'bg-red-100 hover:bg-red-200';
+                      if (instruction === 'TO BE SHIPPED BUT NO STICKER') return 'bg-orange-400/20 hover:bg-orange-400/30';
+                      return '';
+                    };
+                    
+                    const bgColorClass = getBgColorClass(calculatedInstruction);
+                    
                     return (
                       <TableRow 
                         key={order.id} 
-                        className={`text-black ${
-                          order.important 
-                            ? 'bg-red-100 hover:bg-red-200 border-2 border-red-500' 
-                            : calculatedInstruction === 'NO ACTION REQUIRED'
-                              ? 'bg-green-200 hover:bg-green-300'
-                              : calculatedInstruction === 'ACTION REQUIRED'
-                                ? 'bg-red-100 hover:bg-red-200'
-                                : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
-                                  ? 'bg-orange-400/20 hover:bg-orange-400/30'
-                                  : ''
+                        className={`text-black ${bgColorClass} ${
+                          order.important ? 'important-row border-2 border-red-500' : ''
                         }`}
                       >
                         <TableCell className={`sticky left-0 w-[50px] ${
-                          order.important 
-                            ? 'bg-red-100 hover:bg-red-200' 
-                            : calculatedInstruction === 'NO ACTION REQUIRED'
-                              ? 'bg-green-200'
-                              : calculatedInstruction === 'ACTION REQUIRED'
-                                ? 'bg-red-100'
-                                : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
-                                  ? 'bg-orange-400/20'
-                                  : 'bg-white'
+                          calculatedInstruction === 'NO ACTION REQUIRED'
+                            ? 'bg-green-200'
+                            : calculatedInstruction === 'ACTION REQUIRED'
+                              ? 'bg-red-100'
+                              : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                ? 'bg-orange-400/20'
+                                : 'bg-white'
                         }`}>
                           <input
                             type="checkbox"
@@ -487,15 +533,13 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                           />
                         </TableCell>
                         <TableCell className={`sticky left-[50px] w-[80px] ${
-                          order.important 
-                            ? 'bg-red-100 hover:bg-red-200' 
-                            : calculatedInstruction === 'NO ACTION REQUIRED'
-                              ? 'bg-green-200'
-                              : calculatedInstruction === 'ACTION REQUIRED'
-                                ? 'bg-red-100'
-                                : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
-                                  ? 'bg-orange-400/20'
-                                  : 'bg-white'
+                          calculatedInstruction === 'NO ACTION REQUIRED'
+                            ? 'bg-green-200'
+                            : calculatedInstruction === 'ACTION REQUIRED'
+                              ? 'bg-red-100'
+                              : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                ? 'bg-orange-400/20'
+                                : 'bg-white'
                         }`}>
                           <button 
                             onClick={() => openOrderDetail(order.id)}
@@ -516,15 +560,13 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                           </button>
                         </TableCell>
                         <TableCell className={`w-[90px] sticky left-[130px] ${
-                          order.important 
-                            ? 'bg-red-100 hover:bg-red-200' 
-                            : calculatedInstruction === 'NO ACTION REQUIRED'
-                              ? 'bg-green-200'
-                              : calculatedInstruction === 'ACTION REQUIRED'
-                                ? 'bg-red-100'
-                                : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
-                                  ? 'bg-orange-400/20'
-                                  : 'bg-white'
+                          calculatedInstruction === 'NO ACTION REQUIRED'
+                            ? 'bg-green-200'
+                            : calculatedInstruction === 'ACTION REQUIRED'
+                              ? 'bg-red-100'
+                              : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                ? 'bg-orange-400/20'
+                                : 'bg-white'
                         }`}>
                           <ImportantFlag
                             isImportant={order.important}
@@ -705,10 +747,10 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         </Dialog>
 
         {/* Pagination Controls */}
-        {localOrders.length > ordersPerPage && (
+        {filteredOrders.length > ordersPerPage && (
           <div className="pagination-controls">
             <div className="text-sm text-gray-600">
-              Showing {indexOfFirstOrder + 1} to {Math.min(indexOfLastOrder, localOrders.length)} of {localOrders.length} orders
+              Showing {indexOfFirstOrder + 1} to {Math.min(indexOfLastOrder, filteredOrders.length)} of {filteredOrders.length} orders
             </div>
             <div className="flex space-x-2">
               <Button
