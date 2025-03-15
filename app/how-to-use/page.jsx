@@ -50,7 +50,7 @@ export default function HowToUse() {
                   </div>
                 </div>
 
-                {/* Second Video */}
+                {/* Second Video
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">COPY TRACKING LINK FROM SENDCLOUD TO OMS</h3>
                   <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
@@ -63,11 +63,11 @@ export default function HowToUse() {
                       className="absolute top-0 left-0 w-full h-full rounded-lg"
                     />
                   </div>
-                </div>
+                </div> */}
 
                 {/* Third Video */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">CREATING AND MANAGING ORDERS</h3>
+                  <h3 className="text-lg font-medium">How to create a new order</h3>
                   <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
                     <iframe 
                       src="https://www.loom.com/embed/a9ea8ea2cffa400482992fef552c9b86?sid=823e0e66-3be0-466b-bdfb-5b865c78a3ac" 
@@ -76,6 +76,22 @@ export default function HowToUse() {
                       mozallowfullscreen="true"
                       allowFullScreen
                       className="absolute top-0 left-0 w-full h-full rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                {/* Fourth Video (New) */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">How to create a shipping label</h3>
+                  <div style={{ position: 'relative', paddingBottom: '62.5%', height: 0 }}>
+                    <iframe 
+                      src="https://www.loom.com/embed/27f9461d7ec941eb96a0f577314c951a?sid=c6693e64-8495-444e-9883-c16c64ce7bea" 
+                      frameBorder="0" 
+                      webkitallowfullscreen="true"
+                      mozallowfullscreen="true"
+                      allowFullScreen 
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                      className="rounded-lg"
                     />
                   </div>
                 </div>
