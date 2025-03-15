@@ -1,26 +1,77 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'react-hot-toast';
 import { useSupabase } from './Providers';
+import { createClient } from '@supabase/supabase-js';
 
 export default function EditCustomerModal({ isOpen, onClose, customer, onUpdate }) {
   const [formData, setFormData] = useState({
-    name: customer?.name || '',
-    email: customer?.email || '',
-    phone: customer?.phone || '',
-    address_line1: customer?.address_line1 || '',
-    shipping_address_house_number: customer?.shipping_address_house_number || '',
-    address_line2: customer?.address_line2 || '',
-    address_city: customer?.address_city || '',
-    address_postal_code: customer?.address_postal_code || '',
-    address_country: customer?.address_country || ''
+    name: '',
+    email: '',
+    phone: '',
+    address_line1: '',
+    address_house_number: '',
+    address_line2: '',
+    address_city: '',
+    address_postal_code: '',
+    address_country: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const supabase = useSupabase();
+  const supabaseContext = useSupabase();
+  const [supabase, setSupabase] = useState(null);
+
+  // Initialize form data when customer changes
+  useEffect(() => {
+    if (customer) {
+      setFormData({
+        name: customer.name || '',
+        email: customer.email || '',
+        phone: customer.phone || '',
+        address_line1: customer.address_line1 || '',
+        address_house_number: customer.address_house_number || '',
+        address_line2: customer.address_line2 || '',
+        address_city: customer.address_city || '',
+        address_postal_code: customer.address_postal_code || '',
+        address_country: customer.address_country || ''
+      });
+    }
+  }, [customer]);
+
+  // Initialize Supabase client
+  useEffect(() => {
+    // Try to use the context-provided Supabase client first
+    if (supabaseContext) {
+      setSupabase(supabaseContext);
+      return;
+    }
+
+    // Fallback to creating a new client if context is not available
+    const initializeSupabase = () => {
+      try {
+        if (typeof window !== 'undefined') {
+          const envVars = window.__ENV__ || {};
+          const supabaseUrl = envVars.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseAnonKey = envVars.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+          if (!supabaseUrl || !supabaseAnonKey) {
+            console.error('Missing Supabase environment variables');
+            return;
+          }
+
+          const client = createClient(supabaseUrl, supabaseAnonKey);
+          setSupabase(client);
+        }
+      } catch (error) {
+        console.error('Failed to initialize Supabase client:', error);
+      }
+    };
+
+    initializeSupabase();
+  }, [supabaseContext]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,9 +83,23 @@ export default function EditCustomerModal({ isOpen, onClose, customer, onUpdate 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!supabase) {
+      toast.error('Database connection not available');
+      return;
+    }
+
+    if (!customer || !customer.id) {
+      toast.error('Customer information is missing');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      console.log('Updating customer with ID:', customer.id);
+      console.log('Form data:', formData);
+
       const { data, error } = await supabase
         .from('customers')
         .update({
@@ -42,7 +107,7 @@ export default function EditCustomerModal({ isOpen, onClose, customer, onUpdate 
           email: formData.email,
           phone: formData.phone,
           address_line1: formData.address_line1,
-          shipping_address_house_number: formData.shipping_address_house_number,
+          address_house_number: formData.address_house_number,
           address_line2: formData.address_line2,
           address_city: formData.address_city,
           address_postal_code: formData.address_postal_code,
@@ -53,14 +118,32 @@ export default function EditCustomerModal({ isOpen, onClose, customer, onUpdate 
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Updated customer data:', data);
+      
+      // Ensure we're passing the complete updated customer data
+      const updatedCustomer = {
+        ...customer, // Keep any fields that weren't updated
+        ...data,     // Override with the updated fields
+      };
 
       toast.success('Customer details updated successfully');
-      onUpdate(data);
+      
+      // Call the onUpdate callback with the updated customer data
+      if (typeof onUpdate === 'function') {
+        onUpdate(updatedCustomer);
+      } else {
+        console.warn('onUpdate is not a function');
+      }
+      
       onClose();
     } catch (error) {
       console.error('Error updating customer:', error);
-      toast.error('Failed to update customer details');
+      toast.error(error.message || 'Failed to update customer details');
     } finally {
       setIsSubmitting(false);
     }
@@ -111,8 +194,8 @@ export default function EditCustomerModal({ isOpen, onClose, customer, onUpdate 
           <div>
             <label className="block text-sm font-medium mb-1">House Number</label>
             <Input
-              name="shipping_address_house_number"
-              value={formData.shipping_address_house_number}
+              name="address_house_number"
+              value={formData.address_house_number}
               onChange={handleChange}
             />
           </div>

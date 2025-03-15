@@ -29,66 +29,83 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Customer ID is required' }, { status: 400 });
     }
 
-    // Fetch customer data from Stripe
-    const stripeCustomer = await stripe.customers.retrieve(customerId);
+    try {
+      // Fetch customer data from Stripe
+      const stripeCustomer = await stripe.customers.retrieve(customerId);
 
-    if (!stripeCustomer) {
-      return NextResponse.json({ error: 'Customer not found in Stripe' }, { status: 404 });
-    }
+      if (!stripeCustomer) {
+        return NextResponse.json({ error: 'Customer not found in Stripe' }, { status: 404 });
+      }
 
-    // Prepare customer data for our database
-    const customerData = {
-      stripe_customer_id: stripeCustomer.id,
-      name: stripeCustomer.name || 'New Customer',
-      email: stripeCustomer.email || '',
-      phone: stripeCustomer.phone || '',
-      address_line1: stripeCustomer.address?.line1 || '',
-      address_line2: stripeCustomer.address?.line2 || '',
-      address_city: stripeCustomer.address?.city || '',
-      address_postal_code: stripeCustomer.address?.postal_code || '',
-      address_country: stripeCustomer.address?.country || '',
-      metadata: stripeCustomer.metadata || {}
-    };
+      // Prepare customer data for our database
+      const customerData = {
+        stripe_customer_id: stripeCustomer.id,
+        name: stripeCustomer.name || 'New Customer',
+        email: stripeCustomer.email || '',
+        phone: stripeCustomer.phone || '',
+        address_line1: stripeCustomer.address?.line1 || '',
+        address_line2: stripeCustomer.address?.line2 || '',
+        address_city: stripeCustomer.address?.city || '',
+        address_postal_code: stripeCustomer.address?.postal_code || '',
+        address_country: stripeCustomer.address?.country || '',
+        metadata: stripeCustomer.metadata || {}
+      };
 
-    // If shipping address exists, use it instead of billing address
-    if (stripeCustomer.shipping && stripeCustomer.shipping.address) {
-      customerData.address_line1 = stripeCustomer.shipping.address.line1 || customerData.address_line1;
-      customerData.address_line2 = stripeCustomer.shipping.address.line2 || customerData.address_line2;
-      customerData.address_city = stripeCustomer.shipping.address.city || customerData.address_city;
-      customerData.address_postal_code = stripeCustomer.shipping.address.postal_code || customerData.address_postal_code;
-      customerData.address_country = stripeCustomer.shipping.address.country || customerData.address_country;
-    }
+      // If shipping address exists, use it instead of billing address
+      if (stripeCustomer.shipping && stripeCustomer.shipping.address) {
+        customerData.address_line1 = stripeCustomer.shipping.address.line1 || customerData.address_line1;
+        customerData.address_line2 = stripeCustomer.shipping.address.line2 || customerData.address_line2;
+        customerData.address_city = stripeCustomer.shipping.address.city || customerData.address_city;
+        customerData.address_postal_code = stripeCustomer.shipping.address.postal_code || customerData.address_postal_code;
+        customerData.address_country = stripeCustomer.shipping.address.country || customerData.address_country;
+      }
 
-    // Check if customer already exists in our database
-    const { data: existingCustomer, error: fetchError } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('stripe_customer_id', customerId)
-      .single();
-
-    let result;
-    if (existingCustomer) {
-      // Update existing customer
-      result = await supabase
+      // Check if customer already exists in our database
+      const { data: existingCustomer, error: fetchError } = await supabase
         .from('customers')
-        .update(customerData)
-        .eq('id', existingCustomer.id)
-        .select()
+        .select('*')
+        .eq('stripe_customer_id', customerId)
         .single();
-    } else {
-      // Create new customer
-      result = await supabase
-        .from('customers')
-        .insert([customerData])
-        .select()
-        .single();
-    }
 
-    if (result.error) {
-      throw result.error;
-    }
+      let result;
+      let isUpdate = false;
+      
+      if (existingCustomer) {
+        // Update existing customer
+        isUpdate = true;
+        result = await supabase
+          .from('customers')
+          .update(customerData)
+          .eq('id', existingCustomer.id)
+          .select()
+          .single();
+      } else {
+        // Create new customer
+        result = await supabase
+          .from('customers')
+          .insert([customerData])
+          .select()
+          .single();
+      }
 
-    return NextResponse.json(result.data);
+      if (result.error) {
+        throw result.error;
+      }
+
+      // Return the customer data with a flag indicating if it was an update
+      return NextResponse.json({
+        ...result.data,
+        isUpdate
+      });
+    } catch (stripeError) {
+      // Handle Stripe API errors specifically
+      if (stripeError.type === 'StripeInvalidRequestError') {
+        return NextResponse.json({ 
+          error: 'Invalid Stripe customer ID. Please check and try again.' 
+        }, { status: 400 });
+      }
+      throw stripeError;
+    }
   } catch (error) {
     console.error('Error handling customer fetch:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch customer data' }, { status: 500 });
