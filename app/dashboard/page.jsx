@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { fetchOrders, fetchOrderStats, fetchRecentActivity } from "../utils/supabase-client";
 import DeliveryStats from "../components/DeliveryStats";
+import TrackedOrdersTable from "../components/TrackedOrdersTable";
 import TestOrderModal from "../components/TestOrderModal";
 import { useEffect, useState } from "react";
+import "../styles/dashboard.css";
 
 export default function Dashboard() {
   const [orders, setOrders] = useState([]);
@@ -85,6 +87,9 @@ export default function Dashboard() {
 
             {/* Delivery Stats */}
             <DeliveryStats />
+
+            {/* Tracked Orders Table */}
+            <TrackedOrdersTable />
 
             {/* Recent Orders */}
             <div className="card">

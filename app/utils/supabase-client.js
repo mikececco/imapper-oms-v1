@@ -487,4 +487,35 @@ export async function fetchRecentActivity() {
     console.error('Error fetching recent activity:', error);
     return [];
   }
+}
+
+// Fetch tracked orders with SendCloud status
+export async function fetchTrackedOrders(limit = 10) {
+  try {
+    // Get orders with tracking links
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .not('tracking_link', 'is', null)
+      .not('tracking_link', 'eq', 'Empty label')
+      .order('last_delivery_status_check', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error('Error fetching tracked orders:', error);
+      return [];
+    }
+    
+    // Calculate instruction for each order and ensure customer_name is set
+    const ordersWithInstructions = data.map(order => ({
+      ...order,
+      instruction: calculateOrderInstruction(order),
+      customer_name: order.name || 'Unknown Customer'
+    }));
+    
+    return ordersWithInstructions || [];
+  } catch (error) {
+    console.error('Exception fetching tracked orders:', error);
+    return [];
+  }
 } 

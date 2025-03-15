@@ -1,0 +1,100 @@
+/* Tracked Orders Table */
+.tracked-orders-card {
+  margin-bottom: 2rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+.tracked-orders-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.tracked-orders-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.tracked-orders-refresh {
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tracked-orders-refresh:hover {
+  background-color: #e0e0e0;
+}
+
+.tracked-orders-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tracked-orders-table th,
+.tracked-orders-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.tracked-orders-table th {
+  font-weight: 600;
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.tracked-orders-table tr:last-child td {
+  border-bottom: none;
+}
+
+.tracked-orders-status {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-delivered {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-transit {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.status-pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-unknown {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.tracked-orders-empty {
+  text-align: center;
+  padding: 2rem 0;
+  color: #666;
+}
+
+.tracked-orders-loading {
+  text-align: center;
+  padding: 2rem 0;
+  color: #666;
+} 
