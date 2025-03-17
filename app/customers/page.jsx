@@ -82,12 +82,20 @@ export default function CustomersPage() {
 
   const filteredCustomers = customers.filter(customer => {
     const searchLower = searchTerm.toLowerCase();
-    return (
-      customer.name?.toLowerCase().includes(searchLower) ||
-      customer.email?.toLowerCase().includes(searchLower) ||
-      customer.phone?.toLowerCase().includes(searchLower) ||
-      customer.address_city?.toLowerCase().includes(searchLower) ||
-      customer.address_country?.toLowerCase().includes(searchLower)
+    const searchableFields = [
+      customer.name,
+      customer.email,
+      customer.phone,
+      customer.address_line1,
+      customer.address_line2,
+      customer.address_city,
+      customer.address_postal_code,
+      customer.address_country,
+      customer.stripe_customer_id
+    ].filter(Boolean); // Remove null/undefined values
+
+    return searchableFields.some(field => 
+      field.toLowerCase().includes(searchLower)
     );
   });
 
