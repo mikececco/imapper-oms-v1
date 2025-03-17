@@ -143,7 +143,12 @@ export function calculateOrderInstruction(order) {
   
   // Check conditions for each instruction value
   
-  // 1. DELIVERED
+  // 1. NO ACTION REQUIRED - if tracking link is present
+  if (!isEmpty(tracking_link)) {
+    return 'NO ACTION REQUIRED';
+  }
+  
+  // 2. DELIVERED
   if (
     !isEmpty(delivery_status) &&
     paid === true &&
@@ -153,7 +158,7 @@ export function calculateOrderInstruction(order) {
     return 'DELIVERED';
   }
   
-  // 2. SHIPPED
+  // 3. SHIPPED
   if (
     !isEmpty(delivery_status) &&
     delivery_status !== 'Ready to send' &&
@@ -165,7 +170,7 @@ export function calculateOrderInstruction(order) {
     return 'SHIPPED';
   }
   
-  // 3. TO BE SHIPPED BUT NO STICKER
+  // 4. TO BE SHIPPED BUT NO STICKER
   if (
     isEmpty(delivery_status) &&
     paid === true &&
@@ -197,18 +202,7 @@ export function calculateOrderInstruction(order) {
     return 'DO NOT SHIP';
   }
   
-  // 7. NO ACTION REQUIRED
-  if (
-    !isEmpty(tracking_link) &&
-    paid === true &&
-    !isEmpty(stripe_customer_id) &&
-    !isEmpty(shipping_id) &&
-    delivery_status !== 'Delivered'
-  ) {
-    return 'NO ACTION REQUIRED';
-  }
-  
-  // 8. Default: ACTION REQUIRED
+  // 7. Default: ACTION REQUIRED
   return 'ACTION REQUIRED';
 }
 

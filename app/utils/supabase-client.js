@@ -193,46 +193,6 @@ export async function searchOrders(query) {
   }
 }
 
-// Helper function to update order instruction based on order data
-export async function updateOrderInstruction(orderId) {
-  try {
-    // First, get the current order data
-    const { data: order, error: fetchError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', orderId)
-      .single();
-    
-    if (fetchError) {
-      console.error('Error fetching order for instruction update:', fetchError);
-      return { success: false, error: fetchError };
-    }
-    
-    // Calculate the instruction based on the order data
-    const instruction = calculateOrderInstruction(order);
-    
-    // Update the order with the calculated instruction
-    const { data, error } = await supabase
-      .from('orders')
-      .update({ 
-        instruction: instruction,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderId)
-      .select();
-    
-    if (error) {
-      console.error('Error updating order instruction:', error);
-      return { success: false, error };
-    }
-    
-    return { success: true, data };
-  } catch (e) {
-    console.error('Exception updating order instruction:', e);
-    return { success: false, error: e };
-  }
-}
-
 // Update order status
 export async function updateOrderStatus(orderId, status) {
   try {
@@ -247,9 +207,6 @@ export async function updateOrderStatus(orderId, status) {
       console.error('Error updating order status:', error);
       return { success: false, error };
     }
-    
-    // After updating the status, update the instruction
-    await updateOrderInstruction(orderId);
     
     return { success: true, status: data.status };
   } catch (error) {
@@ -289,9 +246,6 @@ export async function updatePaymentStatus(orderId) {
       return { success: false, error };
     }
     
-    // After updating the payment status, update the instruction
-    await updateOrderInstruction(orderId);
-    
     return { success: true, isPaid: data.is_paid };
   } catch (error) {
     console.error('Error updating payment status:', error);
@@ -329,9 +283,6 @@ export async function updateShippingStatus(orderId) {
       console.error('Error updating shipping status:', error);
       return { success: false, error };
     }
-    
-    // After updating the shipping status, update the instruction
-    await updateOrderInstruction(orderId);
     
     return { success: true, okToShip: data.ok_to_ship };
   } catch (error) {

@@ -17,7 +17,6 @@ import { Textarea } from './ui/textarea';
 import { TableCell } from './ui/table';
 import { calculateOrderInstruction } from '../utils/order-instructions';
 import { toast } from 'react-hot-toast';
-import { updateOrderInstruction } from '../utils/supabase-client';
 
 // Create context for the OrderDetailModal
 export const OrderDetailModalContext = createContext({
@@ -253,29 +252,21 @@ export default function OrderDetailModal({ children }) {
         console.error('Error creating activity log:', activityError);
       }
       
-      // Update the instruction after creating shipping label
-      await updateOrderInstruction(order.id);
+      // Update the local order state with the new data
+      setOrder(prevOrder => ({
+        ...prevOrder,
+        ...data,
+        updated_at: new Date().toISOString()
+      }));
       
-      if (data.warning) {
-        setLabelMessage({
-          type: 'warning',
-          text: data.message || 'Shipping label created with warnings. Some features may be limited.'
-        });
-      } else {
-        setLabelMessage({
-          type: 'success',
-          text: `Shipping label created successfully! SendCloud Parcel ID: ${data.shipping_id || 'N/A'}`
-        });
-        
-        // Clear success message after 5 seconds
-        setTimeout(() => {
-          setLabelMessage(null);
-        }, 5000);
-      }
+      // Show success message
+      setLabelMessage({
+        type: 'success',
+        text: 'Shipping label created successfully!'
+      });
       
-      // Refresh the order to show the updated tracking information
-      refreshOrder();
-      
+      // Update the router cache without navigating
+      router.refresh();
     } catch (error) {
       console.error('Error creating shipping label:', error);
       setLabelMessage({

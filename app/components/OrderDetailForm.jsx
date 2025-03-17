@@ -343,17 +343,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       // Calculate new instruction based on updated data
       const newInstruction = calculateOrderInstruction(data);
       
-      // Update the instruction in the database
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ 
-          instruction: newInstruction,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', order.id);
-      
-      if (updateError) throw updateError;
-      
       // Calculate new status based on updated data
       const newStatus = calculateOrderStatus(data);
       setCalculatedStatus(newStatus);

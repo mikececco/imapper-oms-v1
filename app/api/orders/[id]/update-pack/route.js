@@ -49,21 +49,13 @@ export async function POST(request) {
       );
     }
 
-    // After updating the order pack, update the instruction
-    try {
-      await supabase.rpc('update_order_instruction', { order_id: id });
-    } catch (instructionError) {
-      console.error('Error updating order instruction:', instructionError);
-      // Continue even if instruction update fails
-    }
-
     return NextResponse.json({ 
       success: true, 
       message: 'Order pack updated successfully',
       data
     });
   } catch (error) {
-    console.error('Error in update-pack API route:', error);
+    console.error('Error in update-pack route:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
