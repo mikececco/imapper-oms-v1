@@ -342,6 +342,9 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       // Calculate new instruction based on updated data
       const newInstruction = calculateOrderInstruction(data);
       
+      // Update the instruction in the database
+      await updateOrderInstruction(data.id);
+      
       // Calculate new status based on updated data
       const newStatus = calculateOrderStatus(data);
       setCalculatedStatus(newStatus);

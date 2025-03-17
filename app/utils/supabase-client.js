@@ -173,7 +173,7 @@ export async function searchOrders(query) {
         `order_pack.ilike.%${cleanQuery}%,` +
         `order_notes.ilike.%${cleanQuery}%,` +
         `status.ilike.%${cleanQuery}%,` +
-        `shipping_instruction.ilike.%${cleanQuery}%,` +
+        `instruction.ilike.%${cleanQuery}%,` +
         `tracking_number.ilike.%${cleanQuery}%,` +
         `stripe_customer_id.ilike.%${cleanQuery}%,` +
         `stripe_invoice_id.ilike.%${cleanQuery}%`
@@ -215,7 +215,7 @@ export async function updateOrderInstruction(orderId) {
     const { data, error } = await supabase
       .from('orders')
       .update({ 
-        instruction,
+        instruction: instruction,
         updated_at: new Date().toISOString()
       })
       .eq('id', orderId)
@@ -349,23 +349,19 @@ export async function filterOrders(filters) {
     
     // Apply instruction filter
     if (filters.instruction && filters.instruction !== 'all') {
-      // For 'unknown', we need to check for null or empty values
-      if (filters.instruction === 'unknown') {
-        query = query.or('shipping_instruction.is.null,shipping_instruction.eq.');
-      } else {
-        // Convert from kebab-case to the actual values stored in the database
-        const instructionMap = {
-          'to-ship': 'TO SHIP',
-          'do-not-ship': 'DO NOT SHIP',
-          'shipped': 'SHIPPED',
-          'delivered': 'DELIVERED',
-          'to-be-shipped-but-no-sticker': 'TO BE SHIPPED BUT NO STICKER',
-          'no-action-required': 'NO ACTION REQUIRED'
-        };
-        
-        const instructionValue = instructionMap[filters.instruction] || filters.instruction;
-        query = query.eq('shipping_instruction', instructionValue);
-      }
+      // Convert from kebab-case to the actual values stored in the database
+      const instructionMap = {
+        'action-required': 'ACTION REQUIRED',
+        'to-ship': 'TO SHIP',
+        'do-not-ship': 'DO NOT SHIP',
+        'shipped': 'SHIPPED',
+        'delivered': 'DELIVERED',
+        'to-be-shipped-but-no-sticker': 'TO BE SHIPPED BUT NO STICKER',
+        'no-action-required': 'NO ACTION REQUIRED'
+      };
+      
+      const instructionValue = instructionMap[filters.instruction] || filters.instruction;
+      query = query.eq('instruction', instructionValue);
     }
     
     // Apply paid status filter

@@ -17,6 +17,7 @@ import { Textarea } from './ui/textarea';
 import { TableCell } from './ui/table';
 import { calculateOrderInstruction } from '../utils/order-instructions';
 import { toast } from 'react-hot-toast';
+import { updateOrderInstruction } from '../utils/supabase-client';
 
 // Create context for the OrderDetailModal
 export const OrderDetailModalContext = createContext({
@@ -251,6 +252,9 @@ export default function OrderDetailModal({ children }) {
       if (activityError) {
         console.error('Error creating activity log:', activityError);
       }
+      
+      // Update the instruction after creating shipping label
+      await updateOrderInstruction(order.id);
       
       if (data.warning) {
         setLabelMessage({
