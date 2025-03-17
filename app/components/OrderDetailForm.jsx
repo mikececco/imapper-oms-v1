@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../utils/supabase-client';
-import { calculateOrderInstruction, calculateOrderStatus } from '../utils/order-instructions';
+import { calculateOrderInstruction } from '../utils/order-instructions';
+import { calculateOrderStatus } from '../utils/order-instructions';
 import { fetchShippingMethods, DEFAULT_SHIPPING_METHODS } from '../utils/shipping-methods';
 import CustomOrderPackModal from './CustomOrderPackModal';
 import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
@@ -343,7 +344,15 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       const newInstruction = calculateOrderInstruction(data);
       
       // Update the instruction in the database
-      await updateOrderInstruction(data.id);
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          instruction: newInstruction,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', order.id);
+      
+      if (updateError) throw updateError;
       
       // Calculate new status based on updated data
       const newStatus = calculateOrderStatus(data);
