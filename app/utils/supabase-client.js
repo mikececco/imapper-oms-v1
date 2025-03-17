@@ -298,23 +298,6 @@ export async function filterOrders(filters) {
       .from('orders')
       .select('*');
     
-    // Apply instruction filter
-    if (filters.instruction && filters.instruction !== 'all') {
-      // Convert from kebab-case to the actual values stored in the database
-      const instructionMap = {
-        'action-required': 'ACTION REQUIRED',
-        'to-ship': 'TO SHIP',
-        'do-not-ship': 'DO NOT SHIP',
-        'shipped': 'SHIPPED',
-        'delivered': 'DELIVERED',
-        'to-be-shipped-but-no-sticker': 'TO BE SHIPPED BUT NO STICKER',
-        'no-action-required': 'NO ACTION REQUIRED'
-      };
-      
-      const instructionValue = instructionMap[filters.instruction] || filters.instruction;
-      query = query.eq('instruction', instructionValue);
-    }
-    
     // Apply paid status filter
     if (filters.paid && filters.paid !== 'all') {
       query = query.eq('paid', filters.paid === 'paid');
@@ -349,8 +332,33 @@ export async function filterOrders(filters) {
       console.error('Error filtering orders:', error);
       return [];
     }
+
+    // Calculate instruction for each order and filter by instruction if needed
+    let filteredData = data || [];
     
-    return data || [];
+    // Apply instruction filter after fetching data
+    if (filters.instruction && filters.instruction !== 'all') {
+      // Convert from kebab-case to the actual values stored in the database
+      const instructionMap = {
+        'action-required': 'ACTION REQUIRED',
+        'to-ship': 'TO SHIP',
+        'do-not-ship': 'DO NOT SHIP',
+        'shipped': 'SHIPPED',
+        'delivered': 'DELIVERED',
+        'to-be-shipped-but-no-sticker': 'TO BE SHIPPED BUT NO STICKER',
+        'no-action-required': 'NO ACTION REQUIRED'
+      };
+      
+      const instructionValue = instructionMap[filters.instruction] || filters.instruction;
+      
+      // Filter orders based on calculated instruction
+      filteredData = filteredData.filter(order => {
+        const calculatedInstruction = calculateOrderInstruction(order);
+        return calculatedInstruction === instructionValue;
+      });
+    }
+    
+    return filteredData;
   } catch (error) {
     console.error('Exception filtering orders:', error);
     return [];
