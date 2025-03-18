@@ -279,15 +279,17 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       // Find the selected order pack from the database options
       const selectedPack = orderPackLists.find(pack => pack.id === value);
       if (selectedPack) {
-        // Calculate total weight based on quantity
-        const totalWeight = (parseFloat(selectedPack.weight) * (formData.order_pack_quantity || 1)).toFixed(3);
+        const quantity = formData.order_pack_quantity || 1;
+        const baseWeight = selectedPack.weight;
+        const totalWeight = (parseFloat(baseWeight) * quantity).toFixed(3);
+        
         setFormData(prev => ({
           ...prev,
           order_pack_list_id: selectedPack.id,
           order_pack: selectedPack.value,
           order_pack_label: selectedPack.label,
           weight: totalWeight,
-          base_weight: selectedPack.weight // Store the base weight for future calculations
+          base_weight: baseWeight
         }));
       } else {
         // Reset order pack related fields if no pack is selected
@@ -297,7 +299,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           order_pack: '',
           order_pack_label: '',
           weight: '1.000',
-          base_weight: null
+          base_weight: '1.000'
         }));
       }
     } else if (name === 'order_pack_quantity') {
@@ -306,37 +308,29 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         return; // Don't update if invalid
       }
       
-      // Find the current selected pack to update weight
+      // Find the selected pack to get its base weight
       const selectedPack = orderPackLists.find(pack => pack.id === formData.order_pack_list_id);
-      if (selectedPack) {
-        // Calculate new total weight based on quantity and base weight
-        const baseWeight = formData.base_weight || selectedPack.weight;
-        const totalWeight = (parseFloat(baseWeight) * quantity).toFixed(3);
-        
-        setFormData(prev => ({
-          ...prev,
-          order_pack_quantity: quantity,
-          weight: totalWeight
-        }));
-      } else {
-        setFormData(prev => ({
-          ...prev,
-          order_pack_quantity: quantity
-        }));
-      }
+      const baseWeight = selectedPack ? selectedPack.weight : formData.base_weight || '1.000';
+      const totalWeight = (parseFloat(baseWeight) * quantity).toFixed(3);
+      
+      setFormData(prev => ({
+        ...prev,
+        order_pack_quantity: quantity,
+        weight: totalWeight,
+        base_weight: baseWeight
+      }));
     } else if (name === 'weight') {
-      const weight = parseFloat(value);
-      if (validateWeight(weight)) {
-        // When weight is manually changed, update the base weight
-        const quantity = formData.order_pack_quantity || 1;
-        const baseWeight = (weight / quantity).toFixed(3);
-        
-        setFormData(prev => ({
-          ...prev,
-          weight: weight.toFixed(3),
-          base_weight: baseWeight // Store the new base weight
-        }));
-      }
+      // Allow direct typing of weight
+      const newWeight = e.target.value.replace(',', '.');
+      
+      setFormData(prev => ({
+        ...prev,
+        weight: newWeight,
+        // Update base_weight when weight is manually changed
+        ...(newWeight && !isNaN(parseFloat(newWeight)) && {
+          base_weight: (parseFloat(newWeight) / (prev.order_pack_quantity || 1)).toFixed(3)
+        })
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -660,17 +654,44 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
             <input
               id="weight"
               name="weight"
-              type="number"
-              step="0.001"
-              min="0.001"
-              max="100.000"
-              placeholder="1.000"
+              type="text"
+              inputMode="decimal"
+              placeholder="0.000"
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('weight')}`}
               value={formData.weight}
               onChange={handleChange}
+              onBlur={(e) => {
+                const value = e.target.value.replace(',', '.');
+                const weight = parseFloat(value);
+                
+                if (!isNaN(weight) && validateWeight(weight)) {
+                  const quantity = formData.order_pack_quantity || 1;
+                  const baseWeight = (weight / quantity).toFixed(3);
+                  
+                  // Update both weight and base_weight
+                  setFormData(prev => ({
+                    ...prev,
+                    weight: weight.toFixed(3),
+                    base_weight: baseWeight
+                  }));
+                } else if (value === '') {
+                  // Reset to default weight
+                  setFormData(prev => ({
+                    ...prev,
+                    weight: '1.000',
+                    base_weight: '1.000'
+                  }));
+                } else {
+                  // Revert to previous valid value
+                  setFormData(prev => ({
+                    ...prev,
+                    weight: prev.weight
+                  }));
+                }
+              }}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Weight can be manually adjusted between 0.001 and 100.000 kg
+              Enter weight between 0.001 and 100.000 kg
             </p>
           </div>
         </div>
