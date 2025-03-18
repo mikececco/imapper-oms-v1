@@ -12,7 +12,7 @@ export async function POST(request) {
     const pathParts = url.pathname.split('/');
     const id = pathParts[pathParts.length - 2]; // Get the ID from the URL path
     
-    const { orderPack, orderPackId, orderPackLabel, weight } = await request.json();
+    const { orderPack, orderPackId, orderPackLabel, weight, order_pack_quantity } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -28,6 +28,15 @@ export async function POST(request) {
       );
     }
 
+    // Validate quantity
+    const quantity = parseInt(order_pack_quantity) || 1;
+    if (quantity < 1 || quantity > 100) {
+      return NextResponse.json(
+        { error: 'Quantity must be between 1 and 100' },
+        { status: 400 }
+      );
+    }
+
     // Update the order in Supabase
     const { data, error } = await supabase
       .from('orders')
@@ -35,6 +44,7 @@ export async function POST(request) {
         order_pack: orderPack,
         order_pack_list_id: orderPackId,
         order_pack_label: orderPackLabel,
+        order_pack_quantity: quantity,
         weight: weight,
         updated_at: new Date().toISOString()
       })

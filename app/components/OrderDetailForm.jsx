@@ -31,6 +31,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     shipping_address_country: order.shipping_address_country || '',
     order_pack: order.order_pack || '',
     order_pack_label: order.order_pack_label || '',
+    order_pack_quantity: order.order_pack_quantity || 1,
     order_notes: order.order_notes || '',
     weight: order.weight || '1.000',
     shipping_method: order.shipping_method || 'standard',
@@ -70,6 +71,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       shipping_address_country: order.shipping_address_country || '',
       order_pack: order.order_pack || '',
       order_pack_label: order.order_pack_label || '',
+      order_pack_quantity: order.order_pack_quantity || 1,
       order_notes: order.order_notes || '',
       weight: order.weight || '1.000',
       shipping_method: order.shipping_method || 'standard',
@@ -240,6 +242,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     fetchOrderPacks();
   }, [order.order_pack_list_id]);
 
+  // Add validation for quantity
+  const validateQuantity = (value) => {
+    const quantity = parseInt(value);
+    return quantity > 0 && quantity <= 100; // Limit to reasonable range
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -265,12 +273,14 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       // Find the selected order pack from the database options
       const selectedPack = orderPackLists.find(pack => pack.id === value);
       if (selectedPack) {
+        // Calculate total weight based on quantity
+        const totalWeight = (parseFloat(selectedPack.weight) * (formData.order_pack_quantity || 1)).toFixed(3);
         setFormData(prev => ({
           ...prev,
           order_pack_list_id: selectedPack.id,
           order_pack: selectedPack.value,
           order_pack_label: selectedPack.label,
-          weight: selectedPack.weight
+          weight: totalWeight
         }));
       } else {
         // Reset order pack related fields if no pack is selected
@@ -282,12 +292,37 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           weight: '1.000'
         }));
       }
+    } else if (name === 'order_pack_quantity') {
+      const quantity = parseInt(value);
+      if (!validateQuantity(quantity)) {
+        return; // Don't update if invalid
+      }
+      
+      // Find the current selected pack to update weight
+      const selectedPack = orderPackLists.find(pack => pack.id === formData.order_pack_list_id);
+      if (selectedPack) {
+        // Calculate new total weight based on quantity
+        const totalWeight = (parseFloat(selectedPack.weight) * quantity).toFixed(3);
+        setFormData(prev => ({
+          ...prev,
+          order_pack_quantity: quantity,
+          weight: totalWeight
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          order_pack_quantity: quantity
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value
       }));
     }
+    
+    // Mark form as modified
+    setIsFormModified(true);
   };
 
   const handleSaveCustomPack = (customValue) => {
@@ -549,7 +584,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       <div className="space-y-2">
         <h3 className="font-medium text-black">Order Details</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label htmlFor="order_pack_list_id" className="text-sm font-medium block">
               Order Pack List
@@ -573,6 +608,25 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
             </select>
             <p className="text-xs text-gray-500 mt-1">
               Required for creating shipping labels
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="order_pack_quantity" className="text-sm font-medium block">
+              Quantity
+            </label>
+            <input
+              type="number"
+              id="order_pack_quantity"
+              name="order_pack_quantity"
+              min="1"
+              max="100"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('order_pack_quantity')}`}
+              value={formData.order_pack_quantity}
+              onChange={handleChange}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Enter a quantity between 1 and 100
             </p>
           </div>
           

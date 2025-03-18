@@ -478,6 +478,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                   <TableHead className="text-black w-[120px]">Phone</TableHead>
                   <TableHead className="text-black w-[200px]">Address</TableHead>
                   <TableHead className="text-black w-[400px]">Order Pack</TableHead>
+                  <TableHead className="text-black w-[80px]">Quantity</TableHead>
                   <TableHead className="text-black w-[150px]">Notes</TableHead>
                   <TableHead className="text-black w-[80px]">Weight</TableHead>
                   <TableHead className="text-black w-[80px]">Paid?</TableHead>
@@ -653,6 +654,40 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                             order={order}
                             orderId={order.id}
                             onUpdate={handleOrderUpdate}
+                          />
+                        </TableCell>
+                        <TableCell className="w-[80px]">
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={order.order_pack_quantity || 1}
+                            onChange={async (e) => {
+                              const quantity = parseInt(e.target.value);
+                              if (quantity >= 1 && quantity <= 100) {
+                                // Find the order pack to calculate new weight
+                                const { data: orderPacks } = await supabase
+                                  .from('order_pack_lists')
+                                  .select('*')
+                                  .eq('id', order.order_pack_list_id)
+                                  .single();
+                                
+                                if (orderPacks) {
+                                  const totalWeight = (parseFloat(orderPacks.weight) * quantity).toFixed(3);
+                                  handleOrderUpdate({
+                                    ...order,
+                                    order_pack_quantity: quantity,
+                                    weight: totalWeight
+                                  });
+                                } else {
+                                  handleOrderUpdate({
+                                    ...order,
+                                    order_pack_quantity: quantity
+                                  });
+                                }
+                              }
+                            }}
+                            className="w-16 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                           />
                         </TableCell>
                         <TableCell className="enhanced-table-cell-truncate w-[150px]">{order.order_notes || 'N/A'}</TableCell>

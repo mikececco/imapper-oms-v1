@@ -269,6 +269,10 @@ export function OrderPackDropdown({ order, orderId, onUpdate }) {
     setIsUpdating(true);
     
     try {
+      // Calculate total weight based on quantity
+      const quantity = order.order_pack_quantity || 1;
+      const totalWeight = (parseFloat(selectedPack.weight) * quantity).toFixed(3);
+
       const response = await fetch(`/api/orders/${orderId}/update-pack`, {
         method: 'POST',
         headers: {
@@ -278,7 +282,8 @@ export function OrderPackDropdown({ order, orderId, onUpdate }) {
           orderPack: selectedPack.value,
           orderPackId: selectedPack.id,
           orderPackLabel: selectedPack.label,
-          weight: selectedPack.weight
+          weight: totalWeight,
+          order_pack_quantity: quantity
         }),
       });
       
@@ -296,7 +301,8 @@ export function OrderPackDropdown({ order, orderId, onUpdate }) {
           order_pack: selectedPack.value,
           order_pack_list_id: selectedPack.id,
           order_pack_label: selectedPack.label,
-          weight: selectedPack.weight,
+          weight: totalWeight,
+          order_pack_quantity: quantity,
           updated_at: new Date().toISOString()
         };
         
@@ -354,6 +360,10 @@ export function OrderPackDropdown({ order, orderId, onUpdate }) {
 
       if (insertError) throw insertError;
 
+      // Calculate total weight based on quantity
+      const quantity = order.order_pack_quantity || 1;
+      const totalWeight = (parseFloat(newPack.weight) * quantity).toFixed(3);
+
       // Then update the order with the new pack
       const response = await fetch(`/api/orders/${orderId}/update-pack`, {
         method: 'POST',
@@ -364,7 +374,8 @@ export function OrderPackDropdown({ order, orderId, onUpdate }) {
           orderPack: newPack.value,
           orderPackId: newPack.id,
           orderPackLabel: newPack.label,
-          weight: newPack.weight
+          weight: totalWeight,
+          order_pack_quantity: quantity
         }),
       });
       
@@ -381,7 +392,8 @@ export function OrderPackDropdown({ order, orderId, onUpdate }) {
           order_pack: newPack.value,
           order_pack_list_id: newPack.id,
           order_pack_label: newPack.label,
-          weight: newPack.weight,
+          weight: totalWeight,
+          order_pack_quantity: quantity,
           updated_at: new Date().toISOString()
         };
         
