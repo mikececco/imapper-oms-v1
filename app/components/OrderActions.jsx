@@ -269,9 +269,18 @@ export function OrderPackDropdown({ order, orderId, onUpdate }) {
     setIsUpdating(true);
     
     try {
-      // Calculate total weight based on quantity
+      // Calculate total weight based on quantity only if weight hasn't been manually edited
       const quantity = order.order_pack_quantity || 1;
-      const totalWeight = (parseFloat(selectedPack.weight) * quantity).toFixed(3);
+      // If the weight divided by quantity equals the previous pack's base weight,
+      // it means the weight hasn't been manually edited
+      const currentWeight = parseFloat(order.weight || '1.000');
+      const previousPack = orderPackLists.find(pack => pack.id === order.order_pack_list_id);
+      const weightWasEdited = previousPack && (currentWeight / quantity).toFixed(3) !== previousPack.weight.toFixed(3);
+      
+      // Only update weight if it wasn't manually edited
+      const totalWeight = weightWasEdited 
+        ? currentWeight.toFixed(3)
+        : (parseFloat(selectedPack.weight) * quantity).toFixed(3);
 
       const response = await fetch(`/api/orders/${orderId}/update-pack`, {
         method: 'POST',

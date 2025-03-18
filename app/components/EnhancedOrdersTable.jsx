@@ -673,7 +673,16 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                                   .single();
                                 
                                 if (orderPacks) {
-                                  const totalWeight = (parseFloat(orderPacks.weight) * quantity).toFixed(3);
+                                  // Check if weight was manually edited
+                                  const currentWeight = parseFloat(order.weight || '1.000');
+                                  const previousQuantity = order.order_pack_quantity || 1;
+                                  const weightWasEdited = (currentWeight / previousQuantity).toFixed(3) !== orderPacks.weight.toFixed(3);
+                                  
+                                  // Only update weight if it wasn't manually edited
+                                  const totalWeight = weightWasEdited
+                                    ? ((currentWeight / previousQuantity) * quantity).toFixed(3)
+                                    : (parseFloat(orderPacks.weight) * quantity).toFixed(3);
+
                                   handleOrderUpdate({
                                     ...order,
                                     order_pack_quantity: quantity,
@@ -692,7 +701,24 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         </TableCell>
                         <TableCell className="enhanced-table-cell-truncate w-[150px]">{order.order_notes || 'N/A'}</TableCell>
                         <TableCell className="w-[80px]">
-                          <span>{order.weight || '1.000'} kg</span>
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0.001"
+                            max="100.000"
+                            value={order.weight || '1.000'}
+                            onChange={async (e) => {
+                              const weight = parseFloat(e.target.value).toFixed(3);
+                              if (weight >= 0.001 && weight <= 100.000) {
+                                handleOrderUpdate({
+                                  ...order,
+                                  weight: weight
+                                });
+                              }
+                            }}
+                            className="w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                          />
+                          <span className="ml-1">kg</span>
                         </TableCell>
                         <TableCell className="w-[80px]">
                           <PaymentBadge 

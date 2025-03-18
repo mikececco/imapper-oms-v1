@@ -301,8 +301,16 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       // Find the current selected pack to update weight
       const selectedPack = orderPackLists.find(pack => pack.id === formData.order_pack_list_id);
       if (selectedPack) {
-        // Calculate new total weight based on quantity
-        const totalWeight = (parseFloat(selectedPack.weight) * quantity).toFixed(3);
+        // Check if weight was manually edited
+        const currentWeight = parseFloat(formData.weight || '1.000');
+        const previousQuantity = formData.order_pack_quantity || 1;
+        const weightWasEdited = (currentWeight / previousQuantity).toFixed(3) !== selectedPack.weight.toFixed(3);
+        
+        // Only update weight if it wasn't manually edited
+        const totalWeight = weightWasEdited
+          ? ((currentWeight / previousQuantity) * quantity).toFixed(3)
+          : (parseFloat(selectedPack.weight) * quantity).toFixed(3);
+
         setFormData(prev => ({
           ...prev,
           order_pack_quantity: quantity,
@@ -312,6 +320,14 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         setFormData(prev => ({
           ...prev,
           order_pack_quantity: quantity
+        }));
+      }
+    } else if (name === 'weight') {
+      const weight = parseFloat(value);
+      if (weight >= 0.001 && weight <= 100.000) {
+        setFormData(prev => ({
+          ...prev,
+          weight: weight.toFixed(3)
         }));
       }
     } else {
@@ -637,15 +653,17 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
             <input
               id="weight"
               name="weight"
-              type="text"
+              type="number"
+              step="0.001"
+              min="0.001"
+              max="100.000"
               placeholder="1.000"
-              className="w-full px-3 py-2 border rounded-md bg-gray-50 cursor-not-allowed"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('weight')}`}
               value={formData.weight}
-              readOnly
-              disabled
+              onChange={handleChange}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Weight is automatically set from the selected order pack and cannot be modified.
+              Weight can be manually adjusted between 0.001 and 100.000 kg
             </p>
           </div>
         </div>
