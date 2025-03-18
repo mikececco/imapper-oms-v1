@@ -650,75 +650,20 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                           </div>
                         </TableCell>
                         <TableCell className="w-[400px]">
-                          <OrderPackDropdown 
-                            order={order}
-                            orderId={order.id}
-                            onUpdate={handleOrderUpdate}
-                          />
+                          <div className="text-sm">
+                            {order.order_pack || 'N/A'}
+                          </div>
                         </TableCell>
                         <TableCell className="w-[80px]">
-                          <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={order.order_pack_quantity || 1}
-                            onChange={async (e) => {
-                              const quantity = parseInt(e.target.value);
-                              if (quantity >= 1 && quantity <= 100) {
-                                // Find the order pack to calculate new weight
-                                const { data: orderPacks } = await supabase
-                                  .from('order_pack_lists')
-                                  .select('*')
-                                  .eq('id', order.order_pack_list_id)
-                                  .single();
-                                
-                                if (orderPacks) {
-                                  // Check if weight was manually edited
-                                  const currentWeight = parseFloat(order.weight || '1.000');
-                                  const previousQuantity = order.order_pack_quantity || 1;
-                                  const weightWasEdited = (currentWeight / previousQuantity).toFixed(3) !== orderPacks.weight.toFixed(3);
-                                  
-                                  // Only update weight if it wasn't manually edited
-                                  const totalWeight = weightWasEdited
-                                    ? ((currentWeight / previousQuantity) * quantity).toFixed(3)
-                                    : (parseFloat(orderPacks.weight) * quantity).toFixed(3);
-
-                                  handleOrderUpdate({
-                                    ...order,
-                                    order_pack_quantity: quantity,
-                                    weight: totalWeight
-                                  });
-                                } else {
-                                  handleOrderUpdate({
-                                    ...order,
-                                    order_pack_quantity: quantity
-                                  });
-                                }
-                              }
-                            }}
-                            className="w-16 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                          />
+                          <div className="text-sm">
+                            {order.order_pack_quantity || 1}
+                          </div>
                         </TableCell>
                         <TableCell className="enhanced-table-cell-truncate w-[150px]">{order.order_notes || 'N/A'}</TableCell>
                         <TableCell className="w-[80px]">
-                          <input
-                            type="number"
-                            step="0.001"
-                            min="0.001"
-                            max="100.000"
-                            value={order.weight || '1.000'}
-                            onChange={async (e) => {
-                              const weight = parseFloat(e.target.value).toFixed(3);
-                              if (weight >= 0.001 && weight <= 100.000) {
-                                handleOrderUpdate({
-                                  ...order,
-                                  weight: weight
-                                });
-                              }
-                            }}
-                            className="w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                          />
-                          <span className="ml-1">kg</span>
+                          <div className="text-sm">
+                            {order.weight || '1.000'} kg
+                          </div>
                         </TableCell>
                         <TableCell className="w-[80px]">
                           <PaymentBadge 

@@ -248,6 +248,12 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     return quantity > 0 && quantity <= 100; // Limit to reasonable range
   };
 
+  // Add validation for weight
+  const validateWeight = (value) => {
+    const weight = parseFloat(value);
+    return weight >= 0.001 && weight <= 100.000;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -280,7 +286,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           order_pack_list_id: selectedPack.id,
           order_pack: selectedPack.value,
           order_pack_label: selectedPack.label,
-          weight: totalWeight
+          weight: totalWeight,
+          base_weight: selectedPack.weight // Store the base weight for future calculations
         }));
       } else {
         // Reset order pack related fields if no pack is selected
@@ -289,7 +296,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           order_pack_list_id: '',
           order_pack: '',
           order_pack_label: '',
-          weight: '1.000'
+          weight: '1.000',
+          base_weight: null
         }));
       }
     } else if (name === 'order_pack_quantity') {
@@ -301,16 +309,10 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       // Find the current selected pack to update weight
       const selectedPack = orderPackLists.find(pack => pack.id === formData.order_pack_list_id);
       if (selectedPack) {
-        // Check if weight was manually edited
-        const currentWeight = parseFloat(formData.weight || '1.000');
-        const previousQuantity = formData.order_pack_quantity || 1;
-        const weightWasEdited = (currentWeight / previousQuantity).toFixed(3) !== selectedPack.weight.toFixed(3);
+        // Calculate new total weight based on quantity and base weight
+        const baseWeight = formData.base_weight || selectedPack.weight;
+        const totalWeight = (parseFloat(baseWeight) * quantity).toFixed(3);
         
-        // Only update weight if it wasn't manually edited
-        const totalWeight = weightWasEdited
-          ? ((currentWeight / previousQuantity) * quantity).toFixed(3)
-          : (parseFloat(selectedPack.weight) * quantity).toFixed(3);
-
         setFormData(prev => ({
           ...prev,
           order_pack_quantity: quantity,
@@ -324,10 +326,15 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       }
     } else if (name === 'weight') {
       const weight = parseFloat(value);
-      if (weight >= 0.001 && weight <= 100.000) {
+      if (validateWeight(weight)) {
+        // When weight is manually changed, update the base weight
+        const quantity = formData.order_pack_quantity || 1;
+        const baseWeight = (weight / quantity).toFixed(3);
+        
         setFormData(prev => ({
           ...prev,
-          weight: weight.toFixed(3)
+          weight: weight.toFixed(3),
+          base_weight: baseWeight // Store the new base weight
         }));
       }
     } else {
