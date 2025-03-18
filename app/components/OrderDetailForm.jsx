@@ -34,7 +34,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     order_pack_quantity: order.order_pack_quantity || 1,
     order_notes: order.order_notes || '',
     weight: order.weight || '1.000',
-    package_weight: order.package_weight || '1.000',
     shipping_method: order.shipping_method || 'standard',
     tracking_link: order.tracking_link || '',
     tracking_number: order.tracking_number || '',
@@ -76,7 +75,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       order_pack_quantity: order.order_pack_quantity || 1,
       order_notes: order.order_notes || '',
       weight: order.weight || '1.000',
-      package_weight: order.package_weight || '1.000',
       shipping_method: order.shipping_method || 'standard',
       tracking_link: order.tracking_link || '',
       tracking_number: order.tracking_number || '',
@@ -223,12 +221,15 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         if (order.order_pack_list_id) {
           const selectedPack = data?.find(pack => pack.id === order.order_pack_list_id);
           if (selectedPack) {
+            const quantity = order.order_pack_quantity || 1;
+            const totalWeight = (parseFloat(selectedPack.weight) * quantity).toFixed(3);
+            
             setFormData(prev => ({
               ...prev,
               order_pack_list_id: selectedPack.id,
               order_pack: selectedPack.value,
               order_pack_label: selectedPack.label,
-              weight: selectedPack.weight
+              weight: totalWeight
             }));
           }
         }
@@ -284,16 +285,14 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       const selectedPack = orderPackLists.find(pack => pack.id === value);
       if (selectedPack) {
         const quantity = formData.order_pack_quantity || 1;
-        const packageWeight = selectedPack.weight;
-        const totalWeight = (parseFloat(packageWeight) * quantity).toFixed(3);
+        const totalWeight = (parseFloat(selectedPack.weight) * quantity).toFixed(3);
         
         setFormData(prev => ({
           ...prev,
           order_pack_list_id: selectedPack.id,
           order_pack: selectedPack.value,
           order_pack_label: selectedPack.label,
-          weight: totalWeight,
-          package_weight: packageWeight
+          weight: totalWeight
         }));
       } else {
         // Reset order pack related fields if no pack is selected
@@ -302,8 +301,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           order_pack_list_id: '',
           order_pack: '',
           order_pack_label: '',
-          weight: '1.000',
-          package_weight: '1.000'
+          weight: '1.000'
         }));
       }
     } else if (name === 'order_pack_quantity') {
@@ -312,29 +310,47 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         return; // Don't update if invalid
       }
       
-      // Find the selected pack to get its package weight
+      // Find the selected pack to get its weight
       const selectedPack = orderPackLists.find(pack => pack.id === formData.order_pack_list_id);
-      const packageWeight = selectedPack ? selectedPack.weight : formData.package_weight || '1.000';
-      const totalWeight = (parseFloat(packageWeight) * quantity).toFixed(3);
-      
-      setFormData(prev => ({
-        ...prev,
-        order_pack_quantity: quantity,
-        weight: totalWeight,
-        package_weight: packageWeight
-      }));
+      if (selectedPack) {
+        // If we have a selected pack, calculate total weight
+        const packWeight = selectedPack.weight;
+        const totalWeight = (parseFloat(packWeight) * quantity).toFixed(3);
+        
+        setFormData(prev => ({
+          ...prev,
+          order_pack_quantity: quantity,
+          weight: totalWeight
+        }));
+      } else {
+        // If no pack is selected, keep current weight
+        setFormData(prev => ({
+          ...prev,
+          order_pack_quantity: quantity
+        }));
+      }
     } else if (name === 'weight') {
       // Allow direct typing of weight
       const newWeight = e.target.value.replace(',', '.');
       
-      setFormData(prev => ({
-        ...prev,
-        weight: newWeight,
-        // Update package_weight when weight is manually changed
-        ...(newWeight && !isNaN(parseFloat(newWeight)) && {
-          package_weight: (parseFloat(newWeight) / (prev.order_pack_quantity || 1)).toFixed(3)
-        })
-      }));
+      if (!isNaN(parseFloat(newWeight)) && validateWeight(parseFloat(newWeight))) {
+        setFormData(prev => ({
+          ...prev,
+          weight: newWeight
+        }));
+      } else if (newWeight === '') {
+        // Reset to default weight
+        setFormData(prev => ({
+          ...prev,
+          weight: '1.000'
+        }));
+      } else {
+        // Revert to previous valid value
+        setFormData(prev => ({
+          ...prev,
+          weight: prev.weight
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
