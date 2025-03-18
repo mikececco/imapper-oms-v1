@@ -40,6 +40,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     tracking_number: order.tracking_number || '',
     shipping_id: order.shipping_id || '',
     order_pack_list_id: order.order_pack_list_id || '',
+    serial_number: order.serial_number || '',
   });
   
   const [calculatedStatus, setCalculatedStatus] = useState(calculateOrderStatus(order));
@@ -81,6 +82,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       tracking_number: order.tracking_number || '',
       shipping_id: order.shipping_id || '',
       order_pack_list_id: order.order_pack_list_id || '',
+      serial_number: order.serial_number || '',
     };
     
     setFormData(initialData);
@@ -860,6 +862,21 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
               value={formData.tracking_number}
               onChange={handleChange}
               placeholder="Enter tracking number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent mt-1"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="serial_number" className="text-sm font-medium block">
+              Serial Number
+            </label>
+            <input
+              type="text"
+              id="serial_number"
+              name="serial_number"
+              value={formData.serial_number}
+              onChange={handleChange}
+              placeholder="Enter serial number"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent mt-1"
             />
           </div>
