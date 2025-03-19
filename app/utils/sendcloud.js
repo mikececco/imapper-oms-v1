@@ -258,10 +258,47 @@ export async function fetchShippingDetails(shippingId) {
   }
 }
 
+// Utility function for base64 encoding that works in Node.js
+function base64Encode(str) {
+  return Buffer.from(str).toString('base64');
+}
+
+export async function fetchSendCloudParcelTrackingUrl(parcelId) {
+  try {
+    const credentials = `${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(credentials);
+    const base64Credentials = btoa(String.fromCharCode(...new Uint8Array(data)));
+
+    const response = await fetch(`https://panel.sendcloud.sc/api/v2/parcels/${parcelId}`, {
+      headers: {
+        'Authorization': `Basic ${base64Credentials}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch parcel from SendCloud');
+    }
+
+    const responseData = await response.json();
+    
+    if (responseData.parcel && responseData.parcel.tracking_url) {
+      return responseData.parcel.tracking_url;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error fetching SendCloud parcel tracking URL:', error);
+    return null;
+  }
+}
+
 export default {
   extractTrackingNumber,
   fetchDeliveryStatus,
   updateOrderDeliveryStatus,
   batchUpdateDeliveryStatus,
-  fetchShippingDetails
+  fetchShippingDetails,
+  fetchSendCloudParcelTrackingUrl
 }; 

@@ -36,7 +36,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     weight: order.weight || '1.000',
     shipping_method: order.shipping_method || 'standard',
     tracking_link: order.tracking_link || '',
-    tracking_number: order.tracking_number || '',
     shipping_id: order.shipping_id || '',
     order_pack_list_id: order.order_pack_list_id || '',
     serial_number: order.serial_number || '',
@@ -77,7 +76,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       weight: order.weight || '1.000',
       shipping_method: order.shipping_method || 'standard',
       tracking_link: order.tracking_link || '',
-      tracking_number: order.tracking_number || '',
       shipping_id: order.shipping_id || '',
       order_pack_list_id: order.order_pack_list_id || '',
       serial_number: order.serial_number || '',
@@ -757,11 +755,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
             <label htmlFor="status" className="text-sm font-medium block mb-2">
               Order Status
             </label>
-            <div className={`order-status ${(order.status && order.status !== 'pending' ? order.status : calculatedStatus)?.toLowerCase().replace(/\s+/g, '-') || 'unknown'} p-2 rounded`}>
-              {order.status && order.status !== 'pending' ? order.status : calculatedStatus || 'EMPTY'}
+            <div className={`order-status ${(order.status ? order.status : calculatedStatus)?.toLowerCase().replace(/\s+/g, '-') || 'unknown'} p-2 rounded`}>
+              {order.status ? order.status : calculatedStatus || 'Unknown'}
             </div>
             <div className="text-xs text-gray-500 mt-1 flex justify-between items-center">
-              <span>{order.status && order.status !== 'pending' ? 'Status from SendCloud tracking' : 'Calculated based on order state and SendCloud status.'}</span>
+              <span>{order.status ? 'Status from SendCloud tracking' : 'No status available'}</span>
               {order.updated_at && (
                 <span>Last update: {new Date(order.updated_at).toLocaleString()}</span>
               )}
@@ -868,21 +866,39 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
                 </a>
               )}
             </div>
-          </div>
+            {formData.shipping_id && !formData.tracking_link && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`/api/orders/fetch-tracking-link?shippingId=${formData.shipping_id}`, {
+                      method: 'GET',
+                    });
 
-          <div>
-            <label htmlFor="tracking_number" className="text-sm font-medium block">
-              Tracking Number
-            </label>
-            <input
-              type="text"
-              id="tracking_number"
-              name="tracking_number"
-              value={formData.tracking_number}
-              onChange={handleChange}
-              placeholder="Enter tracking number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent mt-1"
-            />
+                    if (!response.ok) {
+                      throw new Error('Failed to fetch tracking link');
+                    }
+
+                    const data = await response.json();
+                    if (data.tracking_url) {
+                      setFormData(prev => ({
+                        ...prev,
+                        tracking_link: data.tracking_url
+                      }));
+                      toast.success('Tracking link updated successfully');
+                    } else {
+                      toast.error('No tracking link available');
+                    }
+                  } catch (error) {
+                    console.error('Error fetching tracking link:', error);
+                    toast.error('Failed to fetch tracking link');
+                  }
+                }}
+                className="mt-2 w-full px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+              >
+                Fetch Tracking Link from SendCloud
+              </button>
+            )}
           </div>
 
           <div>
