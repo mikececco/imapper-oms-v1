@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { fetchShippingDetails } from '../../../utils/sendcloud';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../../utils/env';
 
-// Create a Supabase client for the server
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize Supabase client with environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Only create the client if we have the required values
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 export async function GET(request) {
   try {
+    // Check if Supabase client is initialized
+    if (!supabase) {
+      throw new Error('Database connection not available');
+    }
+
     const { searchParams } = new URL(request.url);
     const shippingId = searchParams.get('shippingId');
 
