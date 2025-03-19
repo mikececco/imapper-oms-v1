@@ -23,6 +23,11 @@
   color: #065f46;
 }
 
+.order-status.shipped {
+  background-color: #86efac;
+  color: #166534;
+}
+
 .order-status.in-transit,
 .order-status.out-for-delivery {
   background-color: #dbeafe;
@@ -35,9 +40,34 @@
   color: #b91c1c;
 }
 
+.order-status.paste-back-tracking-link {
+  background-color: #fdba74;
+  color: #9a3412;
+}
+
 .order-status.unknown {
   background-color: #e5e7eb;
   color: #4b5563;
+}
+
+/* Shipping instruction styles */
+.shipping-instruction {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.shipping-instruction.shipped {
+  background-color: #86efac;
+  color: #166534;
+}
+
+.shipping-instruction.paste-back-tracking-link {
+  background-color: #fdba74;
+  color: #9a3412;
 }
 
 /* ===== Enhanced Table Styles ===== */

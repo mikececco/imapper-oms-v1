@@ -77,6 +77,7 @@ export default function OrderFilters({ onFilterChange }) {
               <option value="action-required">ACTION REQUIRED</option>
               <option value="to-ship">TO SHIP</option>
               <option value="to-be-shipped-but-no-sticker">TO BE SHIPPED BUT NO STICKER</option>
+              <option value="paste-back-tracking-link">PASTE BACK TRACKING LINK</option>
               <option value="do-not-ship">DO NOT SHIP</option>
               <option value="shipped">SHIPPED</option>
               <option value="delivered">DELIVERED</option>

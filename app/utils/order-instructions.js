@@ -18,7 +18,13 @@
  *    - Tracking link is not "Empty label"
  *    - Tracking link exists
  * 
- * 3. TO BE SHIPPED BUT NO STICKER:
+ * 3. PASTE BACK TRACKING LINK:
+ *    - Has shipping_id or tracking_number
+ *    - No tracking link
+ *    - Payment is successful
+ *    - Order is ok to ship
+ * 
+ * 4. TO BE SHIPPED BUT NO STICKER:
  *    - Delivery status is empty
  *    - Payment is successful
  *    - Stripe customer exists
@@ -27,28 +33,28 @@
  *      - Tracking link is empty
  *      - Tracking link doesn't start with "https"
  * 
- * 4. TO BE SHIPPED BUT WRONG TRACKING LINK:
+ * 5. TO BE SHIPPED BUT WRONG TRACKING LINK:
  *    - Delivery status is empty
  *    - Payment is successful
  *    - Stripe customer exists
  *    - Tracking link is not "Empty label"
  *    - Tracking link exists
  * 
- * 5. TO SHIP:
+ * 6. TO SHIP:
  *    - Delivery status is 'Ready to send'
  *    - Payment is successful
  *    - Stripe customer exists
  *    - Tracking link exists
  * 
- * 6. DO NOT SHIP:
+ * 7. DO NOT SHIP:
  *    - Tracking link is "Empty label"
  *    - Payment is not successful
  *    - Delivery status is empty
  * 
- * 7. ACTION REQUIRED:
+ * 8. ACTION REQUIRED:
  *    - Default value if none of the above conditions are met
  * 
- * 8. EMPTY:
+ * 9. EMPTY:
  *    - Tracking link is empty or doesn't exist
  */
 
@@ -134,75 +140,93 @@ export function calculateOrderInstruction(order) {
   
   // Extract values from order
   const {
-    delivery_status,
+    status,
     paid,
-    stripe_customer_id,
     tracking_link,
-    shipping_id
+    shipping_id,
+    tracking_number,
+    ok_to_ship,
+    order_pack
   } = order;
   
   // Check conditions for each instruction value
   
   // 1. NO ACTION REQUIRED - if tracking link is present
-  if (!isEmpty(tracking_link)) {
+  if (
+    !isEmpty(tracking_link) &&
+    paid === true &&
+    ok_to_ship === true &&
+    status === "pending" && 
+    !isEmpty(order_pack)
+  ) {
     return 'NO ACTION REQUIRED';
   }
-  
-  // 2. DELIVERED
+
+  // 2. PASTE BACK TRACKING LINK - if has shipping ID or tracking number but no tracking link
   if (
-    !isEmpty(delivery_status) &&
+    (!isEmpty(shipping_id) ||
+    !isEmpty(tracking_number)) &&
+    isEmpty(tracking_link) &&
     paid === true &&
-    !isEmpty(stripe_customer_id) &&
-    delivery_status === 'Delivered'
+    ok_to_ship === true &&
+    !isEmpty(order_pack)
+  ) {
+    return 'PASTE BACK TRACKING LINK';
+  }
+  
+  // 3. DELIVERED
+  if (
+    status !== "pending" &&
+    paid === true &&
+    status === 'Delivered'
   ) {
     return 'DELIVERED';
   }
   
-  // 3. SHIPPED
+  // 4. SHIPPED
   if (
-    !isEmpty(delivery_status) &&
-    delivery_status !== 'Ready to send' &&
+    status !== "pending" &&
+    status !== 'Ready to send' &&
     paid === true &&
-    !isEmpty(stripe_customer_id) &&
-    delivery_status !== 'Delivered' &&
+    status !== 'Delivered' &&
     !isEmpty(tracking_link)
   ) {
     return 'SHIPPED';
   }
   
-  // 4. TO BE SHIPPED BUT NO STICKER
+  // 5. TO BE SHIPPED BUT NO STICKER
   if (
-    isEmpty(delivery_status) &&
-    paid === true &&
-    !isEmpty(stripe_customer_id) &&
-    (
-      isEmpty(tracking_link) ||
-      (tracking_link && !tracking_link.trim().toLowerCase().startsWith("https"))
-    )
+    status === "pending" &&
+    paid === true && 
+    ok_to_ship === true &&
+    isEmpty(tracking_link) &&
+    isEmpty(shipping_id) &&
+    isEmpty(tracking_number) &&
+    !isEmpty(order_pack)
   ) {
     return 'TO BE SHIPPED BUT NO STICKER';
   }
   
-  // 5. TO SHIP
+  // 6. TO SHIP
   if (
-    delivery_status === 'Ready to send' &&
+    status === 'Ready to send' &&
     paid === true &&
-    !isEmpty(stripe_customer_id) &&
-    !isEmpty(tracking_link)
+    !isEmpty(tracking_link) && 
+    !isEmpty(order_pack)
   ) {
     return 'TO SHIP';
   }
   
-  // 6. DO NOT SHIP
+  // 7. DO NOT SHIP
   if (
     !isEmpty(tracking_link) &&
     paid === false &&
-    isEmpty(delivery_status)
+    status === "pending"
   ) {
     return 'DO NOT SHIP';
   }
   
-  // 7. Default: ACTION REQUIRED
+  // 8. Default: ACTION REQUIRED
   return 'ACTION REQUIRED';
 }
 
@@ -218,7 +242,7 @@ export function calculateOrderStatus(order) {
   // Extract values from order
   const {
     tracking_link,
-    delivery_status
+    status
   } = order;
   
   // If tracking link is empty, return EMPTY status
@@ -227,8 +251,8 @@ export function calculateOrderStatus(order) {
   }
   
   // If delivery status is available from SendCloud, use it
-  if (!isEmpty(delivery_status)) {
-    return delivery_status.toUpperCase();
+  if (!status === "pending") {
+    return status.toUpperCase();
   }
   
   // Default status when tracking link exists but no delivery status yet

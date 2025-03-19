@@ -505,6 +505,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                       if (instruction === 'NO ACTION REQUIRED') return 'bg-green-200 hover:bg-green-300';
                       if (instruction === 'ACTION REQUIRED') return 'bg-red-100 hover:bg-red-200';
                       if (instruction === 'TO BE SHIPPED BUT NO STICKER') return 'bg-orange-400/20 hover:bg-orange-400/30';
+                      if (instruction === 'PASTE BACK TRACKING LINK') return 'bg-orange-600/20 hover:bg-orange-500/30';
                       return '';
                     };
                     
