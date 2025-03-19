@@ -2,19 +2,13 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { fetchShippingDetails } from '../../../utils/sendcloud';
 
-// Initialize Supabase client with environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-// Only create the client if we have the required values
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
-
 export async function GET(request) {
   try {
-    // Check if Supabase client is initialized
-    if (!supabase) {
-      throw new Error('Database connection not available');
-    }
+    // Initialize Supabase client with environment variables
+    const supabase = createClient(
+      process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
 
     const { searchParams } = new URL(request.url);
     const shippingId = searchParams.get('shippingId');
@@ -27,7 +21,11 @@ export async function GET(request) {
     const shippingDetails = await fetchShippingDetails(shippingId);
 
     if (!shippingDetails.success || !shippingDetails.trackingUrl) {
-      return NextResponse.json({ error: 'Failed to fetch tracking URL from SendCloud' }, { status: 404 });
+      console.error('SendCloud API error:', shippingDetails.error || 'No tracking URL available');
+      return NextResponse.json({ 
+        error: 'Failed to fetch tracking URL from SendCloud',
+        details: shippingDetails.error 
+      }, { status: 404 });
     }
 
     // Update the order with the tracking URL
@@ -42,13 +40,20 @@ export async function GET(request) {
       .single();
 
     if (orderError) {
+      console.error('Database update error:', orderError);
       throw orderError;
     }
 
-    return NextResponse.json({ tracking_url: shippingDetails.trackingUrl });
+    return NextResponse.json({ 
+      success: true,
+      tracking_url: shippingDetails.trackingUrl 
+    });
 
   } catch (error) {
     console.error('Error fetching tracking link:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.message,
+      details: error.toString()
+    }, { status: 500 });
   }
 } 
