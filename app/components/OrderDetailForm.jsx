@@ -755,14 +755,17 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         <div className="space-y-4">
           <div>
             <label htmlFor="status" className="text-sm font-medium block mb-2">
-              Delivery Status (From SendCloud)
+              Order Status
             </label>
-            <div className={`order-status ${calculatedStatus?.toLowerCase().replace(/\s+/g, '-') || 'unknown'} p-2 rounded`}>
-              {calculatedStatus || 'EMPTY'}
+            <div className={`order-status ${(order.status && order.status !== 'pending' ? order.status : calculatedStatus)?.toLowerCase().replace(/\s+/g, '-') || 'unknown'} p-2 rounded`}>
+              {order.status && order.status !== 'pending' ? order.status : calculatedStatus || 'EMPTY'}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Status from SendCloud when tracking link is present.
-            </p>
+            <div className="text-xs text-gray-500 mt-1 flex justify-between items-center">
+              <span>{order.status && order.status !== 'pending' ? 'Status from SendCloud tracking' : 'Calculated based on order state and SendCloud status.'}</span>
+              {order.updated_at && (
+                <span>Last update: {new Date(order.updated_at).toLocaleString()}</span>
+              )}
+            </div>
           </div>
 
           <div>

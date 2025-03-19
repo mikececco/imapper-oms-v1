@@ -168,30 +168,27 @@ async function fetchSendCloudParcelStatus(trackingNumber) {
     // Prepare the SendCloud API credentials
     const auth = Buffer.from(`${sendCloudApiKey}:${sendCloudApiSecret}`).toString('base64');
     
-    // Fetch the parcel from SendCloud
-    const response = await fetch(`https://panel.sendcloud.sc/api/v2/parcels?tracking_number=${trackingNumber}`, {
+    // Use the SendCloud tracking API endpoint instead of parcels endpoint
+    const response = await fetch(`https://panel.sendcloud.sc/api/v2/tracking/${trackingNumber}`, {
       method: 'GET',
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/json'
-      }
+      },
+      // Add these options for Node.js environment
+      cache: 'no-store',
+      next: { revalidate: 0 }
     });
+    
+    if (!response.ok) {
+      console.error('SendCloud API error:', response.status, response.statusText);
+      return null;
+    }
     
     const data = await response.json();
     
-    if (!response.ok) {
-      console.error('SendCloud API error:', data);
-      return null;
-    }
-    
-    // Check if parcels were found
-    if (!data.parcels || data.parcels.length === 0) {
-      return null;
-    }
-    
-    // Get the status of the first parcel
-    const parcel = data.parcels[0];
-    return parcel.status.message || 'Unknown';
+    // Return the status from the tracking endpoint
+    return data.status?.message || data.status || 'Unknown';
     
   } catch (error) {
     console.error('Error fetching SendCloud parcel status:', error);

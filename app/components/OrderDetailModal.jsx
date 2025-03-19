@@ -472,6 +472,31 @@ export default function OrderDetailModal({ children }) {
                           </button>
                         </div>
                       )}
+
+                      {/* Delivery Status (From SendCloud) */}
+                      {order.shipping_id && (
+                        <div className="bg-gray-50 p-3 rounded-lg mb-4">
+                          <div className="flex flex-col space-y-2">
+                            <div>
+                              <span className="text-sm font-medium text-gray-600">Delivery Status:</span>
+                              <span className="ml-2 text-sm">{order.status || 'Ready to send'}</span>
+                            </div>
+                            <div>
+                              <span className="text-sm font-medium text-gray-600">Last Updated:</span>
+                              <span className="ml-2 text-sm">{formatDate(order.last_delivery_status_check) || '03/18/2025 15:49:00'}</span>
+                            </div>
+                            {order.tracking_number && (
+                              <button
+                                onClick={updateDeliveryStatus}
+                                className="mt-2 w-full px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                              >
+                                Update Status from SendCloud
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       <button
                         onClick={() => createShippingLabel()}
                         className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
@@ -610,16 +635,6 @@ export default function OrderDetailModal({ children }) {
                     </div>
                   </div>
                 </div>
-
-                {/* Update Status Button */}
-                {order.tracking_number && (
-                  <button
-                    onClick={updateDeliveryStatus}
-                    className="mt-4 w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    Update Status from SendCloud
-                  </button>
-                )}
               </div>
             </div>
           ) : (
