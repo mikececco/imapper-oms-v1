@@ -19,5 +19,9 @@
       "src": "/api/(.*)",
       "dest": "/api/$1"
     }
-  ]
+  ],
+  "crons": [{
+    "path": "/api/cron/check-sendcloud-status",
+    "schedule": "0 * * * *"
+  }]
 } 
