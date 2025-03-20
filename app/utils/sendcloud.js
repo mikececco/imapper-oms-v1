@@ -295,11 +295,60 @@ export async function fetchSendCloudParcelTrackingUrl(parcelId) {
   }
 }
 
+export async function createReturnLabel(order) {
+  try {
+    const response = await fetch('https://panel.sendcloud.sc/api/v2/returns', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.SENDCLOUD_PUBLIC_KEY}:${process.env.SENDCLOUD_SECRET_KEY}`
+        ).toString('base64')}`,
+      },
+      body: JSON.stringify({
+        parcel: {
+          name: order.name,
+          address: order.address,
+          city: order.city,
+          postal_code: order.postal_code,
+          country: order.country,
+          request_label: true,
+          order_number: order.id.toString(),
+          email: order.email,
+          telephone: order.phone || '',
+          weight: '1.000', // Default weight in kg
+          is_return: true,
+          shipment: {
+            id: order.shipping_id,
+            tracking_number: order.tracking_number
+          }
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error.message || 'Failed to create return label');
+    }
+
+    const data = await response.json();
+    return {
+      label_url: data.parcel.label.label_printer,
+      tracking_number: data.parcel.tracking_number,
+      tracking_url: data.parcel.tracking_url
+    };
+  } catch (error) {
+    console.error('SendCloud API Error:', error);
+    throw error;
+  }
+}
+
 export default {
   extractTrackingNumber,
   fetchDeliveryStatus,
   updateOrderDeliveryStatus,
   batchUpdateDeliveryStatus,
   fetchShippingDetails,
-  fetchSendCloudParcelTrackingUrl
+  fetchSendCloudParcelTrackingUrl,
+  createReturnLabel
 }; 
