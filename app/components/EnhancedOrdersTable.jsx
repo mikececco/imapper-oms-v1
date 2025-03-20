@@ -585,7 +585,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                               transition: 'all 0.2s ease'
                             }}
                           >
-                            Open
+                            Update
                           </button>
                         </TableCell>
                         <TableCell className={`w-[90px] sticky left-[130px] ${
