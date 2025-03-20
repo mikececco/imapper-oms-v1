@@ -131,6 +131,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const [hoveredDeleteId, setHoveredDeleteId] = useState(null);
   const [hoveredOrderId, setHoveredOrderId] = useState(null);
   const [copiedOrderId, setCopiedOrderId] = useState(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const { openModal } = useOrderDetailModal();
@@ -439,6 +440,30 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       });
   };
 
+  const handleUpdateDeliveryStatus = async () => {
+    try {
+      setIsUpdatingStatus(true);
+      const response = await fetch('/api/scheduled-tasks?task=delivery-status', {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update delivery statuses');
+      }
+      
+      const data = await response.json();
+      toast.success('Delivery statuses updated successfully');
+      
+      // Refresh the orders
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Error updating delivery statuses:', error);
+      toast.error('Failed to update delivery statuses');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -471,7 +496,9 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                   <TableHead className="text-black w-[90px] sticky left-[130px]">
                     Important
                   </TableHead>
-                  <TableHead className="text-black w-[150px] first-non-sticky-column">INSTRUCTION</TableHead>
+                  <TableHead className="text-black w-[150px] first-non-sticky-column">
+                    INSTRUCTION
+                  </TableHead>
                   <TableHead className="text-black w-[60px]">ID</TableHead>
                   <TableHead className="text-black w-[150px]">Name</TableHead>
                   <TableHead className="text-black w-[180px]">Email</TableHead>

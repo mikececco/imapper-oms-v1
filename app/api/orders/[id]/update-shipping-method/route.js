@@ -41,14 +41,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Failed to update shipping method' }, { status: 500 });
     }
     
-    // After updating the shipping method, update the instruction
-    try {
-      await supabase.rpc('update_order_instruction', { order_id: id });
-    } catch (instructionError) {
-      console.error('Error updating order instruction:', instructionError);
-      // Continue even if instruction update fails
-    }
-    
     return NextResponse.json({ 
       success: true, 
       message: 'Shipping method updated successfully',

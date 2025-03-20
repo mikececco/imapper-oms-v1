@@ -15,6 +15,7 @@ export default function Navigation() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Handle window resize to detect mobile view
   useEffect(() => {
@@ -49,6 +50,30 @@ export default function Navigation() {
     document.cookie = 'authenticated=false; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     toast.success('Logged out successfully');
     router.push('/auth');
+  };
+
+  const handleUpdateDeliveryStatus = async () => {
+    try {
+      setIsUpdatingStatus(true);
+      const response = await fetch('/api/scheduled-tasks?task=delivery-status', {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update delivery statuses');
+      }
+      
+      const data = await response.json();
+      toast.success('Delivery statuses updated successfully');
+      
+      // Refresh the page
+      router.refresh();
+    } catch (error) {
+      console.error('Error updating delivery statuses:', error);
+      toast.error('Failed to update delivery statuses');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
   };
 
   return (

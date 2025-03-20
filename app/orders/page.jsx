@@ -11,6 +11,7 @@ import NewOrderModal from "../components/NewOrderModal";
 import { calculateOrderInstruction } from "../utils/order-instructions";
 import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
 import "./orders.css";
+import { toast } from "react-hot-toast";
 
 export default function Orders() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function Orders() {
   const [activeCountry, setActiveCountry] = useState('all');
   const [isMounted, setIsMounted] = useState(false);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Get search query from URL parameters using useSearchParams hook
   const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
@@ -151,6 +153,30 @@ export default function Orders() {
     loadOrders();
   };
 
+  const handleUpdateDeliveryStatus = async () => {
+    try {
+      setIsUpdatingStatus(true);
+      const response = await fetch('/api/scheduled-tasks?task=delivery-status', {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update delivery statuses');
+      }
+      
+      const data = await response.json();
+      toast.success('Delivery statuses updated successfully');
+      
+      // Refresh the orders list
+      loadOrders();
+    } catch (error) {
+      console.error('Error updating delivery statuses:', error);
+      toast.error('Failed to update delivery statuses');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   return (
     <div className="container">
       <header className="orders-header flex justify-between items-center">
@@ -182,12 +208,33 @@ export default function Orders() {
             </p>
           )}
         </div>
-        <button 
-          onClick={() => setIsNewOrderModalOpen(true)}
-          className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
-        >
-          New Order
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleUpdateDeliveryStatus}
+            disabled={isUpdatingStatus}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            {isUpdatingStatus ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                Updating...
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Update Delivery Statuses
+              </>
+            )}
+          </button>
+          <button 
+            onClick={() => setIsNewOrderModalOpen(true)}
+            className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
+          >
+            New Order
+          </button>
+        </div>
       </header>
 
       <OrderSearch />
