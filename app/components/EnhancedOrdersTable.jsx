@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { StatusBadge, PaymentBadge, ShippingToggle, OrderPackDropdown, StatusSelector, ImportantFlag } from "./OrderActions";
+import { StatusBadge, PaymentStatus, ShippingStatus, OrderPackDropdown, StatusSelector, ImportantFlag } from "./OrderActions";
 import ShippingMethodDropdown from "./ShippingMethodDropdown";
 import { useOrderDetailModal } from "./OrderDetailModal";
 import { calculateOrderInstruction } from "../utils/order-instructions";
@@ -694,17 +694,13 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                           </div>
                         </TableCell>
                         <TableCell className="w-[80px]">
-                          <PaymentBadge 
+                          <PaymentStatus 
                             isPaid={order.paid} 
-                            orderId={order.id}
-                            onUpdate={handleOrderUpdate}
                           />
                         </TableCell>
                         <TableCell className="w-[100px]">
-                          <ShippingToggle 
+                          <ShippingStatus 
                             okToShip={order.ok_to_ship} 
-                            orderId={order.id}
-                            onUpdate={handleOrderUpdate}
                           />
                         </TableCell>
                         <TableCell className="w-[180px]">{formatDate(order.created_at)}</TableCell>

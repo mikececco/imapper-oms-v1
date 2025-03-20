@@ -527,4 +527,38 @@ export function ImportantFlag({ isImportant, orderId, onUpdate }) {
       </svg>
     </button>
   );
+}
+
+// New component for displaying payment status without edit functionality
+export function PaymentStatus({ isPaid }) {
+  return (
+    <span 
+      className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${
+        isPaid 
+          ? 'bg-green-500'
+          : 'bg-red-500'
+      } text-white`}
+    >
+      {isPaid ? 'PAID' : 'UNPAID'}
+    </span>
+  );
+}
+
+// New component for displaying shipping status without edit functionality
+export function ShippingStatus({ okToShip }) {
+  return (
+    <label className="toggle-switch" style={{ pointerEvents: 'none' }}>
+      <input 
+        type="checkbox" 
+        checked={okToShip} 
+        readOnly
+      />
+      <span 
+        className="toggle-slider" 
+        style={{ 
+          backgroundColor: okToShip ? '#22c55e' : '#ef4444'
+        }}
+      ></span>
+    </label>
+  );
 } 
