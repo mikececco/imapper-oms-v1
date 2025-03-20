@@ -103,6 +103,23 @@ export async function updateOrderDeliveryStatus(orderId) {
         };
       } else {
         console.warn(`Failed to fetch shipping details using shipping_id: ${shippingDetails.error}`);
+        
+        // If the error is 404, the shipping ID is invalid and should be removed
+        if (shippingDetails.error.includes('404')) {
+          console.log(`Removing invalid shipping_id ${order.shipping_id} from order ${orderId}`);
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+              shipping_id: null,
+              last_delivery_status_check: new Date().toISOString()
+            })
+            .eq('id', orderId);
+          
+          if (updateError) {
+            console.error('Error removing invalid shipping_id:', updateError);
+          }
+        }
+        
         // Fall back to using tracking number if shipping_id fails
       }
     }
