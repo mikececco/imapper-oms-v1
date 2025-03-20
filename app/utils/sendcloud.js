@@ -184,11 +184,13 @@ export async function updateOrderDeliveryStatus(orderId) {
 export async function batchUpdateDeliveryStatus(limit = 50) {
   try {
     // Get orders with tracking links that haven't been checked recently
+    // and are not already marked as delivered
     const { data: orders, error: fetchError } = await supabase
       .from('orders')
-      .select('id, tracking_link')
+      .select('id, tracking_link, status')
       .not('tracking_link', 'is', null)
       .not('tracking_link', 'eq', 'Empty label')
+      .not('status', 'eq', 'delivered')
       .or('last_delivery_status_check.is.null,last_delivery_status_check.lt.' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .limit(limit);
     
