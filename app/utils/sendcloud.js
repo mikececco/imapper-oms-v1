@@ -133,7 +133,7 @@ export async function updateOrderDeliveryStatus(orderId) {
     const { error: updateError } = await supabase
       .from('orders')
       .update({
-        status: shippingDetails.parcel.status.id,
+        status: shippingDetails.parcel.status.message,
         last_delivery_status_check: new Date().toISOString()
       })
       .eq('id', orderId);
@@ -148,7 +148,7 @@ export async function updateOrderDeliveryStatus(orderId) {
       deliveryStatus: shippingDetails.parcel.status.message,
       order: {
         id: orderId,
-        status: shippingDetails.parcel.status.id,
+        status: shippingDetails.parcel.status.message,
         last_delivery_status_check: new Date().toISOString()
       }
     };
@@ -171,9 +171,9 @@ export async function batchUpdateDeliveryStatus(limit = 50) {
       .from('orders')
       .select('id, tracking_link, status')
       .not('tracking_link', 'is', null)
-      .not('tracking_link', 'eq', 'Empty label')
+      // .not('tracking_link', 'eq', 'Empty label')
       .not('status', 'eq', 'delivered')
-      .or('last_delivery_status_check.is.null,last_delivery_status_check.lt.' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      // .or('last_delivery_status_check.is.null,last_delivery_status_check.lt.' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .limit(limit);
     
     if (fetchError) {
