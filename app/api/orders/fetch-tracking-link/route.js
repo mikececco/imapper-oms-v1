@@ -15,6 +15,7 @@ export async function GET(request) {
       }, { status: 500 });
     }
 
+    
     // Initialize Supabase client with environment variables
     const supabase = createClient(supabaseUrl, supabaseKey);
 
