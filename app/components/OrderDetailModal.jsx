@@ -58,7 +58,9 @@ const formatCombinedAddress = (order, isMounted = false) => {
   // Check if we have individual address components
   if (order.shipping_address_line1 || order.shipping_address_city || order.shipping_address_postal_code || order.shipping_address_country) {
     const addressParts = [
-      order.shipping_address_line1,
+      order.shipping_address_line1 && order.shipping_address_house_number 
+        ? `${order.shipping_address_line1} ${order.shipping_address_house_number}`
+        : order.shipping_address_line1,
       order.shipping_address_line2,
       order.shipping_address_city,
       order.shipping_address_postal_code,
