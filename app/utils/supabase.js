@@ -673,7 +673,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_for_display: shippingAddressForDisplay,
       order_pack: '', // Empty by default, to be filled by admin
       order_notes: orderNotes,
-      instruction: 'TO SHIP', // Default shipping instruction
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
       customer_id: customerId,
@@ -694,7 +693,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_country: shippingAddressCountry,
       order_pack: '', // Empty by default, to be filled by admin
       order_notes: orderNotes,
-      instruction: 'TO SHIP', // Default shipping instruction for new orders
       status: 'pending',
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
