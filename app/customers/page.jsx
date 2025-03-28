@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { fetchCustomers } from '../utils/supabase';
 import { formatDate } from '../utils/helpers';
 import Link from 'next/link';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import CustomerDetailsModal from '../components/CustomerDetailsModal';
 import EditCustomerModal from '../components/EditCustomerModal';
@@ -20,6 +20,8 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('stripe');
+  const [isBulkFetching, setIsBulkFetching] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -80,6 +82,70 @@ export default function CustomersPage() {
     }
   };
 
+  const handleFetchHubSpotOwner = async (customerId) => {
+    try {
+      const response = await fetch(`/api/customers/fetch-hubspot-owner?customerId=${customerId}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch HubSpot owner');
+      }
+
+      // Refresh the customers list
+      await loadCustomers();
+      toast.success('HubSpot owner updated successfully!');
+    } catch (error) {
+      console.error('Error fetching HubSpot owner:', error);
+      toast.error(error.message || 'Failed to fetch HubSpot owner');
+    }
+  };
+
+  const handleBulkFetchHubSpotOwners = async () => {
+    const customersToUpdate = activeTab === 'stripe' ? stripeCustomers : sendcloudCustomers;
+    
+    if (customersToUpdate.length === 0) {
+      toast.error('No customers to update');
+      return;
+    }
+
+    setIsBulkFetching(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const customer of customersToUpdate) {
+        try {
+          const response = await fetch(`/api/customers/fetch-hubspot-owner?customerId=${customer.id}`);
+          const data = await response.json();
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            errorCount++;
+            console.error(`Failed to fetch HubSpot owner for customer ${customer.id}:`, data.error);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error processing customer ${customer.id}:`, error);
+        }
+      }
+
+      // Refresh the customers list
+      await loadCustomers();
+
+      if (errorCount === 0) {
+        toast.success(`Successfully updated HubSpot owners for ${successCount} customers`);
+      } else {
+        toast.error(`Updated ${successCount} customers, ${errorCount} failed`);
+      }
+    } catch (error) {
+      console.error('Error in bulk fetch:', error);
+      toast.error('Failed to complete bulk update');
+    } finally {
+      setIsBulkFetching(false);
+    }
+  };
+
   const filteredCustomers = customers.filter(customer => {
     const searchLower = searchTerm.toLowerCase();
     const searchableFields = [
@@ -98,6 +164,9 @@ export default function CustomersPage() {
       field.toLowerCase().includes(searchLower)
     );
   });
+
+  const stripeCustomers = filteredCustomers.filter(customer => customer.stripe_customer_id);
+  const sendcloudCustomers = filteredCustomers.filter(customer => !customer.stripe_customer_id);
 
   const handleViewCustomer = (customer) => {
     setSelectedCustomer(customer);
@@ -155,17 +224,55 @@ export default function CustomersPage() {
               }}
             />
           </div>
-          <button
-            onClick={() => setShowStripeImport(!showStripeImport)}
-            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Add from Stripe
-          </button>
+          <div className="flex items-center gap-2">
+            {activeTab === 'stripe' && (
+              <button
+                onClick={() => setShowStripeImport(!showStripeImport)}
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Add from Stripe
+              </button>
+            )}
+            <button
+              onClick={handleBulkFetchHubSpotOwners}
+              disabled={isBulkFetching}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-400"
+            >
+              <RefreshCw className={`h-4 w-4 ${isBulkFetching ? 'animate-spin' : ''}`} />
+              {isBulkFetching ? 'Fetching...' : 'Fetch HubSpot Owners'}
+            </button>
+          </div>
         </div>
       </div>
 
-      {showStripeImport && (
+      {/* Tabs */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('stripe')}
+            className={`${
+              activeTab === 'stripe'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            Stripe Customers ({stripeCustomers.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('sendcloud')}
+            className={`${
+              activeTab === 'sendcloud'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            SendCloud Customers ({sendcloudCustomers.length})
+          </button>
+        </nav>
+      </div>
+
+      {showStripeImport && activeTab === 'stripe' && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <h2 className="text-lg font-medium mb-3">Import Customer from Stripe</h2>
           <p className="text-sm text-gray-600 mb-3">
@@ -205,78 +312,100 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
-        </div>
-      ) : (
+      {/* Customer List */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border border-gray-200">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="py-3 px-4 text-left font-medium text-gray-600 uppercase tracking-wider border-b">Actions</th>
-                <th className="py-3 px-4 text-left font-medium text-gray-600 uppercase tracking-wider border-b">Name</th>
-                <th className="py-3 px-4 text-left font-medium text-gray-600 uppercase tracking-wider border-b">Email</th>
-                <th className="py-3 px-4 text-left font-medium text-gray-600 uppercase tracking-wider border-b">Phone</th>
-                <th className="py-3 px-4 text-left font-medium text-gray-600 uppercase tracking-wider border-b">Location</th>
-                <th className="py-3 px-4 text-left font-medium text-gray-600 uppercase tracking-wider border-b">Created</th>
-                <th className="py-3 px-4 text-left font-medium text-gray-600 uppercase tracking-wider border-b">Updated</th>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HubSpot Owner</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredCustomers.length > 0 ? (
-                filteredCustomers.map((customer) => (
-                  <tr 
-                    key={customer.id} 
-                    className="border-b hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-2">
+            <tbody className="bg-white divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-2 text-center">
+                    <div className="flex justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black"></div>
+                    </div>
+                  </td>
+                </tr>
+              ) : (activeTab === 'stripe' ? stripeCustomers : sendcloudCustomers).length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-2 text-center text-gray-500">
+                    No {activeTab === 'stripe' ? 'Stripe' : 'SendCloud'} customers found
+                  </td>
+                </tr>
+              ) : (
+                (activeTab === 'stripe' ? stripeCustomers : sendcloudCustomers).map((customer) => (
+                  <tr key={customer.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleViewCustomer(customer)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        View
+                      </button>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{customer.email}</div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{customer.phone}</div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="text-sm text-gray-500 max-w-xs truncate">
+                        {[
+                          customer.address_line1,
+                          customer.address_line2,
+                          customer.address_city,
+                          customer.address_postal_code,
+                          customer.address_country
+                        ].filter(Boolean).join(', ')}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <div className="text-sm text-gray-500">
+                          {customer.hubspot_owner || 'Not assigned'}
+                        </div>
                         <button
-                          onClick={() => handleViewCustomer(customer)}
-                          className="text-gray-600 hover:text-gray-900 transition-colors px-3 py-1 rounded hover:bg-gray-100"
+                          onClick={() => handleFetchHubSpotOwner(customer.id)}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          title="Fetch HubSpot owner"
                         >
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleEditCustomer(customer)}
-                          className="bg-blue-600 text-white hover:bg-blue-700 transition-colors px-3 py-1 rounded"
-                        >
-                          Edit
+                          <RefreshCw className="h-3 w-3" />
                         </button>
                       </div>
                     </td>
-                    <td className="py-3 px-4">{customer.name || 'N/A'}</td>
-                    <td className="py-3 px-4">{customer.email || 'N/A'}</td>
-                    <td className="py-3 px-4">{customer.phone || 'N/A'}</td>
-                    <td className="py-3 px-4">
-                      {customer.address_city && customer.address_country
-                        ? `${customer.address_city}, ${customer.address_country}`
-                        : customer.address_city || customer.address_country || 'N/A'}
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{formatDate(customer.created_at)}</div>
                     </td>
-                    <td className="py-3 px-4">{formatDate(customer.created_at)}</td>
-                    <td className="py-3 px-4">{formatDate(customer.updated_at)}</td>
                   </tr>
                 ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="py-4 px-4 text-center text-gray-500">
-                    {searchTerm ? 'No customers found matching your search.' : 'No customers found.'}
-                  </td>
-                </tr>
               )}
             </tbody>
           </table>
         </div>
-      )}
+      </div>
 
-      {/* Customer Details Modal */}
-      <CustomerDetailsModal
-        isOpen={isDetailsModalOpen}
-        onClose={handleCloseDetailsModal}
-        customer={selectedCustomer}
-        onUpdate={handleCustomerUpdate}
-      />
+      {selectedCustomer && (
+        <CustomerDetailsModal
+          customer={selectedCustomer}
+          isOpen={isDetailsModalOpen}
+          onClose={handleCloseDetailsModal}
+          onUpdate={handleCustomerUpdate}
+        />
+      )}
 
       {/* Edit Customer Modal */}
       {isEditModalOpen && selectedCustomer && (

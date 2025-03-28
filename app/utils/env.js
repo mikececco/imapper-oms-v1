@@ -66,6 +66,10 @@ export const SENDCLOUD_API_SECRET = getEnvVar('SENDCLOUD_API_SECRET',
 export const API_URL = getEnvVar('NEXT_PUBLIC_API_URL',
   !isBuildTime ? (process.env.NEXT_PUBLIC_API_URL || '') : 'build-placeholder');
 
+// HubSpot Configuration
+export const HUBSPOT_API_KEY = getEnvVar('HUBSPOT_API_KEY',
+  !isBuildTime ? (process.env.HUBSPOT_API_KEY || '') : 'build-placeholder');
+
 // Environment
 export const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 export const IS_PRODUCTION = process.env.NODE_ENV === 'production';
