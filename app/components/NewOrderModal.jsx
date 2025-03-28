@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
+import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
 
 export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
   const [customers, setCustomers] = useState([]);
@@ -92,14 +93,13 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
-    // Special handling for country field to normalize it
+    
+    // Special handling for country field
     if (name === 'shipping_address_country') {
-      // Convert to uppercase and normalize to country code
-      const normalizedValue = normalizeCountryToCode(value.trim());
+      // Convert to uppercase and store
       setFormData(prev => ({
         ...prev,
-        [name]: normalizedValue || value.trim().toUpperCase()
+        [name]: value.trim().toUpperCase()
       }));
     } else {
       setFormData(prev => ({
@@ -583,13 +583,22 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Country</label>
+            <label className="block text-sm font-medium mb-1">
+              Country Code (e.g. FR, GB, US)
+            </label>
             <Input
               name="shipping_address_country"
               value={formData.shipping_address_country}
               onChange={handleInputChange}
+              placeholder="Enter 2-letter country code"
+              maxLength={2}
               required
             />
+            {formData.shipping_address_country && COUNTRY_MAPPING[formData.shipping_address_country.toUpperCase()] && (
+              <p className="mt-1 text-sm text-gray-600">
+                {getCountryDisplayName(formData.shipping_address_country.toUpperCase())}
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end space-x-2 pt-4 sticky bottom-0 bg-white border-t py-4">
