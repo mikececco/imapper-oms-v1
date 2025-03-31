@@ -396,20 +396,13 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     Object.keys(formData).forEach(key => {
       if (formData[key] !== originalFormData[key]) {
         updatedFields[key] = formData[key];
-        // Log every detected change
-        console.log(`Field changed: ${key}, Old: "${originalFormData[key]}", New: "${formData[key]}"`);
-
         // Check if the changed field is an address field
         if (addressFields.includes(key)) {
-          // Log if it's specifically an address field change
-          console.log(`--> Address field changed: ${key}`);
           addressChanges[key] = {
             old_value: originalFormData[key],
             new_value: formData[key]
           };
           hasAddressChanged = true;
-          // Log that the flag was set
-          console.log(`--> hasAddressChanged set to true because of ${key}`);
         }
       }
     });
@@ -427,28 +420,20 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
 
       // Log address changes if any occurred
       if (hasAddressChanged) {
-        // Log the attempt to insert activity
-        console.log("Attempting to log address activity. Changes:", JSON.stringify(addressChanges));
         const { error: activityError } = await supabase
           .from('order_activities')
           .insert({
             order_id: order.id,
-            action_type: 'address_updated',
+            action_type: 'order_update', // Use the valid enum value
             changes: addressChanges, // Log the specific address changes
             created_at: new Date().toISOString()
           });
-        
-        // Log the result of the insert attempt
-        console.log("Activity log insert result:", activityError ? activityError : "Success");
-        
+                
         if (activityError) {
-          console.error('Error logging address update activity:', activityError);
+          console.error('Error logging order update activity:', activityError);
           // Don't block the main success message, but log the error
         }
-      } else {
-        // Log if no address changes were detected
-        console.log("No address changes detected, skipping activity log.");
-      }
+      } 
 
       setUpdateMessage({ text: 'Order updated successfully!', type: 'success' });
       toast.success('Order updated successfully!');
