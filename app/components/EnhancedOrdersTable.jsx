@@ -174,7 +174,15 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
         emailMatch || // Use the stored match result
         (order.phone && order.phone.toLowerCase().includes(lowercaseQuery)) ||
+        // Check legacy address field
         (order.shipping_address && order.shipping_address.toLowerCase().includes(lowercaseQuery)) ||
+        // Check individual address fields
+        (order.shipping_address_line1 && order.shipping_address_line1.toLowerCase().includes(lowercaseQuery)) ||
+        (order.shipping_address_house_number && order.shipping_address_house_number.toLowerCase().includes(lowercaseQuery)) ||
+        (order.shipping_address_line2 && order.shipping_address_line2.toLowerCase().includes(lowercaseQuery)) ||
+        (order.shipping_address_city && order.shipping_address_city.toLowerCase().includes(lowercaseQuery)) ||
+        (order.shipping_address_postal_code && order.shipping_address_postal_code.toLowerCase().includes(lowercaseQuery)) ||
+        (order.shipping_address_country && order.shipping_address_country.toLowerCase().includes(lowercaseQuery)) ||
         (order.order_pack && order.order_pack.toLowerCase().includes(lowercaseQuery)) ||
         (order.order_notes && order.order_notes.toLowerCase().includes(lowercaseQuery)) ||
         (order.status && order.status.toLowerCase().includes(lowercaseQuery)) ||
