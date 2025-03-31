@@ -377,78 +377,101 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     e.preventDefault();
     setIsUpdating(true);
     setUpdateMessage({ text: '', type: '' });
-    
-    try {
-      // Create update object with only modified fields
-      const updateData = {};
-      
-      // Compare each field and only include changed ones
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== originalFormData[key]) {
-          updateData[key] = formData[key];
+
+    // Define which fields are considered address fields
+    const addressFields = [
+      'shipping_address_line1',
+      'shipping_address_house_number',
+      'shipping_address_line2',
+      'shipping_address_city',
+      'shipping_address_postal_code',
+      'shipping_address_country'
+    ];
+
+    // Identify changes, especially for address
+    const updatedFields = {};
+    const addressChanges = {};
+    let hasAddressChanged = false;
+
+    Object.keys(formData).forEach(key => {
+      if (formData[key] !== originalFormData[key]) {
+        updatedFields[key] = formData[key];
+        // Log every detected change
+        console.log(`Field changed: ${key}, Old: "${originalFormData[key]}", New: "${formData[key]}"`);
+
+        // Check if the changed field is an address field
+        if (addressFields.includes(key)) {
+          // Log if it's specifically an address field change
+          console.log(`--> Address field changed: ${key}`);
+          addressChanges[key] = {
+            old_value: originalFormData[key],
+            new_value: formData[key]
+          };
+          hasAddressChanged = true;
+          // Log that the flag was set
+          console.log(`--> hasAddressChanged set to true because of ${key}`);
         }
-      });
-      
-      // Add updated_at timestamp
-      updateData.updated_at = new Date().toISOString();
-      
-      // Only proceed if there are changes
-      if (Object.keys(updateData).length === 0) {
-        setUpdateMessage({ 
-          text: 'No changes to update', 
-          type: 'info' 
-        });
-        return;
+      }
+    });
+
+    // Ensure updated_at is always included
+    updatedFields.updated_at = new Date().toISOString();
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update(updatedFields)
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      // Log address changes if any occurred
+      if (hasAddressChanged) {
+        // Log the attempt to insert activity
+        console.log("Attempting to log address activity. Changes:", JSON.stringify(addressChanges));
+        const { error: activityError } = await supabase
+          .from('order_activities')
+          .insert({
+            order_id: order.id,
+            action_type: 'address_updated',
+            changes: addressChanges, // Log the specific address changes
+            created_at: new Date().toISOString()
+          });
+        
+        // Log the result of the insert attempt
+        console.log("Activity log insert result:", activityError ? activityError : "Success");
+        
+        if (activityError) {
+          console.error('Error logging address update activity:', activityError);
+          // Don't block the main success message, but log the error
+        }
+      } else {
+        // Log if no address changes were detected
+        console.log("No address changes detected, skipping activity log.");
       }
 
-      const { data, error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', order.id)
-        .select()
-        .single();
+      setUpdateMessage({ text: 'Order updated successfully!', type: 'success' });
+      toast.success('Order updated successfully!');
       
-      if (error) throw error;
-      
-      // Calculate new instruction based on updated data
-      const newInstruction = calculateOrderInstruction(data);
-      
-      // Calculate new status based on updated data
-      const newStatus = calculateOrderStatus(data);
-      setCalculatedStatus(newStatus);
-      
-      // Update original form data to reflect new state
+      // Update originalFormData to reflect the successful save
       setOriginalFormData(formData);
+      setIsFormModified(false); // Reset modified state
       
-      // If onUpdate is provided, call it with the updated order data
+      // Call the onUpdate callback if provided
       if (onUpdate) {
-        onUpdate({
-          ...data,
-          instruction: newInstruction
-        });
+        onUpdate(updatedFields); 
       }
       
-      // Update the router cache without navigating
-      router.refresh();
+      // Recalculate status after update
+      setCalculatedStatus(calculateOrderStatus({ ...order, ...updatedFields }));
       
-      // Show success message
-      setUpdateMessage({ 
-        text: 'Order updated successfully!', 
-        type: 'success' 
-      });
+      // Optional: Refresh router cache if needed
+      // router.refresh();
       
-      // Clear message after 3 seconds
-      setTimeout(() => {
-        setUpdateMessage({ text: '', type: '' });
-      }, 3000);
     } catch (error) {
       console.error('Error updating order:', error);
-      
-      // Show error message
-      setUpdateMessage({ 
-        text: `Error updating order: ${error.message}`, 
-        type: 'error' 
-      });
+      setUpdateMessage({ text: `Error: ${error.message}`, type: 'error' });
+      toast.error(`Failed to update order: ${error.message}`);
     } finally {
       setIsUpdating(false);
     }
