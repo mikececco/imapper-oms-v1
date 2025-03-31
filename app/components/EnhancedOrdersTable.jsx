@@ -156,18 +156,23 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
 
   // Filter orders based on search query
   useEffect(() => {
-    if (!query || query.trim() === '') {
+    // Decode the query parameter
+    const decodedQuery = query ? decodeURIComponent(query) : '';
+
+    if (!decodedQuery || decodedQuery.trim() === '') {
       setFilteredOrders(localOrders);
       return;
     }
 
-    const lowercaseQuery = query.toLowerCase();
+    const lowercaseQuery = decodedQuery.toLowerCase();
     const filtered = localOrders.filter(order => {
       // Check various fields for the search term
+      const emailMatch = order.email && order.email.toLowerCase().includes(lowercaseQuery);
+      
       return (
         (order.id && order.id.toString().includes(lowercaseQuery)) ||
         (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
-        (order.email && order.email.toLowerCase().includes(lowercaseQuery)) ||
+        emailMatch || // Use the stored match result
         (order.phone && order.phone.toLowerCase().includes(lowercaseQuery)) ||
         (order.shipping_address && order.shipping_address.toLowerCase().includes(lowercaseQuery)) ||
         (order.order_pack && order.order_pack.toLowerCase().includes(lowercaseQuery)) ||
