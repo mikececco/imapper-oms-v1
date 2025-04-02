@@ -20,17 +20,20 @@ export async function PATCH(request, { params }) {
 
     console.log(`Updating status for feature request ${id} to: "${status}"`);
 
-    // Attempt the update without selecting the result immediately
-    const { error } = await supabase
+    // Attempt the update
+    // Store the result (which includes error, data, count, etc.)
+    const updateResult = await supabase
       .from('feature_requests')
       .update({ 
         status: status,
-        // updated_at: new Date().toISOString() // Optional
       })
       .eq('id', id);
-      // Removed .select().single()
+      
+    // Log the entire result object from Supabase
+    console.log('Supabase update result:', JSON.stringify(updateResult, null, 2));
 
-    // Check for error immediately after the update attempt
+    // Check for error in the result object
+    const { error } = updateResult;
     if (error) {
       console.error('Error updating feature request status (Supabase):', error);
       // Check for RLS error specifically
@@ -44,12 +47,12 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Failed to update request status', details: error.message }, { status: 500 });
     }
 
-    // If no error occurred during the update, return success
-    // We don't have the updated data here, but the frontend can handle it
+    // If no error, proceed
+    console.log(`Successfully initiated update for feature request ${id}.`);
+    
     return NextResponse.json({ 
       success: true, 
-      message: 'Feature request status updated successfully (no data returned)'
-      // request: data // Removed as data is not fetched here
+      message: 'Feature request status update initiated successfully'
     });
 
   } catch (error) {
