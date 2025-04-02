@@ -74,6 +74,20 @@ export default function HowToUse() {
                       />
                     </div>
                   </div>
+                  {/* Fifth Video (New) */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">How to mark orders as Delivered</h3>
+                    <div className="relative w-full" style={{ paddingBottom: '62.5%' }}>
+                      <iframe 
+                        src="https://www.loom.com/embed/14d409e8a12547d89ad0d0351bb923c9?sid=6194fc6f-70ab-4d6b-bc19-1ffe26f213bb" 
+                        frameBorder="0" 
+                        webkitallowfullscreen="true"
+                        mozallowfullscreen="true"
+                        allowFullScreen 
+                        className="absolute top-0 left-0 w-full h-full rounded-lg"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
