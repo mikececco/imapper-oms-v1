@@ -138,6 +138,12 @@ export function calculateOrderInstruction(order) {
   // Helper function to check if a string is empty or only whitespace
   const isEmpty = (str) => !str || str.trim().length === 0;
   
+  // **Priority Check: Manual Instruction**
+  // If a manual instruction exists, return it immediately.
+  if (!isEmpty(order.manual_instruction)) {
+    return order.manual_instruction;
+  }
+  
   // Extract values from order
   const {
     status,

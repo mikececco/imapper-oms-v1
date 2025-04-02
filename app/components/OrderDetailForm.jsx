@@ -628,6 +628,14 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       <div className="space-y-2">
         <h3 className="font-medium text-black">Order Details</h3>
         
+        {/* Manual Instruction Display */}
+        {order.manual_instruction && (
+          <div className="p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
+            <p className="font-medium">Manual Instruction:</p>
+            <p className="text-sm">{order.manual_instruction}</p>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label htmlFor="order_pack_list_id" className="text-sm font-medium block">
@@ -743,13 +751,16 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           
           <div>
             <label htmlFor="instruction" className="text-sm font-medium block">
-              Shipping Instruction (Auto-calculated)
+              Shipping Instruction
+              {order.manual_instruction && <span className="ml-1 text-xs text-gray-500">(Manual Override)</span>}
             </label>
-            <div className={`shipping-instruction ${calculatedInstruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'} p-2 rounded`}>
-              {calculatedInstruction || 'ACTION REQUIRED'}
+            <div className={`shipping-instruction ${(order.manual_instruction || calculatedInstruction)?.toLowerCase().replace(/\s+/g, '-') || 'unknown'} p-2 rounded`}>
+              {order.manual_instruction || calculatedInstruction || 'ACTION REQUIRED'}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Based on order status, payment, and tracking information.
+              {order.manual_instruction 
+                ? 'Instruction manually set.' 
+                : 'Auto-calculated based on order status, payment, and tracking information.'}
             </p>
           </div>
         </div>

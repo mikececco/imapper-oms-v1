@@ -141,6 +141,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const [selectedOrders, setSelectedOrders] = useState(new Set());
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isMarkingDelivered, setIsMarkingDelivered] = useState(false);
   const supabase = useSupabase();
   
   // Pagination state
@@ -409,35 +410,100 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   };
 
   const handleBulkDelete = async () => {
-    if (selectedOrders.size === 0) return;
     setIsConfirmingDelete(true);
   };
 
   const confirmBulkDelete = async () => {
     setIsDeleting(true);
     try {
-      const ordersToDelete = Array.from(selectedOrders);
-      const { error } = await supabase
-        .from('orders')
-        .delete()
-        .in('id', ordersToDelete);
-
-      if (error) throw error;
-
-      setLocalOrders(prev => prev.filter(order => !selectedOrders.has(order.id)));
-      setFilteredOrders(prev => prev.filter(order => !selectedOrders.has(order.id)));
-      setSelectedOrders(new Set());
-      toast.success(`Successfully deleted ${ordersToDelete.length} orders`);
+      // Convert Set to Array
+      const orderIds = Array.from(selectedOrders);
+      
+      // Call the API to delete orders
+      const response = await fetch('/api/orders/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete orders');
+      }
+      
+      // Optimistic update: remove deleted orders from local state
+      const deletedIdsSet = new Set(orderIds);
+      setLocalOrders(prev => prev.filter(order => !deletedIdsSet.has(order.id)));
+      setFilteredOrders(prev => prev.filter(order => !deletedIdsSet.has(order.id)));
+      setSelectedOrders(new Set()); // Clear selection
+      setIsConfirmingDelete(false); // Close the dialog
+      toast.success(`${orderIds.length} orders deleted successfully`);
+      
+      // Refresh data if needed or call parent handler
+      if (onRefresh) onRefresh();
     } catch (error) {
       console.error('Error deleting orders:', error);
-      toast.error('Failed to delete orders');
+      toast.error(`Error deleting orders: ${error.message}`);
     } finally {
       setIsDeleting(false);
-      setIsConfirmingDelete(false);
     }
   };
 
-  // Function to copy order ID to clipboard
+  // Handler for bulk marking as delivered
+  const handleBulkMarkAsDelivered = async () => {
+    setIsMarkingDelivered(true);
+    const orderIds = Array.from(selectedOrders);
+    const instruction = "DELIVERED";
+
+    try {
+      const promises = orderIds.map(orderId => 
+        fetch(`/api/orders/${orderId}/set-instruction`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ manual_instruction: instruction }),
+        })
+      );
+
+      const results = await Promise.all(promises);
+      const failedUpdates = results.filter(res => !res.ok);
+
+      if (failedUpdates.length > 0) {
+        // Try to get error messages if available
+        const errorMessages = await Promise.all(failedUpdates.map(async res => {
+          try {
+            const data = await res.json();
+            return data.error || `Order ${res.url.split('/')[5]}: Failed with status ${res.status}`;
+          } catch {
+            return `Order ${res.url.split('/')[5]}: Failed with status ${res.status}`;
+          }
+        }));
+        throw new Error(`Failed to update some orders: ${errorMessages.join(', ')}`);
+      }
+      
+      // Optimistic update: Update local state
+      const updatedIdsSet = new Set(orderIds);
+      const updatedOrders = localOrders.map(order => 
+        updatedIdsSet.has(order.id) 
+          ? { ...order, manual_instruction: instruction, instruction: calculateOrderInstruction({ ...order, manual_instruction: instruction }) } 
+          : order
+      );
+      setLocalOrders(updatedOrders);
+      setFilteredOrders(updatedOrders); // Update filtered orders too
+      
+      setSelectedOrders(new Set()); // Clear selection
+      toast.success(`${orderIds.length} orders marked as delivered.`);
+      
+      // Refresh data if needed or call parent handler
+      if (onRefresh) onRefresh();
+      
+    } catch (error) {
+      console.error('Error marking orders as delivered:', error);
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setIsMarkingDelivered(false);
+    }
+  };
+
   const copyOrderId = (orderId) => {
     navigator.clipboard.writeText(orderId.toString())
       .then(() => {
@@ -748,6 +814,14 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 className="text-sm"
               >
                 Cancel
+              </Button>
+              <Button
+                onClick={handleBulkMarkAsDelivered}
+                variant="default"
+                className="text-sm bg-green-600 hover:bg-green-700 text-white"
+                disabled={isMarkingDelivered}
+              >
+                {isMarkingDelivered ? 'Marking...' : 'Mark as Delivered'}
               </Button>
               <Button
                 onClick={handleBulkDelete}
