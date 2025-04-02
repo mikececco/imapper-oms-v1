@@ -201,12 +201,19 @@ export default function Navigation() {
           <Link 
             href="/returns" 
             className={`sidebar-link ${pathname.startsWith('/returns') ? 'active' : ''}`}
-            title="Returns"
+            title="Returns (NOT LIVE)"
           >
             <svg className="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
             </svg>
-            {(!isSidebarCollapsed || isMobileView) && <span>Returns</span>}
+            {(!isSidebarCollapsed || isMobileView) && (
+              <span className="flex items-center">
+                <span>Returns</span>
+                <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
+                  NOT LIVE
+                </span>
+              </span>
+            )}
           </Link>
           <Link 
             href="/customers" 
@@ -237,6 +244,16 @@ export default function Navigation() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             {(!isSidebarCollapsed || isMobileView) && <span>How to Use</span>}
+          </Link>
+          <Link 
+            href="/feature-requests" 
+            className={`sidebar-link ${pathname.startsWith('/feature-requests') ? 'active' : ''}`}
+            title="Feature Requests"
+          >
+            <svg className="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {(!isSidebarCollapsed || isMobileView) && <span>Feature Requests</span>}
           </Link>
         </nav>
 

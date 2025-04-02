@@ -1,0 +1,1 @@
+GRANT UPDATE ON TABLE feature_requests TO anon;
