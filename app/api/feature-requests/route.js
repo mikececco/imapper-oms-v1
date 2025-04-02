@@ -21,21 +21,25 @@ export async function POST(request) {
     //   return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     // }
 
-    const { description, author } = await request.json();
+    // Remove image_url from destructuring
+    const { description, author, link_url } = await request.json();
 
     if (!description || !author) {
       return NextResponse.json({ error: 'Description and Author are required' }, { status: 400 });
     }
 
+    // Prepare data for insertion, removing image_url
+    const insertData = {
+      description: description,
+      author: author,
+    };
+    // if (image_url) insertData.image_url = image_url; // Removed image_url logic
+    if (link_url) insertData.link_url = link_url;
+
     // Insert using the anon client
     const { data, error } = await supabase
       .from('feature_requests')
-      .insert([
-        { 
-          description: description,
-          author: author, 
-        }
-      ])
+      .insert([insertData]) // Use the prepared data object
       .select()
       .single();
 

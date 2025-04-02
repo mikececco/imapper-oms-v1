@@ -28,6 +28,7 @@ export default function FeatureRequestsPage() {
   const [requests, setRequests] = useState([]);
   const [description, setDescription] = useState('');
   const [author, setAuthor] = useState('');
+  const [linkUrl, setLinkUrl] = useState(''); // State for link URL
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('Requested'); // State for active tab
@@ -77,10 +78,17 @@ export default function FeatureRequestsPage() {
     
     setIsSubmitting(true);
     try {
+      // Remove imageUrl from body
+      const body = {
+        description,
+        author,
+      };
+      if (linkUrl.trim()) body.link_url = linkUrl.trim();
+
       const response = await fetch('/api/feature-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description, author }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -90,9 +98,11 @@ export default function FeatureRequestsPage() {
 
       const { request: newRequest } = await response.json();
       toast.success('Feature request submitted!');
-      setRequests([newRequest, ...requests]); // Add new request to the top
-      setDescription(''); // Clear form
-      // Keep author field populated if desired
+      setRequests(prevRequests => [newRequest, ...prevRequests]);
+      // Clear form fields
+      setDescription('');
+      setLinkUrl('');
+      // setAuthor(''); // Optionally clear author too
 
     } catch (error) {
       console.error('Error submitting feature request:', error);
@@ -151,7 +161,7 @@ export default function FeatureRequestsPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Request Description
+              Request Description <span className="text-red-500">*</span>
             </label>
             <Textarea
               id="description"
@@ -165,7 +175,7 @@ export default function FeatureRequestsPage() {
           </div>
           <div>
             <label htmlFor="author" className="block text-sm font-medium text-gray-700 mb-1">
-              Author
+              Author <span className="text-red-500">*</span>
             </label>
             <Input
               id="author"
@@ -174,6 +184,20 @@ export default function FeatureRequestsPage() {
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
               placeholder="Your name or email"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="linkUrl" className="block text-sm font-medium text-gray-700 mb-1">
+              Loom Link <span className="text-red-500">*</span>
+            </label>
+            <Input
+              id="linkUrl"
+              type="url"
+              className="w-full border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="https://loom.com/related-video"
               required
             />
           </div>
@@ -222,29 +246,41 @@ export default function FeatureRequestsPage() {
         ) : (
           <div className="space-y-4">
             {filteredRequests.map((req) => (
-              <div key={req.id} className="p-4 border border-gray-200 rounded-md bg-gray-50 flex justify-between items-start">
-                <div className="flex-1 mr-4">
+              <div key={req.id} className="p-4 border border-gray-200 rounded-md bg-gray-50 flex flex-col md:flex-row justify-between items-start">
+                <div className="flex-1 mb-4 md:mb-0 md:mr-4">
                   <p className="font-medium text-gray-800 mb-2">{req.description}</p>
-                  <div className="flex items-center text-sm text-gray-500 space-x-4">
+                  
+                  <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-1">
                     <span>Requested by: <strong>{req.author}</strong></span>
                     <span>{formatDate(req.created_at)}</span>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${req.status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
                        {req.status}
                     </span>
+                    {req.link_url && (
+                       <a 
+                         href={req.link_url} 
+                         target="_blank" 
+                         rel="noopener noreferrer" 
+                         className="text-blue-600 hover:text-blue-800 hover:underline truncate max-w-[200px] md:max-w-xs"
+                         title={req.link_url}
+                       >
+                         🔗 Loom Link
+                       </a>
+                    )}
                   </div>
                 </div>
-                {/* Show Done button only in 'Requested' tab */}
-                {activeTab === 'Requested' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleMarkAsDone(req.id)}
-                    disabled={updatingRequestId === req.id}
-                    className="flex-shrink-0"
-                  >
-                    {updatingRequestId === req.id ? 'Marking...' : 'Mark as Done'}
-                  </Button>
-                )}
+                <div className="flex-shrink-0 self-start md:self-center">
+                  {activeTab === 'Requested' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleMarkAsDone(req.id)}
+                      disabled={updatingRequestId === req.id}
+                    >
+                      {updatingRequestId === req.id ? 'Marking...' : 'Mark as Done'}
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
