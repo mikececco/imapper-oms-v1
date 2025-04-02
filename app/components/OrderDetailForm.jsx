@@ -10,6 +10,7 @@ import { fetchShippingMethods, DEFAULT_SHIPPING_METHODS } from '../utils/shippin
 import CustomOrderPackModal from './CustomOrderPackModal';
 import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
 import { toast } from 'react-hot-toast';
+import { formatDate } from './OrderDetailModal';
 
 export default function OrderDetailForm({ order, orderPackOptions, onUpdate, calculatedInstruction }) {
   const router = useRouter();
@@ -769,7 +770,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
             <div className="text-xs text-gray-500 mt-1 flex justify-between items-center">
               <span>{order.status ? 'Status from SendCloud tracking' : 'No status available'}</span>
               {order.updated_at && (
-                <span>Last update: {new Date(order.updated_at).toLocaleString()}</span>
+                <span>Last update: {formatDate(order.last_delivery_status_check)}</span>
               )}
             </div>
           </div>

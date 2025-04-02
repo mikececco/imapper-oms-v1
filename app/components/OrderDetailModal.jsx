@@ -33,11 +33,11 @@ export function useOrderDetailModal() {
 }
 
 // Format date for display
-const formatDate = (dateString) => {
+export const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   try {
     const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
+    return date.toLocaleString('en-GB', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
