@@ -82,78 +82,94 @@ export async function updateOrderDeliveryStatus(orderId) {
       .single();
 
     if (orderError) {
-      console.error('Error fetching order:', orderError);
+      console.error(`Error fetching order ${orderId}:`, orderError);
       return { success: false, error: 'Failed to fetch order details' };
     }
 
     if (!order) {
+      console.warn(`Order ${orderId} not found for status update.`);
       return { success: false, error: 'Order not found' };
     }
 
-    // If no shipping ID or tracking number, return early
+    // If no shipping ID or tracking number, nothing to check
     if (!order.shipping_id && !order.tracking_number) {
+      // Optionally log this state or mark the order
+      console.log(`Order ${orderId} has no shipping_id or tracking_number.`);
       return { success: false, error: 'No shipping ID or tracking number available' };
     }
 
-    let shippingDetails;
-    try {
-      // Try to fetch shipping details using shipping ID if available
-      if (order.shipping_id) {
+    let shippingDetails = null;
+    if (order.shipping_id) {
+      try {
         shippingDetails = await fetchShippingDetails(order.shipping_id);
-      } else if (order.tracking_number) {
-        // If no shipping ID but we have tracking number, try to fetch by tracking number
-        shippingDetails = await fetchShippingDetailsByTrackingNumber(order.tracking_number);
-      }
-    } catch (error) {
-      // If we get a 404 error, just log it and continue with tracking number if available
-      if (error.message.includes('404')) {
-        console.warn(`Warning: Shipping ID ${order.shipping_id} not found in SendCloud, but keeping the ID. Error:`, error);
-        // Don't remove the shipping_id, just continue with tracking number if available
-        if (order.tracking_number) {
-          try {
-            shippingDetails = await fetchShippingDetailsByTrackingNumber(order.tracking_number);
-          } catch (trackingError) {
-            console.error('Error fetching by tracking number:', trackingError);
-            return { success: false, error: 'Failed to fetch shipping details' };
+        if (!shippingDetails.success) {
+          // Handle non-404 errors from fetchShippingDetails
+          if (!shippingDetails.error?.includes('404')) {
+            console.error(`Failed to fetch details for shipping ID ${order.shipping_id}: ${shippingDetails.error}`);
+            return { success: false, error: `Failed to fetch details: ${shippingDetails.error}` };
           }
-        } else {
-          return { success: false, error: 'No valid shipping information available' };
+          // If it was a 404, log it and clear shippingDetails to prevent update based on stale ID
+          console.warn(`Shipping ID ${order.shipping_id} for order ${orderId} not found in SendCloud.`);
+          shippingDetails = null; // Ensure we don't proceed with invalid ID data
         }
+      } catch (error) {
+        // Catch unexpected errors during fetch
+        console.error(`Exception fetching shipping details for ID ${order.shipping_id}:`, error);
+        return { success: false, error: 'Exception fetching shipping details' };
+      }
+    }
+
+    // If shippingDetails were successfully fetched (not null and success is true)
+    if (shippingDetails && shippingDetails.success && shippingDetails.parcel) {
+      // Update order with new delivery status
+      const newStatus = shippingDetails.parcel.status?.message;
+      if (newStatus && newStatus !== order.status) {
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({
+            status: newStatus,
+            last_delivery_status_check: new Date().toISOString()
+          })
+          .eq('id', orderId);
+
+        if (updateError) {
+          console.error(`Error updating order ${orderId} status:`, updateError);
+          return { success: false, error: 'Failed to update order status' };
+        }
+        console.log(`Updated order ${orderId} status to: ${newStatus}`);
+        return { 
+          success: true, 
+          deliveryStatus: newStatus,
+          order: {
+            id: orderId,
+            status: newStatus,
+            last_delivery_status_check: new Date().toISOString()
+          }
+        };
       } else {
-        console.error('Error fetching shipping details:', error);
-        return { success: false, error: 'Failed to fetch shipping details' };
+        // Status hasn't changed or is missing in response
+        console.log(`Status for order ${orderId} hasn't changed (${order.status}) or is missing in SendCloud response.`);
+        // Update last checked time even if status didn't change
+        await supabase
+          .from('orders')
+          .update({ last_delivery_status_check: new Date().toISOString() })
+          .eq('id', orderId);
+        return { success: true, deliveryStatus: order.status, message: 'Status unchanged' };
       }
+    } else {
+      // Handle cases where shipping_id was invalid (404) or missing, and no details were fetched
+      console.log(`Skipping status update for order ${orderId} as shipping details could not be fetched via shipping_id.`);
+      // Optionally, you could try fetching by tracking number here if needed, using fetchDeliveryStatus
+      // For now, we just mark it as checked
+       await supabase
+          .from('orders')
+          .update({ last_delivery_status_check: new Date().toISOString() })
+          .eq('id', orderId);
+      return { success: false, error: 'Shipping details not found via ID' };
     }
 
-    if (!shippingDetails || !shippingDetails.parcel) {
-      return { success: false, error: 'No shipping details found' };
-    }
-
-    // Update order with new delivery status
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({
-        status: shippingDetails.parcel.status.message,
-        last_delivery_status_check: new Date().toISOString()
-      })
-      .eq('id', orderId);
-
-    if (updateError) {
-      console.error('Error updating order:', updateError);
-      return { success: false, error: 'Failed to update order status' };
-    }
-
-    return { 
-      success: true, 
-      deliveryStatus: shippingDetails.parcel.status.message,
-      order: {
-        id: orderId,
-        status: shippingDetails.parcel.status.message,
-        last_delivery_status_check: new Date().toISOString()
-      }
-    };
   } catch (error) {
-    console.error('Error in updateOrderDeliveryStatus:', error);
+    console.error(`Error in updateOrderDeliveryStatus for order ${orderId}:`, error);
     return { success: false, error: error.message };
   }
 }
