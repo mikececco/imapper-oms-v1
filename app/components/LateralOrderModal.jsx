@@ -84,10 +84,10 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                       Created: {formatDate(orderDetails.created_at)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4">
+                  {/* <div className="flex items-center gap-4">
                     <PaymentBadge isPaid={orderDetails.is_paid} orderId={orderDetails.id} />
                     <ShippingToggle okToShip={orderDetails.ok_to_ship} orderId={orderDetails.id} />
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Customer Information */}
@@ -104,9 +104,11 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                 <div>
                   <h4 className="font-medium mb-2">Shipping Address</h4>
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <p>{orderDetails.address || 'N/A'}</p>
-                    <p>{orderDetails.city || 'N/A'}, {orderDetails.postal_code || 'N/A'}</p>
-                    <p>{orderDetails.country || 'N/A'}</p>
+                    <p><strong>Address Line 1:</strong> {orderDetails.shipping_address_line1 || 'N/A'}</p>
+                    <p><strong>Address Line 2:</strong> {orderDetails.shipping_address_line2 || ' '}</p>
+                    <p><strong>Postal Code:</strong> {orderDetails.shipping_postal_code || ' '}</p>
+                    <p><strong>City:</strong> {orderDetails.shipping_address_city || 'N/A'}</p>
+                    <p><strong>Country:</strong> {orderDetails.shipping_address_country || 'N/A'}</p>
                   </div>
                 </div>
 
@@ -116,7 +118,6 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <p><strong>Order Pack:</strong> {orderDetails.order_pack || 'N/A'}</p>
                     <p><strong>Status:</strong> {orderDetails.status || 'N/A'}</p>
-                    <p><strong>Delivery Status:</strong> {orderDetails.delivery_status || 'N/A'}</p>
                     {orderDetails.tracking_number && (
                       <p>
                         <strong>Tracking Number:</strong>{' '}
