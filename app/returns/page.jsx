@@ -30,14 +30,6 @@ export default function ReturnsPage() {
   const [isReturnConfirmModalOpen, setIsReturnConfirmModalOpen] = useState(false);
   const [orderForReturn, setOrderForReturn] = useState(null);
 
-  const warehouseAddress = {
-    name: "Default Warehouse",
-    line1: "1 Warehouse Way",
-    city: "Logistics Town",
-    postal_code: "98765",
-    country: "NL"
-  };
-
   useEffect(() => {
     loadDeliveredOrders();
   }, []);
@@ -69,13 +61,13 @@ export default function ReturnsPage() {
     }
   };
 
-  const createReturnLabel = async (orderId, returnAddress) => {
+  const createReturnLabel = async (orderId, returnFromAddress, returnToAddress) => {
     try {
       setCreatingLabel(orderId);
       const response = await fetch('/api/returns/create-label', {
         method: 'POST',
         headers: {'Content-Type': 'application/json',},
-        body: JSON.stringify({ orderId, returnAddress }),
+        body: JSON.stringify({ orderId, returnFromAddress, returnToAddress }),
       });
 
       const data = await response.json();
@@ -122,8 +114,8 @@ export default function ReturnsPage() {
     setOrderForReturn(null);
   };
 
-  const handleConfirmReturn = async (orderId, returnAddress) => {
-    await createReturnLabel(orderId, returnAddress);
+  const handleConfirmReturn = async (orderId, returnFromAddress, returnToAddress) => {
+    await createReturnLabel(orderId, returnFromAddress, returnToAddress);
     handleCloseReturnModal();
   };
 
@@ -274,7 +266,6 @@ export default function ReturnsPage() {
           onClose={handleCloseReturnModal}
           order={orderForReturn}
           onConfirm={handleConfirmReturn}
-          returnToAddress={warehouseAddress}
           isLoading={creatingLabel === orderForReturn?.id}
         />
       )}

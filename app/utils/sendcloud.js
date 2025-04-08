@@ -313,38 +313,61 @@ export async function fetchSendCloudParcelTrackingUrl(parcelId) {
 
 /**
  * Create a return label via SendCloud
- * @param {object} order - The order details from Supabase
- * @param {object} returnAddress - The return address details from the confirmation modal
+ * @param {object} order - The original order details from Supabase
+ * @param {object} returnFromAddress - The customer's address (potentially edited)
+ * @param {object} returnToAddress - The selected warehouse address (destination for return)
  * @returns {Promise<object>} - Return label URL and tracking info
  */
-export async function createReturnLabel(order, returnAddress) {
+export async function createReturnLabel(order, returnFromAddress, returnToAddress) {
   try {
     // Construct the payload for SendCloud Returns API
+    // The main address fields now refer to the destination (warehouse)
     const returnPayload = {
-      name: returnAddress.name || order.name, // Use name from return address if available, else customer name
-      company_name: returnAddress.company_name || '', // Add company if available
-      address: returnAddress.line1, // Use line1 from the modal
-      address_2: returnAddress.line2 || '', // Use line2 from the modal
-      city: returnAddress.city,
-      postal_code: returnAddress.postal_code,
-      country: returnAddress.country,
-      telephone: returnAddress.phone || order.phone || '', // Prioritize phone from return address, then order
-      email: returnAddress.email || order.email, // Prioritize email from return address, then order
+      name: returnToAddress.name || 'Warehouse', // Warehouse name
+      company_name: returnToAddress.company_name || '', 
+      address: returnToAddress.line1, // Warehouse address
+      address_2: returnToAddress.line2 || '', 
+      house_number: returnToAddress.house_number || '', // Include if available
+      city: returnToAddress.city,
+      postal_code: returnToAddress.postal_code,
+      country: returnToAddress.country,
+      telephone: returnToAddress.phone || '', // Warehouse phone if available
+      email: returnToAddress.email || process.env.DEFAULT_WAREHOUSE_EMAIL || '', // Warehouse email or a default
       order_number: order.id.toString(),
-      reason: 'Other', // Default reason, can be made dynamic later
-      request_label: true, // We want SendCloud to generate the label
+      reason: 'Other', 
+      request_label: true,
       incoming_parcel: {
-        // You might need to specify a default return shipment method ID
-        // shipment_id: process.env.SENDCLOUD_DEFAULT_RETURN_METHOD_ID, 
-        from_name: order.name, 
-        from_address_1: order.shipping_address_line1 || order.address, // Original shipping address line 1
-        from_address_2: order.shipping_address_line2 || '', // Original shipping address line 2
-        from_city: order.shipping_address_city || order.city, // Original shipping city
-        from_postal_code: order.shipping_address_postal_code || order.postal_code, // Original postal code
-        from_country: order.shipping_address_country || order.country, // Original country
+        // Information about the parcel being sent *from* the customer
+        from_name: returnFromAddress.name || order.name, // Use edited name or original customer name
+        from_company_name: returnFromAddress.company_name || '', 
+        from_address_1: returnFromAddress.line1, // Use potentially edited customer address
+        from_address_2: returnFromAddress.line2 || '', 
+        from_house_number: returnFromAddress.house_number || '', // Include if edited/available
+        from_city: returnFromAddress.city,
+        from_postal_code: returnFromAddress.postal_code,
+        from_country: returnFromAddress.country,
+        // Potentially add customer email/phone here if Sendcloud API supports it for returns
+        // from_email: returnFromAddress.email || order.email,
+        // from_telephone: returnFromAddress.phone || order.phone,
         weight: '1.000' // Default weight, adjust if needed
-      }
+      },
+      ship_with: {
+          shipping_product_code: 'ups:standard/return',
+          functionalities: {
+          carrier_insurance: false,
+          labelless: false,
+          direct_contract_only: true,
+          first_mile: 'pickup_dropoff'
+        },
+        contract: 28575
+      },
+      // You might need to specify a default return shipment method ID depending on Sendcloud setup
+      // shipment: { 
+      //   id: process.env.SENDCLOUD_DEFAULT_RETURN_METHOD_ID 
+      // }
     };
+
+    console.log("Sending payload to SendCloud Returns API:", JSON.stringify(returnPayload, null, 2));
 
     const response = await fetch('https://panel.sendcloud.sc/api/v2/returns', {
       method: 'POST',
@@ -354,7 +377,7 @@ export async function createReturnLabel(order, returnAddress) {
           `${process.env.SENDCLOUD_PUBLIC_KEY}:${process.env.SENDCLOUD_SECRET_KEY}`
         ).toString('base64')}`,
       },
-      body: JSON.stringify(returnPayload), // Use the constructed payload
+      body: JSON.stringify(returnPayload), 
     });
 
     if (!response.ok) {
