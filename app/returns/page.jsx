@@ -69,13 +69,13 @@ export default function ReturnsPage() {
     }
   };
 
-  const createReturnLabel = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
+  const createReturnLabel = async (orderId, returnAddress) => {
     try {
       setCreatingLabel(orderId);
       const response = await fetch('/api/returns/create-label', {
         method: 'POST',
         headers: {'Content-Type': 'application/json',},
-        body: JSON.stringify({ orderId, returnFromAddress, returnToAddress, parcelWeight }),
+        body: JSON.stringify({ orderId, returnAddress }),
       });
 
       const data = await response.json();
@@ -122,8 +122,8 @@ export default function ReturnsPage() {
     setOrderForReturn(null);
   };
 
-  const handleConfirmReturn = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
-    await createReturnLabel(orderId, returnFromAddress, returnToAddress, parcelWeight);
+  const handleConfirmReturn = async (orderId, returnAddress) => {
+    await createReturnLabel(orderId, returnAddress);
     handleCloseReturnModal();
   };
 
@@ -274,6 +274,7 @@ export default function ReturnsPage() {
           onClose={handleCloseReturnModal}
           order={orderForReturn}
           onConfirm={handleConfirmReturn}
+          returnToAddress={warehouseAddress}
           isLoading={creatingLabel === orderForReturn?.id}
         />
       )}

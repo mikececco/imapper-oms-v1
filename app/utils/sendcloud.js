@@ -321,55 +321,55 @@ export async function fetchSendCloudParcelTrackingUrl(parcelId) {
  */
 export async function createReturnLabel(order, returnFromAddress, returnToAddress, parcelWeight) {
   try {
-    const returnPayload = {
-      // --- Destination Address (Warehouse) ---
-      name: returnToAddress.name || 'Warehouse', 
-      company_name: returnToAddress.company_name || '', 
-      address: returnToAddress.line1, 
-      address_2: returnToAddress.line2 || '', 
-      house_number: returnToAddress.house_number || '', 
-      city: returnToAddress.city,
-      postal_code: returnToAddress.postal_code,
-      country: returnToAddress.country,
-      telephone: returnToAddress.phone || '', 
-      email: returnToAddress.email || process.env.DEFAULT_WAREHOUSE_EMAIL || '', 
-      // --- Return Order Details ---
-      order_number: order.id.toString(),
-      reason: 'Other', 
-      request_label: true,
-      // --- Incoming Parcel Details (From Customer) ---
-      incoming_parcel: {
-        from_name: returnFromAddress.name || order.name, 
-        from_company_name: returnFromAddress.company_name || '', 
-        from_address_1: returnFromAddress.line1, 
-        from_address_2: returnFromAddress.line2 || '', 
-        from_house_number: returnFromAddress.house_number || '', 
-        from_city: returnFromAddress.city,
-        from_postal_code: returnFromAddress.postal_code,
-        from_country: returnFromAddress.country,
-        // Include customer phone and email if needed by Sendcloud Returns API
-        from_telephone: returnFromAddress.phone || '',
-        from_email: returnFromAddress.email || '',
-        // Use the nested weight structure
-        weight: {
-          value: parseFloat(parcelWeight) || 1.0, // Convert to float, default to 1.0 if conversion fails
-          unit: "kg"
-        }
-      },
-      // --- Optional Sendcloud Shipment Config ---
-      ship_with: {
-          shipping_product_code: 'ups:standard/return',
-          functionalities: {
-            carrier_insurance: false,
-            labelless: false,
-            direct_contract_only: true,
-            first_mile: 'pickup_dropoff'
-          },
-        contract: 28575
-      },
+    // --- Construct Address Objects ---
+    const fromAddressPayload = {
+        name: returnFromAddress.name || order.name,
+        company_name: returnFromAddress.company_name || '',
+        address_line_1: returnFromAddress.line1, // Use 'address' for Sendcloud line 1
+        address_line_2: returnFromAddress.line2 || '',
+        house_number: returnFromAddress.house_number || '',
+        city: returnFromAddress.city,
+        postal_code: returnFromAddress.postal_code,
+        country_code: returnFromAddress.country, // Should be 2-letter ISO code
+        phone_number: returnFromAddress.phone || '',
+        email: returnFromAddress.email || ''
     };
 
-    console.log("Sending payload to SendCloud Returns API:", JSON.stringify(returnPayload, null, 2));
+    const toAddressPayload = {
+        name: returnToAddress.name || 'Warehouse',
+        company_name: returnToAddress.company_name || '',
+        address_line_1: returnToAddress.line1, // Use 'address' for Sendcloud line 1
+        address_line_2: returnToAddress.line2 || '',
+        house_number: returnToAddress.house_number || '',
+        city: returnToAddress.city,
+        postal_code: returnToAddress.postal_code,
+        country_code: returnToAddress.country, // Should be 2-letter ISO code
+        phone_number: returnToAddress.phone || '',
+        email: returnToAddress.email || process.env.DEFAULT_WAREHOUSE_EMAIL || ''
+    };
+
+    // --- Construct Main Payload ---
+    const returnPayload = {
+      from_address: fromAddressPayload, // Use the constructed object
+      to_address: toAddressPayload,     // Use the constructed object
+      weight: {                       // Weight object at root level
+          value: parseFloat(parcelWeight) || 1.0,
+          unit: "kg"
+      },
+      ship_with: {
+        shipping_product_code: "ups:standard/return",
+        functionalities: {
+          carrier_insurance: false,
+          labelless: false,
+          direct_contract_only: true,
+          first_mile: "pickup_dropoff"
+        },
+        contract: 28575
+      },
+      // parcel_items: [...] // Add if required
+    };
+
+    console.log("Sending Corrected Payload to SendCloud Returns API:", JSON.stringify(returnPayload, null, 2));
 
     const response = await fetch('https://panel.sendcloud.sc/api/v3/returns', {
       method: 'POST',
@@ -385,9 +385,11 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
     if (!response.ok) {
       const error = await response.json();
       console.error("SendCloud API Error Response:", error);
-      // Try to extract a meaningful error message
       let errorMessage = 'Failed to create return label';
-      if (error && error.error && error.error.message) {
+      // Improved error message extraction
+      if (error && error.errors && Array.isArray(error.errors) && error.errors.length > 0) {
+         errorMessage = error.errors.map(e => `${e.field}: ${e.message}`).join('; ');
+      } else if (error && error.error && error.error.message) {
         errorMessage = `SendCloud Error: ${error.error.message}`;
       } else if (error && error.message) {
         errorMessage = `SendCloud Error: ${error.message}`;
@@ -400,23 +402,24 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
     const data = await response.json();
     console.log("SendCloud Return Creation Response:", data);
 
-    // Extract necessary details from the response
-    // Note: Sendcloud return response structure might differ from parcel creation
-    // Adjust based on the actual SendCloud API documentation for returns
-    const returnInfo = data.return; // Assuming the return details are under a 'return' key
+    // Assuming the successful response structure is similar to the error structure 
+    // or directly contains return details. Adjust based on actual successful response.
+    // Example: Check for data.return or directly data.label
+    const returnInfo = data.return || data; // Adapt as needed
 
     if (!returnInfo || !returnInfo.label || !returnInfo.label.label_printer) {
-       throw new Error('SendCloud response missing label URL.');
+       console.error("SendCloud success response missing expected label data:", returnInfo);
+       throw new Error('SendCloud response missing label URL after creation.');
     }
     
     return {
       label_url: returnInfo.label.label_printer,
-      tracking_number: returnInfo.parcel?.tracking_number || null, 
-      tracking_url: returnInfo.parcel?.tracking_url || null 
+      tracking_number: returnInfo.parcel?.tracking_number || returnInfo.tracking_number || null, 
+      tracking_url: returnInfo.parcel?.tracking_url || returnInfo.tracking_url || null 
     };
   } catch (error) {
     console.error('SendCloud API Error creating return label:', error);
-    throw error; // Re-throw the error to be caught by the API route
+    throw error; 
   }
 }
 
