@@ -16,6 +16,7 @@ import { Button } from "../components/ui/button";
 import { formatDate } from '../utils/date-utils';
 import LateralOrderModal from '../components/LateralOrderModal';
 import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
+import ReturnConfirmationModal from '../components/ReturnConfirmationModal';
 
 export default function ReturnsPage() {
   const router = useRouter();
@@ -26,6 +27,16 @@ export default function ReturnsPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [upgradingOrder, setUpgradingOrder] = useState(null);
+  const [isReturnConfirmModalOpen, setIsReturnConfirmModalOpen] = useState(false);
+  const [orderForReturn, setOrderForReturn] = useState(null);
+
+  const warehouseAddress = {
+    name: "Default Warehouse",
+    line1: "1 Warehouse Way",
+    city: "Logistics Town",
+    postal_code: "98765",
+    country: "NL"
+  };
 
   useEffect(() => {
     loadDeliveredOrders();
@@ -58,15 +69,13 @@ export default function ReturnsPage() {
     }
   };
 
-  const createReturnLabel = async (orderId) => {
+  const createReturnLabel = async (orderId, returnAddress) => {
     try {
       setCreatingLabel(orderId);
       const response = await fetch('/api/returns/create-label', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderId }),
+        headers: {'Content-Type': 'application/json',},
+        body: JSON.stringify({ orderId, returnAddress }),
       });
 
       const data = await response.json();
@@ -75,7 +84,6 @@ export default function ReturnsPage() {
         throw new Error(data.error || 'Failed to create return label');
       }
 
-      // Update the order in the local state with the return label information
       setDeliveredOrders(prevOrders =>
         prevOrders.map(order =>
           order.id === orderId
@@ -99,29 +107,42 @@ export default function ReturnsPage() {
     }
   };
 
-  // Placeholder function for handling order upgrades
+  const handleOpenReturnModal = (orderId) => {
+    const order = deliveredOrders.find(o => o.id === orderId);
+    if (order) {
+      setOrderForReturn(order);
+      setIsReturnConfirmModalOpen(true);
+    } else {
+      toast.error("Could not find order details.");
+    }
+  };
+
+  const handleCloseReturnModal = () => {
+    setIsReturnConfirmModalOpen(false);
+    setOrderForReturn(null);
+  };
+
+  const handleConfirmReturn = async (orderId, returnAddress) => {
+    await createReturnLabel(orderId, returnAddress);
+    handleCloseReturnModal();
+  };
+
   const handleUpgradeOrder = async (orderId) => {
     setUpgradingOrder(orderId);
     console.log(`Initiating upgrade for order: ${orderId}`);
     toast.loading('Upgrade process not yet implemented...', { id: `upgrade-${orderId}` });
-    // TODO: Implement the full upgrade logic
-    // 1. Call API to create return label for original order (if needed, or use createReturnLabel)
-    // 2. Determine the details of the new upgrade order (potentially open a modal?)
-    // 3. Call API to create a *new* shipping label for the upgrade order
-    // 4. Update UI / order status
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 2000));
     toast.dismiss(`upgrade-${orderId}`);
     toast.success(`Placeholder: Upgrade initiated for order ${orderId}. Full implementation pending.`);
     setUpgradingOrder(null);
   };
 
-  // Define columns for the EnhancedOrdersTable specific to returns
   const returnColumns = [
     {
       id: 'actions',
       label: 'Actions',
       type: 'actions',
-      className: 'sticky left-0 bg-white w-[280px] z-10 border-r', // Add border-r for visual separation
+      className: 'sticky left-0 bg-white w-[280px] z-10 border-r',
       actions: [
         {
           label: 'Open',
@@ -145,8 +166,8 @@ export default function ReturnsPage() {
         },
         {
           label: 'Create Return Label',
-          handler: (orderId) => createReturnLabel(orderId),
-          disabled: (orderId) => creatingLabel === orderId,
+          handler: (orderId) => handleOpenReturnModal(orderId),
+          disabled: (orderId) => creatingLabel === orderId || !!deliveredOrders.find(o => o.id === orderId)?.return_label_url,
           loading: (orderId) => creatingLabel === orderId,
           loadingText: 'Creating...',
           className: 'mr-2',
@@ -173,7 +194,7 @@ export default function ReturnsPage() {
     { 
       id: 'name', 
       label: 'Customer',
-      className: 'w-[100px] whitespace-nowrap border-r border-none' // Keep border-none for the cell content
+      className: 'w-[100px] whitespace-nowrap border-r border-none'
     },
     { 
       id: 'order_pack', 
@@ -244,6 +265,17 @@ export default function ReturnsPage() {
             setIsModalOpen(false);
             setSelectedOrder(null);
           }}
+        />
+      )}
+
+      {orderForReturn && (
+        <ReturnConfirmationModal
+          isOpen={isReturnConfirmModalOpen}
+          onClose={handleCloseReturnModal}
+          order={orderForReturn}
+          onConfirm={handleConfirmReturn}
+          returnToAddress={warehouseAddress}
+          isLoading={creatingLabel === orderForReturn?.id}
         />
       )}
     </div>

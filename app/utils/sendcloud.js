@@ -311,8 +311,41 @@ export async function fetchSendCloudParcelTrackingUrl(parcelId) {
   }
 }
 
-export async function createReturnLabel(order) {
+/**
+ * Create a return label via SendCloud
+ * @param {object} order - The order details from Supabase
+ * @param {object} returnAddress - The return address details from the confirmation modal
+ * @returns {Promise<object>} - Return label URL and tracking info
+ */
+export async function createReturnLabel(order, returnAddress) {
   try {
+    // Construct the payload for SendCloud Returns API
+    const returnPayload = {
+      name: returnAddress.name || order.name, // Use name from return address if available, else customer name
+      company_name: returnAddress.company_name || '', // Add company if available
+      address: returnAddress.line1, // Use line1 from the modal
+      address_2: returnAddress.line2 || '', // Use line2 from the modal
+      city: returnAddress.city,
+      postal_code: returnAddress.postal_code,
+      country: returnAddress.country,
+      telephone: returnAddress.phone || order.phone || '', // Prioritize phone from return address, then order
+      email: returnAddress.email || order.email, // Prioritize email from return address, then order
+      order_number: order.id.toString(),
+      reason: 'Other', // Default reason, can be made dynamic later
+      request_label: true, // We want SendCloud to generate the label
+      incoming_parcel: {
+        // You might need to specify a default return shipment method ID
+        // shipment_id: process.env.SENDCLOUD_DEFAULT_RETURN_METHOD_ID, 
+        from_name: order.name, 
+        from_address_1: order.shipping_address_line1 || order.address, // Original shipping address line 1
+        from_address_2: order.shipping_address_line2 || '', // Original shipping address line 2
+        from_city: order.shipping_address_city || order.city, // Original shipping city
+        from_postal_code: order.shipping_address_postal_code || order.postal_code, // Original postal code
+        from_country: order.shipping_address_country || order.country, // Original country
+        weight: '1.000' // Default weight, adjust if needed
+      }
+    };
+
     const response = await fetch('https://panel.sendcloud.sc/api/v2/returns', {
       method: 'POST',
       headers: {
@@ -321,41 +354,44 @@ export async function createReturnLabel(order) {
           `${process.env.SENDCLOUD_PUBLIC_KEY}:${process.env.SENDCLOUD_SECRET_KEY}`
         ).toString('base64')}`,
       },
-      body: JSON.stringify({
-        parcel: {
-          name: order.name,
-          address: order.address,
-          city: order.city,
-          postal_code: order.postal_code,
-          country: order.country,
-          request_label: true,
-          order_number: order.id.toString(),
-          email: order.email,
-          telephone: order.phone || '',
-          weight: '1.000', // Default weight in kg
-          is_return: true,
-          shipment: {
-            id: order.shipping_id,
-            tracking_number: order.tracking_number
-          }
-        }
-      }),
+      body: JSON.stringify(returnPayload), // Use the constructed payload
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error.message || 'Failed to create return label');
+      console.error("SendCloud API Error Response:", error);
+      // Try to extract a meaningful error message
+      let errorMessage = 'Failed to create return label';
+      if (error && error.error && error.error.message) {
+        errorMessage = `SendCloud Error: ${error.error.message}`;
+      } else if (error && error.message) {
+        errorMessage = `SendCloud Error: ${error.message}`;
+      } else if (typeof error === 'string') {
+        errorMessage = `SendCloud Error: ${error}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
+    console.log("SendCloud Return Creation Response:", data);
+
+    // Extract necessary details from the response
+    // Note: Sendcloud return response structure might differ from parcel creation
+    // Adjust based on the actual SendCloud API documentation for returns
+    const returnInfo = data.return; // Assuming the return details are under a 'return' key
+
+    if (!returnInfo || !returnInfo.label || !returnInfo.label.label_printer) {
+       throw new Error('SendCloud response missing label URL.');
+    }
+    
     return {
-      label_url: data.parcel.label.label_printer,
-      tracking_number: data.parcel.tracking_number,
-      tracking_url: data.parcel.tracking_url
+      label_url: returnInfo.label.label_printer,
+      tracking_number: returnInfo.parcel?.tracking_number || null, // Tracking might be on the parcel object within the return
+      tracking_url: returnInfo.parcel?.tracking_url || null // Tracking URL might be on the parcel object
     };
   } catch (error) {
-    console.error('SendCloud API Error:', error);
-    throw error;
+    console.error('SendCloud API Error creating return label:', error);
+    throw error; // Re-throw the error to be caught by the API route
   }
 }
 

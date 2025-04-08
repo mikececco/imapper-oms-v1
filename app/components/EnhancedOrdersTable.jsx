@@ -567,7 +567,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                   )}
                 >
                   {column.label}
-                </TableHead>
+                  </TableHead>
               ))}
                 </TableRow>
               </TableHeader>

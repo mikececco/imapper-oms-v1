@@ -9,11 +9,18 @@ const supabase = createClient(
 
 export async function POST(request) {
   try {
-    const { orderId } = await request.json();
+    const { orderId, returnAddress } = await request.json();
 
     if (!orderId) {
       return NextResponse.json(
         { error: 'Order ID is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!returnAddress || typeof returnAddress !== 'object' || !returnAddress.line1 || !returnAddress.city || !returnAddress.postal_code || !returnAddress.country) {
+      return NextResponse.json(
+        { error: 'Valid return address is required' },
         { status: 400 }
       );
     }
@@ -33,7 +40,7 @@ export async function POST(request) {
     }
 
     // Create return label using SendCloud
-    const returnLabel = await createReturnLabel(order);
+    const returnLabel = await createReturnLabel(order, returnAddress);
 
     // Update order with return label information
     const { error: updateError } = await supabase
