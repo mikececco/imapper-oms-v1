@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,8 @@ export default function ReturnConfirmationModal({
   const [returnToAddressState, setReturnToAddressState] = useState({...fixedWarehouseAddress});
   // State to track if the warehouse address is being edited
   const [isEditingWarehouseAddress, setIsEditingWarehouseAddress] = useState(false);
+  // State for parcel weight
+  const [parcelWeight, setParcelWeight] = useState('1.000'); // Default weight
 
   // Effect to initialize/reset address state when order changes
   useEffect(() => {
@@ -121,9 +124,12 @@ export default function ReturnConfirmationModal({
         };
       }
       setReturnFromAddress(initialAddress);
+      // Set initial weight from order or default
+      setParcelWeight(order.weight || '1.000');
     } else {
       // Reset customer address if order is null
       setReturnFromAddress({ name: '', company_name: '', email: '', phone: '', line1: '', line2: '', house_number: '', city: '', postal_code: '', country: '' });
+      setParcelWeight('1.000'); // Reset weight
     }
     // Reset customer editing state 
     setIsEditingCustomerAddress(false);
@@ -136,9 +142,40 @@ export default function ReturnConfirmationModal({
   if (!order) return null;
 
   const handleConfirm = () => {
+    // --- Validation --- 
+    const requiredFromFields = ['name', 'email', 'phone', 'line1', 'house_number', 'city', 'postal_code', 'country'];
+    const requiredToFields = ['name', 'email', 'phone', 'line1', 'house_number', 'city', 'postal_code', 'country'];
+    let missingFields = [];
+
+    // Check From Address
+    requiredFromFields.forEach(field => {
+      if (!returnFromAddress[field] || returnFromAddress[field].trim() === '') {
+        missingFields.push(`Return From: ${field.replace('_', ' ')}`);
+      }
+    });
+
+    // Check To Address
+    requiredToFields.forEach(field => {
+      if (!returnToAddressState[field] || returnToAddressState[field].trim() === '') {
+        missingFields.push(`Return To: ${field.replace('_', ' ')}`);
+      }
+    });
+
+    // Check Weight
+    const weightValue = parseFloat(parcelWeight);
+    if (isNaN(weightValue) || weightValue <= 0) {
+        missingFields.push('Parcel Weight (must be > 0)');
+    }
+
+    if (missingFields.length > 0) {
+      toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`, { duration: 5000 });
+      return; // Stop if validation fails
+    }
+    // --- End Validation ---
+
+    // Proceed if validation passes
     if (order && order.id) {
-      // Pass customer address AND the potentially edited warehouse address
-      onConfirm(order.id, returnFromAddress, returnToAddressState);
+      onConfirm(order.id, returnFromAddress, returnToAddressState, parcelWeight);
     }
   };
 
@@ -154,282 +191,258 @@ export default function ReturnConfirmationModal({
     setReturnToAddressState(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handler for weight change
+  const handleWeightChange = (e) => {
+      // Basic validation to allow only numbers and one decimal point
+      const value = e.target.value;
+      if (/^\d*\.?\d*$/.test(value)) { 
+          setParcelWeight(value);
+      }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Confirm Return Label Creation</DialogTitle>
           <DialogDescription>
             Please review the details below before creating the return label for Order #{order.id}.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4 overflow-y-auto flex-grow pr-6">
-          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+        <div className="flex-grow overflow-y-auto pr-6 py-4">
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4 mb-4">
             <span className="text-right font-medium">Order ID:</span>
             <span>{order.id}</span>
           </div>
-          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4 mb-4">
             <span className="text-right font-medium">Customer:</span>
             <span>{order.name || 'N/A'}</span>
           </div>
-          <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+          <div className="grid grid-cols-[120px_1fr] items-center gap-4 mb-6">
             <span className="text-right font-medium">Order Pack:</span>
             <span>{order.order_pack || 'N/A'}</span>
           </div>
-          <div className="mt-2 border-t pt-4">
-            <label className="font-medium text-md mb-2 block">Return From</label>
-            {isEditingCustomerAddress ? (
-              <div className="grid gap-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="return-name" className="block text-xs font-medium text-gray-700 mb-1">Name</label>
-                    <Input 
-                      id="return-name"
-                      name="name"
-                      placeholder="Customer Name"
-                      value={returnFromAddress.name}
-                      onChange={handleCustomerAddressChange}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="return-company_name" className="block text-xs font-medium text-gray-700 mb-1">Company (Optional)</label>
-                    <Input 
-                      id="return-company_name"
-                      name="company_name"
-                      placeholder="Company Name"
-                      value={returnFromAddress.company_name}
-                      onChange={handleCustomerAddressChange}
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="return-email" className="block text-xs font-medium text-gray-700 mb-1">Email</label>
-                    <Input 
-                      id="return-email"
-                      name="email"
-                      type="email"
-                      placeholder="Email Address"
-                      value={returnFromAddress.email}
-                      onChange={handleCustomerAddressChange}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="return-phone" className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
-                    <Input 
-                      id="return-phone"
-                      name="phone"
-                      type="tel"
-                      placeholder="Phone Number"
-                      value={returnFromAddress.phone}
-                      onChange={handleCustomerAddressChange}
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="return-line1" className="block text-xs font-medium text-gray-700 mb-1">Address Line 1</label>
-                  <Input 
-                    id="return-line1"
-                    name="line1"
-                    placeholder="Address Line 1"
-                    value={returnFromAddress.line1}
-                    onChange={handleCustomerAddressChange}
-                    disabled={isLoading}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="return-line2" className="block text-xs font-medium text-gray-700 mb-1">Address Line 2 (Optional)</label>
-                    <Input 
-                      id="return-line2"
-                      name="line2"
-                      placeholder="Address Line 2"
-                      value={returnFromAddress.line2}
-                      onChange={handleCustomerAddressChange}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="return-house_number" className="block text-xs font-medium text-gray-700 mb-1">House Number</label>
-                    <Input 
-                      id="return-house_number"
-                      name="house_number"
-                      placeholder="House Number"
-                      value={returnFromAddress.house_number}
-                      onChange={handleCustomerAddressChange}
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="return-city" className="block text-xs font-medium text-gray-700 mb-1">City</label>
-                    <Input 
-                      id="return-city"
-                      name="city"
-                      placeholder="City"
-                      value={returnFromAddress.city}
-                      onChange={handleCustomerAddressChange}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="return-postal_code" className="block text-xs font-medium text-gray-700 mb-1">Postal Code</label>
-                    <Input 
-                      id="return-postal_code"
-                      name="postal_code"
-                      placeholder="Postal Code"
-                      value={returnFromAddress.postal_code}
-                      onChange={handleCustomerAddressChange}
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="return-country" className="block text-xs font-medium text-gray-700 mb-1">Country Code</label>
-                  <Input 
-                    id="return-country"
-                    name="country"
-                    placeholder="Country Code (e.g., NL, US)"
-                    value={returnFromAddress.country}
-                    onChange={handleCustomerAddressChange}
-                    disabled={isLoading}
-                  />
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setIsEditingCustomerAddress(false)} 
-                  disabled={isLoading}
-                  className="mt-2 justify-self-start" 
-                >
-                  Confirm Address
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-[100px_1fr] gap-x-4 gap-y-1 text-sm flex-grow">
-                  {returnFromAddress.name && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">Name:</span>
-                      <span>{returnFromAddress.name}</span>
-                    </>
-                  )}
-                  {returnFromAddress.company_name && returnFromAddress.company_name !== returnFromAddress.name && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">Company:</span>
-                      <span>{returnFromAddress.company_name}</span>
-                    </>
-                  )}
-                  {returnFromAddress.email && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">Email:</span>
-                      <span>{returnFromAddress.email}</span>
-                    </>
-                  )}
-                  {returnFromAddress.phone && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">Phone:</span>
-                      <span>{returnFromAddress.phone}</span>
-                    </>
-                  )}
-                  {returnFromAddress.line1 && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">Address 1:</span>
-                      <span>{returnFromAddress.line1}</span>
-                    </>
-                  )}
-                  {returnFromAddress.line2 && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">Address 2:</span>
-                      <span>{returnFromAddress.line2}</span>
-                    </>
-                  )}
-                  {returnFromAddress.house_number && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">House No.:</span>
-                      <span>{returnFromAddress.house_number}</span>
-                    </>
-                  )}
-                  {returnFromAddress.city && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">City:</span>
-                      <span>{returnFromAddress.city}</span>
-                    </>
-                  )}
-                  {returnFromAddress.postal_code && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">Postal Code:</span>
-                      <span>{returnFromAddress.postal_code}</span>
-                    </>
-                  )}
-                  {returnFromAddress.country && (
-                    <>
-                      <span className="font-medium text-gray-600 text-right">Country:</span>
-                      <span>{returnFromAddress.country}</span>
-                    </>
-                  )}
-                </div>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditingCustomerAddress(true)}
-                  disabled={isLoading}
-                  className="mt-2 justify-self-start"
-                >
-                  Edit Address
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className="mt-4 border-t pt-4">
-             <label className="font-medium text-md mb-2 block">Return To</label>
-             {isEditingWarehouseAddress ? (
-                // Edit View for Warehouse Address
+          <div className="grid grid-cols-2 gap-x-8">
+            <div className="border-t pt-4">
+              <label className="font-medium text-md mb-2 block">Return From</label>
+              {isEditingCustomerAddress ? (
                 <div className="grid gap-3">
-                  <div>
-                    <label htmlFor="return-to-name" className="block text-xs font-medium text-gray-700 mb-1">Name</label>
-                    <Input id="return-to-name" name="name" placeholder="Warehouse Name" value={returnToAddressState.name} onChange={handleReturnToAddressChange} disabled={isLoading} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="return-name" className="block text-xs font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                      <Input 
+                        id="return-name"
+                        name="name"
+                        placeholder="Customer Name"
+                        value={returnFromAddress.name}
+                        onChange={handleCustomerAddressChange}
+                        disabled={isLoading}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="return-company_name" className="block text-xs font-medium text-gray-700 mb-1">Company (Optional)</label>
+                      <Input 
+                        id="return-company_name"
+                        name="company_name"
+                        placeholder="Company Name"
+                        value={returnFromAddress.company_name}
+                        onChange={handleCustomerAddressChange}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="return-email" className="block text-xs font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+                      <Input 
+                        id="return-email"
+                        name="email"
+                        type="email"
+                        placeholder="Email Address"
+                        value={returnFromAddress.email}
+                        onChange={handleCustomerAddressChange}
+                        disabled={isLoading}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="return-phone" className="block text-xs font-medium text-gray-700 mb-1">Phone <span className="text-red-500">*</span></label>
+                      <Input 
+                        id="return-phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="Phone Number"
+                        value={returnFromAddress.phone}
+                        onChange={handleCustomerAddressChange}
+                        disabled={isLoading}
+                        required
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label htmlFor="return-to-company_name" className="block text-xs font-medium text-gray-700 mb-1">Company</label>
-                    <Input id="return-to-company_name" name="company_name" placeholder="Company Name" value={returnToAddressState.company_name} onChange={handleReturnToAddressChange} disabled={isLoading} />
+                    <label htmlFor="return-line1" className="block text-xs font-medium text-gray-700 mb-1">Address Line 1 <span className="text-red-500">*</span></label>
+                    <Input 
+                      id="return-line1"
+                      name="line1"
+                      placeholder="Address Line 1"
+                      value={returnFromAddress.line1}
+                      onChange={handleCustomerAddressChange}
+                      disabled={isLoading}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="return-line2" className="block text-xs font-medium text-gray-700 mb-1">Address Line 2 (Optional)</label>
+                      <Input 
+                        id="return-line2"
+                        name="line2"
+                        placeholder="Address Line 2"
+                        value={returnFromAddress.line2}
+                        onChange={handleCustomerAddressChange}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="return-house_number" className="block text-xs font-medium text-gray-700 mb-1">House Number <span className="text-red-500">*</span></label>
+                      <Input 
+                        id="return-house_number"
+                        name="house_number"
+                        placeholder="House Number"
+                        value={returnFromAddress.house_number}
+                        onChange={handleCustomerAddressChange}
+                        disabled={isLoading}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="return-city" className="block text-xs font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+                      <Input 
+                        id="return-city"
+                        name="city"
+                        placeholder="City"
+                        value={returnFromAddress.city}
+                        onChange={handleCustomerAddressChange}
+                        disabled={isLoading}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="return-postal_code" className="block text-xs font-medium text-gray-700 mb-1">Postal Code <span className="text-red-500">*</span></label>
+                      <Input 
+                        id="return-postal_code"
+                        name="postal_code"
+                        placeholder="Postal Code"
+                        value={returnFromAddress.postal_code}
+                        onChange={handleCustomerAddressChange}
+                        disabled={isLoading}
+                        required
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label htmlFor="return-to-email" className="block text-xs font-medium text-gray-700 mb-1">Email</label>
-                    <Input id="return-to-email" name="email" type="email" placeholder="Email" value={returnToAddressState.email} onChange={handleReturnToAddressChange} disabled={isLoading} />
+                    <label htmlFor="return-country" className="block text-xs font-medium text-gray-700 mb-1">Country Code <span className="text-red-500">*</span></label>
+                    <Input 
+                      id="return-country"
+                      name="country"
+                      placeholder="Country Code (e.g., NL, US)"
+                      value={returnFromAddress.country}
+                      onChange={handleCustomerAddressChange}
+                      disabled={isLoading}
+                      required
+                    />
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setIsEditingCustomerAddress(false)} 
+                    disabled={isLoading}
+                    className="mt-2 justify-self-start" 
+                  >
+                    Confirm Address
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-[100px_1fr] gap-x-4 gap-y-1 text-sm flex-grow">
+                    {/* Always render all fields, show asterisk for required */}
+                    <><span className="font-medium text-gray-600 text-right">Name: <span className="text-red-500">*</span></span><span>{returnFromAddress.name}</span></>
+                    <><span className="font-medium text-gray-600 text-right">Company:</span><span>{returnFromAddress.company_name}</span></>
+                    <><span className="font-medium text-gray-600 text-right">Email: <span className="text-red-500">*</span></span><span>{returnFromAddress.email}</span></>
+                    <><span className="font-medium text-gray-600 text-right">Phone: <span className="text-red-500">*</span></span><span>{returnFromAddress.phone}</span></>
+                    <><span className="font-medium text-gray-600 text-right">Address 1: <span className="text-red-500">*</span></span><span>{returnFromAddress.line1}</span></>
+                    <><span className="font-medium text-gray-600 text-right">Address 2:</span><span>{returnFromAddress.line2}</span></>
+                    <><span className="font-medium text-gray-600 text-right">House No.: <span className="text-red-500">*</span></span><span>{returnFromAddress.house_number}</span></>
+                    <><span className="font-medium text-gray-600 text-right">City: <span className="text-red-500">*</span></span><span>{returnFromAddress.city}</span></>
+                    <><span className="font-medium text-gray-600 text-right">Postal Code: <span className="text-red-500">*</span></span><span>{returnFromAddress.postal_code}</span></>
+                    <><span className="font-medium text-gray-600 text-right">Country: <span className="text-red-500">*</span></span><span>{returnFromAddress.country}</span></>
+                  </div>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditingCustomerAddress(true)}
+                    disabled={isLoading}
+                    className="mt-2 justify-self-start"
+                  >
+                    Edit Address
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="border-t pt-4">
+              <label className="font-medium text-md mb-2 block">Return To</label>
+              {isEditingWarehouseAddress ? (
+                <div className="grid gap-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="return-to-name" className="block text-xs font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                      <Input id="return-to-name" name="name" placeholder="Warehouse Name" value={returnToAddressState.name} onChange={handleReturnToAddressChange} disabled={isLoading} required />
+                    </div>
+                    <div>
+                      <label htmlFor="return-to-company_name" className="block text-xs font-medium text-gray-700 mb-1">Company</label>
+                      <Input id="return-to-company_name" name="company_name" placeholder="Company Name" value={returnToAddressState.company_name} onChange={handleReturnToAddressChange} disabled={isLoading} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="return-to-email" className="block text-xs font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+                      <Input id="return-to-email" name="email" type="email" placeholder="Email" value={returnToAddressState.email} onChange={handleReturnToAddressChange} disabled={isLoading} required />
+                    </div>
+                    <div>
+                      <label htmlFor="return-to-phone" className="block text-xs font-medium text-gray-700 mb-1">Phone <span className="text-red-500">*</span></label>
+                      <Input id="return-to-phone" name="phone" type="tel" placeholder="Phone" value={returnToAddressState.phone} onChange={handleReturnToAddressChange} disabled={isLoading} required />
+                    </div>
                   </div>
                   <div>
-                    <label htmlFor="return-to-phone" className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
-                    <Input id="return-to-phone" name="phone" type="tel" placeholder="Phone" value={returnToAddressState.phone} onChange={handleReturnToAddressChange} disabled={isLoading} />
+                    <label htmlFor="return-to-line1" className="block text-xs font-medium text-gray-700 mb-1">Address Line 1 <span className="text-red-500">*</span></label>
+                    <Input id="return-to-line1" name="line1" placeholder="Address Line 1" value={returnToAddressState.line1} onChange={handleReturnToAddressChange} disabled={isLoading} required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="return-to-line2" className="block text-xs font-medium text-gray-700 mb-1">Address Line 2</label>
+                      <Input id="return-to-line2" name="line2" placeholder="Address Line 2" value={returnToAddressState.line2} onChange={handleReturnToAddressChange} disabled={isLoading} />
+                    </div>
+                    <div>
+                      <label htmlFor="return-to-house_number" className="block text-xs font-medium text-gray-700 mb-1">House No. <span className="text-red-500">*</span></label>
+                      <Input id="return-to-house_number" name="house_number" placeholder="House No." value={returnToAddressState.house_number} onChange={handleReturnToAddressChange} disabled={isLoading} required />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="return-to-city" className="block text-xs font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+                      <Input id="return-to-city" name="city" placeholder="City" value={returnToAddressState.city} onChange={handleReturnToAddressChange} disabled={isLoading} required />
+                    </div>
+                    <div>
+                      <label htmlFor="return-to-postal_code" className="block text-xs font-medium text-gray-700 mb-1">Postal Code <span className="text-red-500">*</span></label>
+                      <Input id="return-to-postal_code" name="postal_code" placeholder="Postal Code" value={returnToAddressState.postal_code} onChange={handleReturnToAddressChange} disabled={isLoading} required />
+                    </div>
                   </div>
                   <div>
-                    <label htmlFor="return-to-line1" className="block text-xs font-medium text-gray-700 mb-1">Address Line 1</label>
-                    <Input id="return-to-line1" name="line1" placeholder="Address Line 1" value={returnToAddressState.line1} onChange={handleReturnToAddressChange} disabled={isLoading} />
-                  </div>
-                  <div>
-                    <label htmlFor="return-to-line2" className="block text-xs font-medium text-gray-700 mb-1">Address Line 2</label>
-                    <Input id="return-to-line2" name="line2" placeholder="Address Line 2" value={returnToAddressState.line2} onChange={handleReturnToAddressChange} disabled={isLoading} />
-                  </div>
-                  <div>
-                    <label htmlFor="return-to-house_number" className="block text-xs font-medium text-gray-700 mb-1">House No.</label>
-                    <Input id="return-to-house_number" name="house_number" placeholder="House No." value={returnToAddressState.house_number} onChange={handleReturnToAddressChange} disabled={isLoading} />
-                  </div>
-                  <div>
-                    <label htmlFor="return-to-city" className="block text-xs font-medium text-gray-700 mb-1">City</label>
-                    <Input id="return-to-city" name="city" placeholder="City" value={returnToAddressState.city} onChange={handleReturnToAddressChange} disabled={isLoading} />
-                  </div>
-                  <div>
-                    <label htmlFor="return-to-postal_code" className="block text-xs font-medium text-gray-700 mb-1">Postal Code</label>
-                    <Input id="return-to-postal_code" name="postal_code" placeholder="Postal Code" value={returnToAddressState.postal_code} onChange={handleReturnToAddressChange} disabled={isLoading} />
-                  </div>
-                  <div>
-                    <label htmlFor="return-to-country" className="block text-xs font-medium text-gray-700 mb-1">Country Code</label>
-                    <Input id="return-to-country" name="country" placeholder="Country Code" value={returnToAddressState.country} onChange={handleReturnToAddressChange} disabled={isLoading} />
+                    <label htmlFor="return-to-country" className="block text-xs font-medium text-gray-700 mb-1">Country Code <span className="text-red-500">*</span></label>
+                    <Input id="return-to-country" name="country" placeholder="Country Code" value={returnToAddressState.country} onChange={handleReturnToAddressChange} disabled={isLoading} required />
                   </div>
                   <Button 
                     variant="outline" 
@@ -441,20 +454,20 @@ export default function ReturnConfirmationModal({
                     Confirm Address
                   </Button>
                 </div>
-             ) : (
-                // Static Display View for Warehouse Address
+              ) : (
                 <div className="flex flex-col gap-4">
                    <div className="grid grid-cols-[100px_1fr] gap-x-4 gap-y-1 text-sm flex-grow">
-                      {returnToAddressState.name && <><span className="font-medium text-gray-600 text-right">Name:</span><span>{returnToAddressState.name}</span></>}
-                      {returnToAddressState.company_name && <><span className="font-medium text-gray-600 text-right">Company:</span><span>{returnToAddressState.company_name}</span></>}
-                      {returnToAddressState.email && <><span className="font-medium text-gray-600 text-right">Email:</span><span>{returnToAddressState.email}</span></>}
-                      {returnToAddressState.phone && <><span className="font-medium text-gray-600 text-right">Phone:</span><span>{returnToAddressState.phone}</span></>}
-                      {returnToAddressState.line1 && <><span className="font-medium text-gray-600 text-right">Address 1:</span><span>{returnToAddressState.line1}</span></>}
-                      {returnToAddressState.line2 && <><span className="font-medium text-gray-600 text-right">Address 2:</span><span>{returnToAddressState.line2}</span></>}
-                      {returnToAddressState.house_number && <><span className="font-medium text-gray-600 text-right">House No.:</span><span>{returnToAddressState.house_number}</span></>}
-                      {returnToAddressState.city && <><span className="font-medium text-gray-600 text-right">City:</span><span>{returnToAddressState.city}</span></>}
-                      {returnToAddressState.postal_code && <><span className="font-medium text-gray-600 text-right">Postal Code:</span><span>{returnToAddressState.postal_code}</span></>}
-                      {returnToAddressState.country && <><span className="font-medium text-gray-600 text-right">Country:</span><span>{returnToAddressState.country}</span></>}
+                      {/* Always render all fields, show asterisk for required */}
+                      <><span className="font-medium text-gray-600 text-right">Name: <span className="text-red-500">*</span></span><span>{returnToAddressState.name}</span></>
+                      <><span className="font-medium text-gray-600 text-right">Company:</span><span>{returnToAddressState.company_name}</span></>
+                      <><span className="font-medium text-gray-600 text-right">Email: <span className="text-red-500">*</span></span><span>{returnToAddressState.email}</span></>
+                      <><span className="font-medium text-gray-600 text-right">Phone: <span className="text-red-500">*</span></span><span>{returnToAddressState.phone}</span></>
+                      <><span className="font-medium text-gray-600 text-right">Address 1: <span className="text-red-500">*</span></span><span>{returnToAddressState.line1}</span></>
+                      <><span className="font-medium text-gray-600 text-right">Address 2:</span><span>{returnToAddressState.line2}</span></>
+                      <><span className="font-medium text-gray-600 text-right">House No.: <span className="text-red-500">*</span></span><span>{returnToAddressState.house_number}</span></>
+                      <><span className="font-medium text-gray-600 text-right">City: <span className="text-red-500">*</span></span><span>{returnToAddressState.city}</span></>
+                      <><span className="font-medium text-gray-600 text-right">Postal Code: <span className="text-red-500">*</span></span><span>{returnToAddressState.postal_code}</span></>
+                      <><span className="font-medium text-gray-600 text-right">Country: <span className="text-red-500">*</span></span><span>{returnToAddressState.country}</span></>
                    </div>
                    <Button 
                       variant="outline"
@@ -466,9 +479,25 @@ export default function ReturnConfirmationModal({
                       Edit Address
                    </Button>
                 </div>
-             )}
+              )}
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">
+          <div className="mt-4 border-t pt-4">
+              <label htmlFor="parcel-weight" className="block text-sm font-medium text-gray-700 mb-1">Parcel Weight (kg) <span className="text-red-500">*</span></label>
+              <Input 
+                id="parcel-weight"
+                name="parcelWeight"
+                type="text" // Use text for more flexible input, validation is manual
+                inputMode="decimal" // Hint for mobile keyboards
+                placeholder="e.g., 1.500"
+                value={parcelWeight}
+                onChange={handleWeightChange}
+                disabled={isLoading}
+                required
+                className="max-w-xs" // Limit width
+              />
+           </div>
+          <p className="text-sm text-muted-foreground mt-6">
             This will generate a Sendcloud return label using the addresses above. 
             The label PDF and tracking information will be linked to this order.
           </p>

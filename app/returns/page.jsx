@@ -30,6 +30,14 @@ export default function ReturnsPage() {
   const [isReturnConfirmModalOpen, setIsReturnConfirmModalOpen] = useState(false);
   const [orderForReturn, setOrderForReturn] = useState(null);
 
+  const warehouseAddress = {
+    name: "Default Warehouse",
+    line1: "1 Warehouse Way",
+    city: "Logistics Town",
+    postal_code: "98765",
+    country: "NL"
+  };
+
   useEffect(() => {
     loadDeliveredOrders();
   }, []);
@@ -61,13 +69,13 @@ export default function ReturnsPage() {
     }
   };
 
-  const createReturnLabel = async (orderId, returnFromAddress, returnToAddress) => {
+  const createReturnLabel = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
     try {
       setCreatingLabel(orderId);
       const response = await fetch('/api/returns/create-label', {
         method: 'POST',
         headers: {'Content-Type': 'application/json',},
-        body: JSON.stringify({ orderId, returnFromAddress, returnToAddress }),
+        body: JSON.stringify({ orderId, returnFromAddress, returnToAddress, parcelWeight }),
       });
 
       const data = await response.json();
@@ -114,8 +122,8 @@ export default function ReturnsPage() {
     setOrderForReturn(null);
   };
 
-  const handleConfirmReturn = async (orderId, returnFromAddress, returnToAddress) => {
-    await createReturnLabel(orderId, returnFromAddress, returnToAddress);
+  const handleConfirmReturn = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
+    await createReturnLabel(orderId, returnFromAddress, returnToAddress, parcelWeight);
     handleCloseReturnModal();
   };
 
