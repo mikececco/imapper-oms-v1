@@ -100,11 +100,15 @@ export default function ReturnsPage() {
   };
 
   const handleOpenUpgradeModal = async (orderId) => {
+    console.log("[handleOpenUpgradeModal] Clicked for orderId:", orderId);
     const order = deliveredOrders.find(o => o.id === orderId);
     if (order) {
-      setOrderForUpgrade(order);
+      console.log("[handleOpenUpgradeModal] Found order:", order);
+      setOrderForUpgrade(order); 
+      console.log("[handleOpenUpgradeModal] Setting isUpgradeModalOpen to true...");
       setIsUpgradeModalOpen(true);
     } else {
+      console.error("[handleOpenUpgradeModal] Could not find order details for ID:", orderId);
       toast.error("Could not find order details to upgrade.");
     }
   };
@@ -262,6 +266,8 @@ export default function ReturnsPage() {
       }
     }
   ];
+
+  console.log("[ReturnsPage Render] isUpgradeModalOpen:", isUpgradeModalOpen, "orderForUpgrade:", !!orderForUpgrade);
 
   return (
     <div className="container mx-auto px-4 py-8">
