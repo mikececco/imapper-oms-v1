@@ -176,7 +176,7 @@ export default function ReturnsPage() {
     { 
       id: 'name', 
       label: 'Customer',
-      className: 'w-[100px] whitespace-nowrap border-r border-none'
+      className: 'w-[80px] whitespace-nowrap border-r border-none'
     },
     { 
       id: 'order_pack', 
