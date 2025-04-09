@@ -118,24 +118,41 @@ export default function ReturnsPage() {
     setOrderForUpgrade(null);
   };
 
-  const handleCreateReturnLabelForUpgrade = async (orderId, customerAddress, returnToAddress) => {
-    console.log("Requesting return label for upgrade:", orderId, customerAddress, returnToAddress);
+  const handleCreateReturnLabelForUpgrade = async (orderId, customerAddress, returnToAddress, returnWeight) => {
+    console.log("Requesting return label for upgrade:", orderId, customerAddress, returnToAddress, returnWeight);
     setUpgradingOrderId(orderId);
     const toastId = toast.loading('Creating return label for original item...');
     try {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        const mockReturnData = { 
-            sendcloud_return_id: `RETURN_${orderId.slice(-4)}`, 
-            sendcloud_return_parcel_id: `PARCEL_${orderId.slice(-4)}` 
-        };
+        const response = await fetch('/api/returns/create-label', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json',},
+            body: JSON.stringify({ 
+                orderId: orderId, 
+                returnFromAddress: customerAddress, 
+                returnToAddress: returnToAddress, 
+                parcelWeight: returnWeight
+            }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to create return label');
+        }
 
         setDeliveredOrders(prevOrders =>
             prevOrders.map(order =>
-            order.id === orderId ? { ...order, ...mockReturnData, updated_at: new Date().toISOString() } : order
+            order.id === orderId 
+                ? { 
+                    ...order, 
+                    sendcloud_return_id: data.sendcloud_return_id, 
+                    sendcloud_return_parcel_id: data.sendcloud_return_parcel_id, 
+                    updated_at: new Date().toISOString() 
+                  }
+                : order
             )
         );
-        toast.success('Return label for original item created!', { id: toastId });
+        toast.success(data.message || 'Return label for original item created!', { id: toastId });
 
     } catch (error) {
         console.error('Error creating return label during upgrade:', error);
