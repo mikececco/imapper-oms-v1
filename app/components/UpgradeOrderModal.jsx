@@ -72,6 +72,9 @@ export default function UpgradeOrderModal({
   const [returnToAddressState, setReturnToAddressState] = useState({...fixedWarehouseAddress});
   const [isEditingWarehouseAddress, setIsEditingWarehouseAddress] = useState(false);
 
+  // *** Add State for Return Weight ***
+  const [returnWeight, setReturnWeight] = useState('1.000');
+
   // --- Effects ---
 
   // Effect to fetch order packs (remains the same)
@@ -212,6 +215,15 @@ export default function UpgradeOrderModal({
   const handleReturnToAddressChange = (e) => {
     const { name, value } = e.target;
     setReturnToAddressState(prev => ({ ...prev, [name]: value }));
+  };
+
+  // *** Add Handler for Return Weight Input ***
+  const handleReturnWeightChange = (e) => {
+    const value = e.target.value;
+    // Allow up to 3 decimal places for weight
+    if (/^\d*\.?\d{0,3}$/.test(value)) {
+      setReturnWeight(value);
+    }
   };
 
   // --- Specific Action Handlers ---
@@ -399,11 +411,24 @@ export default function UpgradeOrderModal({
                 )}
            </div>
            
-           {/* Display Original Weight (Spans across) */} 
-           <div className="mb-4 p-3 border rounded-md bg-gray-50">
-               <label className="block text-xs font-semibold text-gray-600 mb-1">Original Package Weight (for Return)</label>
-               <p className="text-sm text-gray-900 font-medium">{order.weight || 'N/A'} kg</p>
-               <p className="text-xs text-gray-500">This weight will be used for the return label.</p>
+           {/* *** Make Original Weight Editable *** */}
+           <div className="mb-4 space-y-1">
+               <label htmlFor="return-weight" className="block text-sm font-medium text-gray-700">
+                   Original Package Weight (for Return) *
+               </label>
+               {/* Replace static display with Input */}
+               <Input
+                    id="return-weight"
+                    type="number"
+                    step="0.001"
+                    min="0.001"
+                    value={returnWeight} // Bind to returnWeight state
+                    onChange={handleReturnWeightChange} // Use specific handler
+                    placeholder="Weight (kg)"
+                    className="w-full" // Ensure it takes available width
+                    required
+               />
+               <p className="text-xs text-gray-500">Enter the weight to be used for the return label.</p>
            </div>
            
            {/* Button for Address Confirmation / Return Label */} 
