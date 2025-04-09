@@ -164,27 +164,55 @@ export default function ReturnsPage() {
   const handleCreateNewLabelForUpgrade = async (orderId, newLabelDetails) => {
     console.log(`Requesting new label for upgraded order ${orderId} with details:`, newLabelDetails);
     setUpgradingOrderId(orderId);
-    const toastId = toast.loading('Creating label for new item...');
+    const toastId = toast.loading('Updating order details...');
 
     try {
-       await new Promise(resolve => setTimeout(resolve, 1500));
+       const updateResponse = await fetch(`/api/orders/${orderId}/update-pack`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+               orderPackId: newLabelDetails.order_pack_list_id,
+               orderPack: newLabelDetails.order_pack,
+               orderPackLabel: newLabelDetails.order_pack_label,
+               weight: newLabelDetails.weight,
+               order_pack_quantity: newLabelDetails.quantity,
+           }),
+       });
 
-       const mockNewLabelData = { 
-           shipping_id: `NEW_${orderId.slice(-4)}`, 
-           tracking_number: `TRACKNEW${orderId.slice(-4)}`, 
-           tracking_link: `#newTrackingLink`, 
-           label_url: `#newlabelUrl`, 
-           status: 'Ready to send'
-       };
-       const mockUpdatedOrderData = {
+       const updateData = await updateResponse.json();
+       if (!updateResponse.ok) {
+           throw new Error(updateData.error || 'Failed to update order details');
+       }
+       toast.loading('Order updated. Creating new shipping label...', { id: toastId });
+
+       const labelResponse = await fetch('/api/orders/create-shipping-label', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ orderId }),
+       });
+
+       const labelData = await labelResponse.json();
+       if (!labelResponse.ok) {
+           console.error("Label creation failed after order update:", labelData.error);
+           throw new Error(labelData.error || 'Order updated, but failed to create new shipping label');
+       }
+
+       const existingOrder = deliveredOrders.find(o => o.id === orderId);
+       const finalUpdatedOrderData = {
            ...newLabelDetails,
-           ...mockNewLabelData,
-           updated_at: new Date().toISOString()
+           shipping_id: labelData.shipping_id,
+           tracking_number: labelData.tracking_number,
+           tracking_link: labelData.tracking_link,
+           label_url: labelData.label_url,
+           status: labelData.status || 'Ready to send',
+           updated_at: new Date().toISOString(),
+           sendcloud_return_id: existingOrder?.sendcloud_return_id,
+           sendcloud_return_parcel_id: existingOrder?.sendcloud_return_parcel_id,
        };
 
        setDeliveredOrders(prevOrders =>
          prevOrders.map(order =>
-           order.id === orderId ? { ...order, ...mockUpdatedOrderData } : order
+           order.id === orderId ? { ...order, ...finalUpdatedOrderData } : order
          )
        );
 
@@ -192,8 +220,8 @@ export default function ReturnsPage() {
        handleCloseUpgradeModal();
 
     } catch (error) {
-        console.error('Error creating new label during upgrade:', error);
-        toast.error(`Failed to create new label: ${error.message || 'Unknown error'}`, { id: toastId });
+        console.error('Error during upgrade process:', error);
+        toast.error(`Upgrade failed: ${error.message || 'Unknown error'}`, { id: toastId });
     } finally {
         setUpgradingOrderId(null);
     }
