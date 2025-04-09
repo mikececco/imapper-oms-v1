@@ -450,10 +450,23 @@ export default function UpgradeOrderModal({
 
            {/* --- Upgrade Details Section --- */} 
            <h3 className="text-lg font-semibold border-b pb-2 mb-3">Step 2: Confirm New Order Details</h3>
-           {/* This section remains single column below the addresses */}
+           
+           {/* Replace Address Recap Section with editable address fields */}
+           <div className="mb-4">
+               {renderAddressFields(
+                  customerAddress,
+                  setCustomerAddress,
+                  handleCustomerAddressChange,
+                  isEditingCustomerAddress,
+                  setIsEditingCustomerAddress,
+                  'Confirm/Edit Customer Address' // Updated title for context
+                )}
+           </div>
+           
+           {/* Existing New Order Details Fields */}
            <div className="mb-4 p-4 border rounded-md space-y-3">
-              {/* ... New Order Details fields ... */}
-               <div>
+             {/* <h4 className="font-medium text-gray-800 mb-2">New Order Details</h4> */} {/* Title moved outside */}
+             <div>
                 <label htmlFor="order-pack-select" className="block text-sm font-medium text-gray-700 mb-1">New Order Pack *</label>
                 <select id="order-pack-select" value={selectedOrderPackId} onChange={handleOrderPackSelectChange} disabled={loadingOrderPacks} required className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed">
                   <option value="" disabled> {loadingOrderPacks ? "Loading packs..." : "-- Select an order pack --"} </option>
