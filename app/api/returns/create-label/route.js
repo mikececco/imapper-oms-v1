@@ -9,9 +9,15 @@ const supabase = createClient(
 
 export async function POST(request) {
   console.log("--- Return Label API Route START ---"); // Log start
+  let orderId;
   try {
-    // Destructure all expected data including parcelWeight
-    const { orderId, returnFromAddress, returnToAddress, parcelWeight } = await request.json();
+    const { 
+      orderId: receivedOrderId, // Rename to avoid conflict in catch block scope
+      returnFromAddress, 
+      returnToAddress, 
+      parcelWeight 
+    } = await request.json();
+    orderId = receivedOrderId; // Assign to outer scope variable
 
     // --- Add Logging --- 
     console.log(`API Route: Received Order ID: ${orderId}`);
@@ -49,7 +55,7 @@ export async function POST(request) {
     // Fetch order details from Supabase
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('*') // Select necessary fields for Sendcloud payload
+      .select('id') // Only need ID for update
       .eq('id', orderId)
       .single();
 
@@ -60,30 +66,40 @@ export async function POST(request) {
 
     console.log(`API Route: Calling createReturnLabel utility for Order ID: ${orderId}`);
     // Create return label using SendCloud - pass weight
-    const returnLabel = await createReturnLabel(order, returnFromAddress, returnToAddress, parcelWeight);
-    console.log(`API Route: createReturnLabel utility call completed for Order ID: ${orderId}`);
+    const sendcloudReturnData = await createReturnLabel(order, returnFromAddress, returnToAddress, parcelWeight);
+    console.log(`API Route: createReturnLabel utility call completed for Order ID: ${orderId}`, sendcloudReturnData);
 
-    // Update order with return label information
+    // --- Update Supabase Order --- 
+    const updatePayload = {
+        sendcloud_return_id: sendcloudReturnData.return_id, 
+        sendcloud_return_parcel_id: sendcloudReturnData.parcel_id,
+        updated_at: new Date().toISOString(),
+        // return_status: 'pending_label' // Optional status update
+    };
+    console.log(`API Route: Updating Supabase order ${orderId} with payload:`, updatePayload);
+    
     const { error: updateError } = await supabase
       .from('orders')
-      .update({
-        return_label_url: returnLabel.label_url,
-        return_tracking_number: returnLabel.tracking_number,
-        return_tracking_link: returnLabel.tracking_url,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', orderId);
 
     if (updateError) {
-      throw updateError;
+      console.error(`API Route Error: Failed to update Supabase order ${orderId}:`, updateError);
+      // Decide if this should be a user-facing error or just logged
+      // If Sendcloud succeeded, maybe still return success? Or maybe error out?
+      // For now, throwing error to indicate partial failure.
+      throw new Error(`Failed to update order in database after creating Sendcloud return: ${updateError.message}`);
     }
+    console.log(`API Route: Successfully updated Supabase order ${orderId}.`);
 
-    console.log(`API Route: Successfully created label for Order ID: ${orderId}. Returning response.`);
+    // --- Return Response --- 
+    console.log(`API Route: Successfully processed return for Order ID: ${orderId}. Returning IDs.`);
     return NextResponse.json({
-      label_url: returnLabel.label_url,
-      tracking_number: returnLabel.tracking_number,
-      tracking_link: returnLabel.tracking_url
+      message: 'Sendcloud return initiated successfully.',
+      sendcloud_return_id: sendcloudReturnData.return_id,
+      sendcloud_return_parcel_id: sendcloudReturnData.parcel_id
     });
+    
   } catch (error) {
     console.error(`API Route: CATCH BLOCK - Error creating return label for Order ID: ${orderId || 'Unknown'}`, error);
     return NextResponse.json(

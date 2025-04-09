@@ -402,20 +402,16 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
     const data = await response.json();
     console.log("SendCloud Return Creation Response:", data);
 
-    // Assuming the successful response structure is similar to the error structure 
-    // or directly contains return details. Adjust based on actual successful response.
-    // Example: Check for data.return or directly data.label
-    const returnInfo = data.return || data; // Adapt as needed
-
-    if (!returnInfo || !returnInfo.label || !returnInfo.label.label_printer) {
-       console.error("SendCloud success response missing expected label data:", returnInfo);
-       throw new Error('SendCloud response missing label URL after creation.');
+    // Check if the essential IDs are present in the response
+    if (!data || !data.return_id || !data.parcel_id) {
+        console.error("SendCloud success response missing expected return_id or parcel_id:", data);
+        throw new Error('SendCloud response missing IDs after creation.');
     }
     
+    // Return the IDs instead of label/tracking info
     return {
-      label_url: returnInfo.label.label_printer,
-      tracking_number: returnInfo.parcel?.tracking_number || returnInfo.tracking_number || null, 
-      tracking_url: returnInfo.parcel?.tracking_url || returnInfo.tracking_url || null 
+      return_id: data.return_id,
+      parcel_id: data.parcel_id
     };
   } catch (error) {
     console.error('SendCloud API Error creating return label:', error);

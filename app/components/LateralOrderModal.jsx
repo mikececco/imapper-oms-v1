@@ -135,32 +135,32 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                 </div>
 
                 {/* Return Information */}
-                {orderDetails.return_label_url && (
+                {orderDetails.sendcloud_return_id && (
                   <div>
                     <h4 className="font-medium mb-2">Return Information</h4>
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <p>
                         <strong>Return Label:</strong>{' '}
-                        <a
+                        {/* <a
                           href={orderDetails.return_label_url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline"
                         >
                           View Label
-                        </a>
+                        </a> */}
                       </p>
-                      {orderDetails.return_tracking_number && (
+                      {orderDetails.sendcloud_return_parcel_id && (
                         <p>
                           <strong>Return Tracking:</strong>{' '}
-                          <a
+                          {/* <a
                             href={orderDetails.return_tracking_link}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline"
                           >
                             {orderDetails.return_tracking_number}
-                          </a>
+                          </a> */}
                         </p>
                       )}
                     </div>

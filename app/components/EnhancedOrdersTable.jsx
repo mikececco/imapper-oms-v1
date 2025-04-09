@@ -28,7 +28,6 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { cn } from "../utils/cn";
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -124,7 +123,7 @@ const truncateText = (text, maxLength = 30) => {
   return text.substring(0, maxLength) + '...';
 };
 
-export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrderUpdate, columns = [], showBulkActions = true }) {
+export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrderUpdate }) {
   const router = useRouter();
   // Use useRef to track client-side rendering
   const hasMounted = useRef(false);
@@ -553,103 +552,384 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   }
 
   return (
-    <div className="w-full">
-      <div className="rounded-md border">
+    <>
+      <div className="relative">
+        {query && (
+          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded">
+            <p className="text-sm text-blue-800">
+              Showing {filteredOrders.length} results for search: <strong>"{query}"</strong>
+            </p>
+          </div>
+        )}
+        <div className="table-container">
+          <div className="table-scroll-wrapper">
             <Table>
               <TableHeader>
                 <TableRow>
-              {columns.map((column) => (
-                <TableHead 
-                  key={column.id} 
-                  className={cn(
-                    column.className, // Apply className from config to header
-                    "py-2 px-3" // Default padding (can adjust)
-                  )}
-                >
-                  {column.label}
+                  <TableHead className="text-black w-[50px] sticky left-0">
+                    {/* Checkbox column - no label */}
                   </TableHead>
-              ))}
+                  <TableHead className="text-black w-[80px] sticky left-[50px]">
+                    Actions
+                  </TableHead>
+                  <TableHead className="text-black w-[90px] sticky left-[130px]">
+                    Important
+                  </TableHead>
+                  <TableHead className="text-black w-[150px] first-non-sticky-column">
+                    INSTRUCTION
+                  </TableHead>
+                  <TableHead className="text-black w-[60px]">ID</TableHead>
+                  <TableHead className="text-black w-[150px]">Name</TableHead>
+                  <TableHead className="text-black w-[180px]">Email</TableHead>
+                  <TableHead className="text-black w-[120px]">Phone</TableHead>
+                  <TableHead className="text-black w-[200px]">Address</TableHead>
+                  <TableHead className="text-black w-[400px]">Order Pack</TableHead>
+                  <TableHead className="text-black w-[80px]">Quantity</TableHead>
+                  <TableHead className="text-black w-[150px]">Notes</TableHead>
+                  <TableHead className="text-black w-[80px]">Weight</TableHead>
+                  <TableHead className="text-black w-[80px]">Paid?</TableHead>
+                  <TableHead className="text-black w-[100px]">OK TO SHIP</TableHead>
+                  <TableHead className="text-black w-[180px]">Created At</TableHead>
+                  <TableHead className="text-black w-[180px]">Updated At</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-            {currentOrders.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="text-center py-8">
-                  No orders found
-                </TableCell>
-              </TableRow>
-            ) : (
-              currentOrders.map((order) => (
-                <TableRow key={order.id}>
-                  {columns.map((column) => (
-                    <TableCell
-                      key={`${order.id}-${column.id}`}
-                      className={cn(
-                        column.className,
-                        "py-2 px-3"
-                      )}
-                    >
-                      {column.type === 'link' ? (
-                        <Link href={`${column.linkPrefix}${order[column.id]}`}>
-                          {order[column.id]}
-                        </Link>
-                      ) : column.type === 'date' ? (
-                        formatDate(order[column.id])
-                      ) : column.type === 'custom' && column.render ? (
-                        column.render(order)
-                      ) : column.type === 'actions' ? (
-                        <div className="flex gap-2">
-                          {column.actions.map((action, index) => {
-                            // Check if the action should be shown based on its condition
-                            if (action.condition && !action.condition(order)) {
-                              return null;
-                            }
+                {currentOrders && currentOrders.length > 0 ? (
+                  currentOrders.map((order) => {
+                    // Only calculate instruction on the client side after mounting
+                    // Use the stored instruction during server-side rendering
+                    const calculatedInstruction = isMounted
+                      ? calculateOrderInstruction(order)
+                      : (order.instruction || 'ACTION REQUIRED');
+                    
+                    // When displaying country information
+                    const countryCode = normalizeCountryToCode(order.shipping_address?.country);
+                    const countryDisplay = getCountryDisplayName(countryCode);
+                    
+                    // Determine the background color based on instruction
+                    const getBgColorClass = (instruction) => {
+                      if (instruction === 'NO ACTION REQUIRED') return 'bg-green-200 hover:bg-green-300';
+                      if (instruction === 'ACTION REQUIRED') return 'bg-red-100 hover:bg-red-200';
+                      if (instruction === 'TO BE SHIPPED BUT NO STICKER') return 'bg-orange-400/20 hover:bg-orange-400/30';
+                      if (instruction === 'PASTE BACK TRACKING LINK') return 'bg-orange-600/20 hover:bg-orange-500/30';
+                      return '';
+                    };
+                    
+                    const bgColorClass = getBgColorClass(calculatedInstruction);
                     
                     return (
-                              <Button
-                                key={`${order.id}-action-${index}`}
-                                variant={action.variant || 'default'}
-                                className={action.className}
-                                onClick={() => action.handler(order.id)}
-                                disabled={action.disabled ? action.disabled(order.id) : false}
+                      <TableRow 
+                        key={order.id} 
+                        className={`text-black ${bgColorClass} ${
+                          order.important ? 'important-row border-2 border-red-500' : ''
+                        }`}
+                      >
+                        <TableCell className={`sticky left-0 w-[50px] ${
+                          calculatedInstruction === 'NO ACTION REQUIRED'
+                            ? 'bg-green-200'
+                            : calculatedInstruction === 'ACTION REQUIRED'
+                              ? 'bg-red-100'
+                              : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                ? 'bg-orange-400/20'
+                                : 'bg-white'
+                        }`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedOrders.has(order.id)}
+                            onChange={() => handleSelectOrder(order.id)}
+                            className="rounded border-gray-300 text-black focus:ring-black cursor-pointer"
+                          />
+                        </TableCell>
+                        <TableCell className={`sticky left-[50px] w-[80px] ${
+                          calculatedInstruction === 'NO ACTION REQUIRED'
+                            ? 'bg-green-200'
+                            : calculatedInstruction === 'ACTION REQUIRED'
+                              ? 'bg-red-100'
+                              : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                ? 'bg-orange-400/20'
+                                : 'bg-white'
+                        }`}>
+                          <button 
+                            onClick={() => openOrderDetail(order.id)}
+                            className="open-btn"
+                            onMouseEnter={() => setHoveredButtonId(order.id)}
+                            onMouseLeave={() => setHoveredButtonId(null)}
+                            style={{
+                              backgroundColor: hoveredButtonId === order.id ? '#333333' : '#000000',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
                           >
-                                {action.loading && action.loading(order.id) ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                                    {action.loadingText || 'Loading...'}
-                                  </>
-                                ) : (
-                                  action.label
-                                )}
-                              </Button>
-                            );
-                          })}
+                            Update
+                          </button>
+                        </TableCell>
+                        <TableCell className={`w-[90px] sticky left-[130px] ${
+                          calculatedInstruction === 'NO ACTION REQUIRED'
+                            ? 'bg-green-200'
+                            : calculatedInstruction === 'ACTION REQUIRED'
+                              ? 'bg-red-100'
+                              : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
+                                ? 'bg-orange-400/20'
+                                : 'bg-white'
+                        }`}>
+                          <ImportantFlag
+                            isImportant={order.important}
+                            orderId={order.id}
+                            onUpdate={handleOrderUpdate}
+                          />
+                        </TableCell>
+                        <TableCell className="enhanced-table-cell-truncate w-[150px] first-non-sticky-column">
+                          <span className={`shipping-instruction ${calculatedInstruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
+                            {calculatedInstruction}
+                          </span>
+                        </TableCell>
+                        <TableCell className="w-[60px]">
+                          <div 
+                            className="cursor-pointer flex items-center"
+                            onClick={() => copyOrderId(order.id)}
+                            onMouseEnter={() => setHoveredOrderId(order.id)}
+                            onMouseLeave={() => setHoveredOrderId(null)}
+                            style={{
+                              position: 'relative',
+                              textDecoration: hoveredOrderId === order.id ? 'underline' : 'none',
+                              color: hoveredOrderId === order.id ? '#2563eb' : 'inherit'
+                            }}
+                          >
+                            {order.id}
+                            {hoveredOrderId === order.id && (
+                              <span style={{
+                                position: 'absolute',
+                                top: '-20px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                backgroundColor: '#333',
+                                color: 'white',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                Click to copy
+                              </span>
+                            )}
+                            {copiedOrderId === order.id && (
+                              <span style={{
+                                position: 'absolute',
+                                top: '-20px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                backgroundColor: '#10b981',
+                                color: 'white',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                Copied!
+                              </span>
+                            )}
                           </div>
-                      ) : (
-                        order[column.id] || 'N/A'
-                      )}
+                        </TableCell>
+                        <TableCell className="enhanced-table-cell-truncate w-[150px]">
+                          {order.customer_id ? (
+                            <Link 
+                              href={`/customers/${order.customer_id}`}
+                              className="text-blue-600 hover:underline hover:text-blue-800"
+                            >
+                              {order.name || 'N/A'}
+                            </Link>
+                          ) : (
+                            order.name || 'N/A'
+                          )}
+                        </TableCell>
+                        <TableCell className="enhanced-table-cell-truncate w-[180px]">{order.email || 'N/A'}</TableCell>
+                        <TableCell className="w-[120px]">{order.phone || 'N/A'}</TableCell>
+                        <TableCell className="address-container w-[200px]">
+                          <span className="address-text">
+                            {truncateText(formatAddressForTable(order, isMounted), 25)}
+                          </span>
+                          <div className="address-tooltip">
+                            {formatAddressForTable(order, isMounted)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="w-[400px]">
+                          <div className="text-sm">
+                            {order.order_pack || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="w-[80px]">
+                          <div className="text-sm">
+                            {order.order_pack_quantity || 1}
+                          </div>
+                        </TableCell>
+                        <TableCell className="enhanced-table-cell-truncate w-[150px]">{order.order_notes || 'N/A'}</TableCell>
+                        <TableCell className="w-[80px]">
+                          <div className="text-sm">
+                            {order.weight || '1.000'} kg
+                          </div>
+                        </TableCell>
+                        <TableCell className="w-[80px]">
+                          <PaymentStatus 
+                            isPaid={order.paid} 
+                          />
+                        </TableCell>
+                        <TableCell className="w-[100px]">
+                          <ShippingStatus 
+                            okToShip={order.ok_to_ship} 
+                          />
+                        </TableCell>
+                        <TableCell className="w-[180px]">{formatDate(order.created_at)}</TableCell>
+                        <TableCell className="w-[180px]">{formatDate(order.updated_at)}</TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={18} className="text-center py-8">
+                      No orders found.
                     </TableCell>
-                  ))}
                   </TableRow>
-              ))
                 )}
               </TableBody>
             </Table>
           </div>
-      {/* Pagination controls */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-4">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+        </div>
+
+        {/* Floating Action Bar */}
+        {selectedOrders.size > 0 && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white border rounded-lg shadow-lg p-4 flex items-center justify-between gap-4 min-w-[300px] max-w-[90%] z-50">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium">
+                {selectedOrders.size} {selectedOrders.size === 1 ? 'order' : 'orders'} selected
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
               <Button
-              key={pageNumber}
-              variant={pageNumber === currentPage ? 'default' : 'outline'}
-              onClick={() => handlePageChange(pageNumber)}
-            >
-              {pageNumber}
+                variant="outline"
+                onClick={() => setSelectedOrders(new Set())}
+                className="text-sm"
+              >
+                Cancel
               </Button>
-          ))}
+              <Button
+                onClick={handleBulkMarkAsDelivered}
+                variant="default"
+                className="text-sm bg-green-600 hover:bg-green-700 text-white"
+                disabled={isMarkingDelivered}
+              >
+                {isMarkingDelivered ? 'Marking...' : 'Mark as Delivered'}
+              </Button>
+              <Button
+                onClick={handleBulkDelete}
+                variant="destructive"
+                className="text-sm"
+              >
+                Delete Selected
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation Dialog */}
+        <Dialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Deletion</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p>Are you sure you want to delete {selectedOrders.size} {selectedOrders.size === 1 ? 'order' : 'orders'}?</p>
+              <p className="text-sm text-red-600 mt-2">This action cannot be undone.</p>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsConfirmingDelete(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmBulkDelete}
+                disabled={isDeleting}
+                variant="destructive"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Pagination Controls */}
+        {filteredOrders.length > ordersPerPage && (
+          <div className="pagination-controls">
+            <div className="text-sm text-gray-600">
+              Showing {indexOfFirstOrder + 1} to {Math.min(indexOfLastOrder, filteredOrders.length)} of {filteredOrders.length} orders
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+              >
+                First
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                // Show pages around current page
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePageChange(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                Last
+              </Button>
+            </div>
           </div>
         )}
       </div>
+    </>
   );
 } 
