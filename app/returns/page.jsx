@@ -9,6 +9,7 @@ import { formatDate } from '../utils/date-utils';
 import LateralOrderModal from '../components/LateralOrderModal';
 import ReturnsTable from '../components/ReturnsTable';
 import ReturnConfirmationModal from '../components/ReturnConfirmationModal';
+import UpgradeOrderModal from '../components/UpgradeOrderModal';
 
 export default function ReturnsPage() {
   const router = useRouter();
@@ -21,6 +22,8 @@ export default function ReturnsPage() {
   const [upgradingOrderId, setUpgradingOrderId] = useState(null);
   const [isReturnConfirmModalOpen, setIsReturnConfirmModalOpen] = useState(false);
   const [orderForReturn, setOrderForReturn] = useState(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [orderForUpgrade, setOrderForUpgrade] = useState(null);
 
   useEffect(() => {
     loadDeliveredOrders();
@@ -53,39 +56,25 @@ export default function ReturnsPage() {
     }
   };
 
-  const createReturnLabel = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
+  const createReturnLabelStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
+    setCreatingLabelOrderId(orderId);
+    const toastId = toast.loading('Creating return label...');
     try {
-      setCreatingLabelOrderId(orderId);
       const response = await fetch('/api/returns/create-label', {
         method: 'POST',
         headers: {'Content-Type': 'application/json',},
         body: JSON.stringify({ orderId, returnFromAddress, returnToAddress, parcelWeight }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create return label');
-      }
+      if (!response.ok) throw new Error(data.error || 'Failed to create return label');
       
-      setDeliveredOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === orderId
-            ? {
-                ...order,
-                sendcloud_return_id: data.sendcloud_return_id,
-                sendcloud_return_parcel_id: data.sendcloud_return_parcel_id,
-                updated_at: new Date().toISOString()
-              }
-            : order
-        )
-      );
-
-      toast.success(data.message || 'Return initiated successfully');
+      setDeliveredOrders(prevOrders => prevOrders.map(order => order.id === orderId ? { ...order, sendcloud_return_id: data.sendcloud_return_id, sendcloud_return_parcel_id: data.sendcloud_return_parcel_id, updated_at: new Date().toISOString() } : order ));
+      toast.success(data.message || 'Return initiated successfully', { id: toastId });
+      handleCloseReturnModal();
 
     } catch (error) {
       console.error('Error creating return label:', error);
-      toast.error(error.message);
+      toast.error(error.message, { id: toastId });
     } finally {
       setCreatingLabelOrderId(null);
     }
@@ -106,19 +95,87 @@ export default function ReturnsPage() {
     setOrderForReturn(null);
   };
 
-  const handleConfirmReturn = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
-    await createReturnLabel(orderId, returnFromAddress, returnToAddress, parcelWeight);
-    handleCloseReturnModal();
+  const handleConfirmReturnStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
+    await createReturnLabelStandard(orderId, returnFromAddress, returnToAddress, parcelWeight);
   };
 
-  const handleUpgradeOrder = async (orderId) => {
+  const handleOpenUpgradeModal = async (orderId) => {
+    const order = deliveredOrders.find(o => o.id === orderId);
+    if (order) {
+      setOrderForUpgrade(order);
+      setIsUpgradeModalOpen(true);
+    } else {
+      toast.error("Could not find order details to upgrade.");
+    }
+  };
+
+  const handleCloseUpgradeModal = () => {
+    setIsUpgradeModalOpen(false);
+    setOrderForUpgrade(null);
+  };
+
+  const handleCreateReturnLabelForUpgrade = async (orderId, customerAddress, returnToAddress) => {
+    console.log("Requesting return label for upgrade:", orderId, customerAddress, returnToAddress);
     setUpgradingOrderId(orderId);
-    console.log(`Initiating upgrade for order: ${orderId}`);
-    toast.loading('Upgrade process not yet implemented...', { id: `upgrade-${orderId}` });
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    toast.dismiss(`upgrade-${orderId}`);
-    toast.success(`Placeholder: Upgrade initiated for order ${orderId}. Full implementation pending.`);
-    setUpgradingOrderId(null);
+    const toastId = toast.loading('Creating return label for original item...');
+    try {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        const mockReturnData = { 
+            sendcloud_return_id: `RETURN_${orderId.slice(-4)}`, 
+            sendcloud_return_parcel_id: `PARCEL_${orderId.slice(-4)}` 
+        };
+
+        setDeliveredOrders(prevOrders =>
+            prevOrders.map(order =>
+            order.id === orderId ? { ...order, ...mockReturnData, updated_at: new Date().toISOString() } : order
+            )
+        );
+        toast.success('Return label for original item created!', { id: toastId });
+
+    } catch (error) {
+        console.error('Error creating return label during upgrade:', error);
+        toast.error(`Failed to create return label: ${error.message || 'Unknown error'}`, { id: toastId });
+    } finally {
+    }
+  };
+
+  const handleCreateNewLabelForUpgrade = async (orderId, newLabelDetails) => {
+    console.log(`Requesting new label for upgraded order ${orderId} with details:`, newLabelDetails);
+    setUpgradingOrderId(orderId);
+    const toastId = toast.loading('Creating label for new item...');
+
+    try {
+       await new Promise(resolve => setTimeout(resolve, 1500));
+
+       const mockNewLabelData = { 
+           shipping_id: `NEW_${orderId.slice(-4)}`, 
+           tracking_number: `TRACKNEW${orderId.slice(-4)}`, 
+           tracking_link: `#newTrackingLink`, 
+           label_url: `#newlabelUrl`, 
+           status: 'Ready to send'
+       };
+       const mockUpdatedOrderData = {
+           ...newLabelDetails,
+           ...mockNewLabelData,
+           updated_at: new Date().toISOString()
+       };
+
+       setDeliveredOrders(prevOrders =>
+         prevOrders.map(order =>
+           order.id === orderId ? { ...order, ...mockUpdatedOrderData } : order
+         )
+       );
+
+       toast.success(`New label created for upgraded order ${orderId}!`, { id: toastId });
+       handleCloseUpgradeModal();
+
+    } catch (error) {
+        console.error('Error creating new label during upgrade:', error);
+        toast.error(`Failed to create new label: ${error.message || 'Unknown error'}`, { id: toastId });
+    } finally {
+        setUpgradingOrderId(null);
+    }
   };
 
   const handleTrackReturn = (orderId) => {
@@ -157,12 +214,11 @@ export default function ReturnsPage() {
         },
         {
           label: 'Upgrade Order',
-          handler: handleUpgradeOrder,
+          handler: handleOpenUpgradeModal,
           variant: 'secondary',
-          disabled: (orderId) => upgradingOrderId === orderId || creatingLabelOrderId === orderId || !!deliveredOrders.find(o => o.id === orderId)?.sendcloud_return_id,
+          disabled: (orderId) => upgradingOrderId === orderId || creatingLabelOrderId === orderId,
           loading: (orderId) => upgradingOrderId === orderId,
-          loadingText: 'Upgrading...',
-          condition: (order) => !order.sendcloud_return_id,
+          loadingText: 'Processing...',
         },
       ]
     },
@@ -176,7 +232,7 @@ export default function ReturnsPage() {
     { 
       id: 'name', 
       label: 'Customer',
-      className: 'w-[80px] whitespace-nowrap border-r border-none'
+      className: 'w-[100px] whitespace-nowrap border-r border-none'
     },
     { 
       id: 'order_pack', 
@@ -221,7 +277,7 @@ export default function ReturnsPage() {
         onOpenOrder={handleOpenOrder}
         onTrackReturn={handleTrackReturn}
         onCreateReturnLabel={handleOpenReturnModal}
-        onUpgradeOrder={handleUpgradeOrder}
+        onUpgradeOrder={handleOpenUpgradeModal}
         creatingLabelOrderId={creatingLabelOrderId}
         upgradingOrderId={upgradingOrderId}
       />
@@ -242,8 +298,18 @@ export default function ReturnsPage() {
           isOpen={isReturnConfirmModalOpen}
           onClose={handleCloseReturnModal}
           order={orderForReturn}
-          onConfirm={handleConfirmReturn}
+          onConfirm={handleConfirmReturnStandard}
           isLoading={creatingLabelOrderId === orderForReturn?.id}
+        />
+      )}
+
+      {orderForUpgrade && (
+        <UpgradeOrderModal
+          isOpen={isUpgradeModalOpen}
+          onClose={handleCloseUpgradeModal}
+          order={orderForUpgrade}
+          onCreateReturnLabel={handleCreateReturnLabelForUpgrade}
+          onCreateNewLabel={handleCreateNewLabelForUpgrade}
         />
       )}
     </div>
