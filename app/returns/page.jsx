@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSupabase } from '../components/Providers';
 import { toast } from 'react-hot-toast';
 import { Button } from "../components/ui/button";
@@ -10,11 +10,14 @@ import LateralOrderModal from '../components/LateralOrderModal';
 import ReturnsTable from '../components/ReturnsTable';
 import ReturnConfirmationModal from '../components/ReturnConfirmationModal';
 import UpgradeOrderModal from '../components/UpgradeOrderModal';
+import OrderSearch from '../components/OrderSearch';
 
 export default function ReturnsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = useSupabase();
   const [deliveredOrders, setDeliveredOrders] = useState([]);
+  const [filteredDeliveredOrders, setFilteredDeliveredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creatingLabelOrderId, setCreatingLabelOrderId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -25,9 +28,40 @@ export default function ReturnsPage() {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [orderForUpgrade, setOrderForUpgrade] = useState(null);
 
+  const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
+
   useEffect(() => {
     loadDeliveredOrders();
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    let filtered = deliveredOrders;
+
+    if (query) {
+      const lowercaseQuery = query.toLowerCase();
+      filtered = deliveredOrders.filter(order => {
+        return (
+          (order.id && order.id.toLowerCase().includes(lowercaseQuery)) ||
+          (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
+          (order.email && order.email.toLowerCase().includes(lowercaseQuery)) ||
+          (order.phone && order.phone.toLowerCase().includes(lowercaseQuery)) ||
+          (order.shipping_address_line1 && order.shipping_address_line1.toLowerCase().includes(lowercaseQuery)) ||
+          (order.shipping_address_city && order.shipping_address_city.toLowerCase().includes(lowercaseQuery)) ||
+          (order.shipping_address_postal_code && order.shipping_address_postal_code.toLowerCase().includes(lowercaseQuery)) ||
+          (order.shipping_address_country && order.shipping_address_country.toLowerCase().includes(lowercaseQuery)) ||
+          (order.order_pack && order.order_pack.toLowerCase().includes(lowercaseQuery)) ||
+          (order.tracking_number && order.tracking_number.toLowerCase().includes(lowercaseQuery)) ||
+          (order.sendcloud_return_id && order.sendcloud_return_id.toString().includes(lowercaseQuery)) ||
+          (order.sendcloud_return_parcel_id && order.sendcloud_return_parcel_id.toString().includes(lowercaseQuery))
+        );
+      });
+    }
+
+    setFilteredDeliveredOrders(filtered);
+
+  }, [query, deliveredOrders, loading]);
 
   const handleOpenOrder = (orderId) => {
     const orderToOpen = deliveredOrders.find(order => order.id === orderId);
@@ -51,6 +85,7 @@ export default function ReturnsPage() {
     } catch (error) {
       console.error('Error loading delivered orders:', error);
       toast.error('Failed to load delivered orders');
+      setDeliveredOrders([]);
     } finally {
       setLoading(false);
     }
@@ -316,13 +351,17 @@ export default function ReturnsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-8">
+      <header className="mb-4">
         <h1 className="text-2xl font-bold mb-2">Returns Management</h1>
         <p className="text-gray-600">Create and manage return labels for delivered orders</p>
       </header>
 
+      <div className="mb-6">
+        <OrderSearch />
+      </div>
+
       <ReturnsTable
-        orders={deliveredOrders}
+        orders={filteredDeliveredOrders}
         loading={loading}
         columns={returnColumns}
         onOpenOrder={handleOpenOrder}
