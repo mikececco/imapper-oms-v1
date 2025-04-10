@@ -319,6 +319,11 @@ export default function ReturnsPage() {
       className: 'w-[100px] whitespace-nowrap border-r border-none'
     },
     { 
+      id: 'status', 
+      label: 'Order Status', 
+      className: 'w-[100px] whitespace-nowrap border-r' 
+    },
+    { 
       id: 'order_pack', 
       label: 'Order Pack',
       className: 'w-[100px] whitespace-nowrap border-r'
