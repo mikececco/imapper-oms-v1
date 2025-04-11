@@ -28,25 +28,8 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-
-// Format date for display
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    }).replace(',', '');
-  } catch (e) {
-    return 'Invalid date';
-  }
-};
+import { formatDate } from '../utils/date-utils';
+import { formatAddressForTable } from '../utils/formatters';
 
 // Parse shipping address for display
 const parseShippingAddress = (address) => {
@@ -66,55 +49,6 @@ const parseShippingAddress = (address) => {
     country: countryDisplay,
     countryCode: countryCode
   };
-};
-
-// Format address for display in table with truncation
-const formatAddressForTable = (order, isMounted = false) => {
-  if (!order) return 'N/A';
-  
-  let fullAddress = '';
-  let countryDisplay = '';
-  
-  // Get normalized country display only on client-side
-  if (isMounted) {
-    if (order.shipping_address_country) {
-      const countryCode = normalizeCountryToCode(order.shipping_address_country);
-      countryDisplay = getCountryDisplayName(countryCode);
-    } else if (order.shipping_address && order.shipping_address.includes(',')) {
-      const parts = order.shipping_address.split(',').map(part => part.trim());
-      if (parts.length >= 4) {
-        const countryCode = normalizeCountryToCode(parts[3]);
-        countryDisplay = getCountryDisplayName(countryCode);
-      }
-    }
-  }
-  
-  // Check if we have individual address components
-  if (order.shipping_address_line1 || order.shipping_address_city || order.shipping_address_postal_code) {
-    const addressParts = [
-      order.shipping_address_line1,
-      order.shipping_address_line2,
-      order.shipping_address_city,
-      order.shipping_address_postal_code,
-      isMounted ? (countryDisplay || order.shipping_address_country) : order.shipping_address_country
-    ].filter(Boolean);
-    
-    fullAddress = addressParts.join(', ') || 'N/A';
-  }
-  // Fallback to legacy shipping_address field if it exists
-  else if (order.shipping_address) {
-    if (isMounted) {
-      const parsedAddress = parseShippingAddress(order.shipping_address);
-      fullAddress = `${parsedAddress.street}, ${parsedAddress.city}, ${parsedAddress.postalCode}, ${countryDisplay || parsedAddress.country}`;
-    } else {
-      fullAddress = order.shipping_address;
-    }
-  }
-  else {
-    return 'N/A';
-  }
-  
-  return fullAddress;
 };
 
 // Truncate text with ellipsis if it exceeds maxLength

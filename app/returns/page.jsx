@@ -11,13 +11,15 @@ import ReturnsTable from '../components/ReturnsTable';
 import ReturnConfirmationModal from '../components/ReturnConfirmationModal';
 import UpgradeOrderModal from '../components/UpgradeOrderModal';
 import OrderSearch from '../components/OrderSearch';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
+import { formatAddressForTable } from '../utils/formatters';
 
 export default function ReturnsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useSupabase();
-  const [deliveredOrders, setDeliveredOrders] = useState([]);
-  const [filteredDeliveredOrders, setFilteredDeliveredOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creatingLabelOrderId, setCreatingLabelOrderId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -27,21 +29,45 @@ export default function ReturnsPage() {
   const [orderForReturn, setOrderForReturn] = useState(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [orderForUpgrade, setOrderForUpgrade] = useState(null);
+  const [activeTab, setActiveTab] = useState('createReturns');
 
   const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
 
   useEffect(() => {
-    loadDeliveredOrders();
+    loadOrders();
   }, []);
 
   useEffect(() => {
     if (loading) return;
+    filterOrders();
+  }, [query, allOrders, loading]);
 
-    let filtered = deliveredOrders;
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .or('status.in.(\"delivered\",\"Delivered\"),sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null')
+        .order('updated_at', { ascending: false });
 
+      if (error) throw error;
+      console.log("[loadOrders] Fetched Data:", data);
+      setAllOrders(data || []);
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      toast.error('Failed to load orders');
+      setAllOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterOrders = () => {
+    let filtered = allOrders;
     if (query) {
       const lowercaseQuery = query.toLowerCase();
-      filtered = deliveredOrders.filter(order => {
+      filtered = allOrders.filter(order => {
         return (
           (order.id && order.id.toLowerCase().includes(lowercaseQuery)) ||
           (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
@@ -58,36 +84,22 @@ export default function ReturnsPage() {
         );
       });
     }
+    setFilteredOrders(filtered);
+  };
 
-    setFilteredDeliveredOrders(filtered);
-
-  }, [query, deliveredOrders, loading]);
+  const ordersForCreateReturn = filteredOrders.filter(o => 
+    (o.status?.toLowerCase() === 'delivered' || o.status?.toLowerCase() === 'delivered') &&
+    !o.sendcloud_return_id && !o.sendcloud_return_parcel_id
+  );
+  const returnedOrders = filteredOrders.filter(o => 
+    o.sendcloud_return_id || o.sendcloud_return_parcel_id
+  );
 
   const handleOpenOrder = (orderId) => {
-    const orderToOpen = deliveredOrders.find(order => order.id === orderId);
+    const orderToOpen = allOrders.find(order => order.id === orderId);
     if (orderToOpen) {
       setSelectedOrder(orderToOpen);
       setIsModalOpen(true);
-    }
-  };
-
-  const loadDeliveredOrders = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .in('status', ['delivered', 'Delivered'])
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-      setDeliveredOrders(data || []);
-    } catch (error) {
-      console.error('Error loading delivered orders:', error);
-      toast.error('Failed to load delivered orders');
-      setDeliveredOrders([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -103,7 +115,11 @@ export default function ReturnsPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to create return label');
       
-      setDeliveredOrders(prevOrders => prevOrders.map(order => order.id === orderId ? { ...order, sendcloud_return_id: data.sendcloud_return_id, sendcloud_return_parcel_id: data.sendcloud_return_parcel_id, updated_at: new Date().toISOString() } : order ));
+      setAllOrders(prevOrders => prevOrders.map(order => 
+        order.id === orderId 
+          ? { ...order, sendcloud_return_id: data.sendcloud_return_id, sendcloud_return_parcel_id: data.sendcloud_return_parcel_id, updated_at: new Date().toISOString() } 
+          : order 
+      ));
       toast.success(data.message || 'Return initiated successfully', { id: toastId });
       handleCloseReturnModal();
 
@@ -116,7 +132,7 @@ export default function ReturnsPage() {
   };
 
   const handleOpenReturnModal = (orderId) => {
-    const order = deliveredOrders.find(o => o.id === orderId);
+    const order = allOrders.find(o => o.id === orderId);
     if (order) {
       setOrderForReturn(order);
       setIsReturnConfirmModalOpen(true);
@@ -136,7 +152,7 @@ export default function ReturnsPage() {
 
   const handleOpenUpgradeModal = async (orderId) => {
     console.log("[handleOpenUpgradeModal] Clicked for orderId:", orderId);
-    const order = deliveredOrders.find(o => o.id === orderId);
+    const order = allOrders.find(o => o.id === orderId);
     if (order) {
       console.log("[handleOpenUpgradeModal] Found order:", order);
       setOrderForUpgrade(order); 
@@ -175,7 +191,7 @@ export default function ReturnsPage() {
             throw new Error(data.error || 'Failed to create return label');
         }
 
-        setDeliveredOrders(prevOrders =>
+        setAllOrders(prevOrders =>
             prevOrders.map(order =>
             order.id === orderId 
                 ? { 
@@ -232,7 +248,7 @@ export default function ReturnsPage() {
            throw new Error(labelData.error || 'Order updated, but failed to create new shipping label');
        }
 
-       const existingOrder = deliveredOrders.find(o => o.id === orderId);
+       const existingOrder = allOrders.find(o => o.id === orderId);
        const finalUpdatedOrderData = {
            ...newLabelDetails,
            shipping_id: labelData.shipping_id,
@@ -245,7 +261,7 @@ export default function ReturnsPage() {
            sendcloud_return_parcel_id: existingOrder?.sendcloud_return_parcel_id,
        };
 
-       setDeliveredOrders(prevOrders =>
+       setAllOrders(prevOrders =>
          prevOrders.map(order =>
            order.id === orderId ? { ...order, ...finalUpdatedOrderData } : order
          )
@@ -263,95 +279,72 @@ export default function ReturnsPage() {
   };
 
   const handleTrackReturn = (orderId) => {
-    const order = deliveredOrders.find(o => o.id === orderId);
-    toast.info(`Tracking info for return ID ${order?.sendcloud_return_id} not yet implemented.`);
+    const order = allOrders.find(o => o.id === orderId);
+    if (order && order.sendcloud_return_parcel_id) {
+      window.open(`https://app.sendcloud.com/returns/detail/${order.sendcloud_return_parcel_id}/`, '_blank');
+    } else {
+      toast.error('Return tracking information not available.');
+    }
   };
 
-  const returnColumns = [
+  const createReturnColumns = [
+    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[120px] whitespace-nowrap border-r' },
+    { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
+    { id: 'status', label: 'Status', className: 'w-[80px] whitespace-nowrap border-r'},
+    { id: 'shipping_address', label: 'Shipping Address', className: 'min-w-[200px] border-r', type: 'custom', render: (order) => formatAddressForTable(order) },
+    { id: 'order_pack', label: 'Pack', className: 'w-[100px] whitespace-nowrap border-r'},
+    { id: 'tracking_number', label: 'Tracking', className: 'w-[150px] whitespace-nowrap border-r'},
     {
       id: 'actions',
       label: 'Actions',
       type: 'actions',
-      className: 'sticky left-0 bg-white w-[280px] z-10 border-r',
+      className: 'w-[250px]',
       actions: [
-        {
-          label: 'Open',
-          handler: handleOpenOrder,
+        { 
+          label: creatingLabelOrderId === 'dummy' ? 'Creating...' : 'Create Return',
+          handler: handleOpenReturnModal, 
           variant: 'outline',
-          className: 'mr-2',
-        },
-        {
-          label: 'Track Return',
-          handler: handleTrackReturn,
-          variant: 'outline',
-          className: 'mr-2',
-          condition: (order) => !!order.sendcloud_return_id,
-        },
-        {
-          label: 'Create Return Label',
-          handler: handleOpenReturnModal,
-          disabled: (orderId) => creatingLabelOrderId === orderId || upgradingOrderId === orderId,
           loading: (orderId) => creatingLabelOrderId === orderId,
-          loadingText: 'Creating...',
-          className: 'mr-2',
-          condition: (order) => !order.sendcloud_return_id,
+          disabled: (orderId) => !!creatingLabelOrderId,
         },
         {
           label: 'Upgrade Order',
           handler: handleOpenUpgradeModal,
           variant: 'secondary',
-          disabled: (orderId) => upgradingOrderId === orderId || creatingLabelOrderId === orderId,
           loading: (orderId) => upgradingOrderId === orderId,
-          loadingText: 'Processing...',
-        },
-      ]
-    },
-    { 
-      id: 'id', 
-      label: 'Order ID', 
-      type: 'link', 
-      linkPrefix: '/orders/',
-      className: 'w-[80px] whitespace-nowrap border-r'
-    },
-    { 
-      id: 'name', 
-      label: 'Customer',
-      className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis'
-    },
-    { 
-      id: 'status', 
-      label: 'Order Status', 
-      className: 'w-[100px] whitespace-nowrap border-r' 
-    },
-    { 
-      id: 'order_pack', 
-      label: 'Order Pack',
-      className: 'w-[100px] whitespace-nowrap border-r'
-    },
-    {
-      id: 'updated_at',
-      label: 'Last Update', 
-      type: 'date',
-      className: 'w-[120px] whitespace-nowrap border-r'
-    },
-    {
-      id: 'return_status',
-      label: 'Return Status',
-      type: 'custom',
-      className: 'w-[120px] whitespace-nowrap border-r',
-      render: (order) => {
-        if (order.sendcloud_return_id) {
-          return (
-            <span className="text-xs text-gray-700" title={`Return ID: ${order.sendcloud_return_id}\nParcel ID: ${order.sendcloud_return_parcel_id}`}>
-              Initiated
-            </span>
-          );
+          disabled: (orderId) => !!upgradingOrderId,
         }
-        return <span className="text-xs text-gray-500">Not Initiated</span>;
-      }
+      ]
     }
   ];
 
+  const returnedOrdersColumns = [
+    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[120px] whitespace-nowrap border-r' },
+    { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
+    { id: 'status', label: 'Original Status', className: 'w-[100px] whitespace-nowrap border-r'},
+    { id: 'sendcloud_return_parcel_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap border-r'},
+    { id: 'order_pack', label: 'Pack', className: 'w-[100px] whitespace-nowrap border-r'},
+    { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap border-r' },
+    {
+      id: 'actions',
+      label: 'Actions',
+      type: 'actions',
+      className: 'w-[150px]',
+      actions: [
+        { 
+          label: 'Track Return',
+          handler: handleTrackReturn,
+          variant: 'outline',
+          condition: (order) => !!order.sendcloud_return_parcel_id 
+        },
+      ]
+    }
+  ];
+
+  // Add console logs for debugging
+  console.log("[ReturnsPage Render] All Orders Fetched:", allOrders);
+  console.log("[ReturnsPage Render] Filtered Delivered (Create Return Tab):", ordersForCreateReturn);
+  console.log("[ReturnsPage Render] Filtered Returned (Returned Orders Tab):", returnedOrders);
   console.log("[ReturnsPage Render] isUpgradeModalOpen:", isUpgradeModalOpen, "orderForUpgrade:", !!orderForUpgrade);
 
   return (
@@ -365,17 +358,32 @@ export default function ReturnsPage() {
         <OrderSearch />
       </div>
 
-      <ReturnsTable
-        orders={filteredDeliveredOrders}
-        loading={loading}
-        columns={returnColumns}
-        onOpenOrder={handleOpenOrder}
-        onTrackReturn={handleTrackReturn}
-        onCreateReturnLabel={handleOpenReturnModal}
-        onUpgradeOrder={handleOpenUpgradeModal}
-        creatingLabelOrderId={creatingLabelOrderId}
-        upgradingOrderId={upgradingOrderId}
-      />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
+        <TabsList>
+          <TabsTrigger value="createReturns">Orders Delivered ({ordersForCreateReturn.length})</TabsTrigger>
+          <TabsTrigger value="returnedOrders">Orders Returned ({returnedOrders.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="createReturns">
+           <p className="text-sm text-gray-600 mb-4">Orders delivered but not yet returned.</p>
+           <ReturnsTable
+             orders={ordersForCreateReturn}
+             loading={loading}
+             columns={createReturnColumns}
+             handleRowClick={handleOpenOrder}
+           />
+        </TabsContent>
+
+        <TabsContent value="returnedOrders">
+           <p className="text-sm text-gray-600 mb-4">Orders that have been returned.</p>
+           <ReturnsTable
+             orders={returnedOrders}
+             loading={loading}
+             columns={returnedOrdersColumns}
+             handleRowClick={handleOpenOrder}
+           />
+        </TabsContent>
+      </Tabs>
 
       {selectedOrder && (
         <LateralOrderModal
@@ -394,7 +402,7 @@ export default function ReturnsPage() {
           onClose={handleCloseReturnModal}
           order={orderForReturn}
           onConfirm={handleConfirmReturnStandard}
-          isLoading={creatingLabelOrderId === orderForReturn?.id}
+          isLoading={!!creatingLabelOrderId}
         />
       )}
 
