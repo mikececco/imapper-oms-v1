@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSupabase } from '../components/Providers';
 import { toast } from 'react-hot-toast';
@@ -13,6 +13,7 @@ import UpgradeOrderModal from '../components/UpgradeOrderModal';
 import OrderSearch from '../components/OrderSearch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { formatAddressForTable } from '../utils/formatters';
+import { Badge } from '../components/ui/badge';
 
 export default function ReturnsPage() {
   const router = useRouter();
@@ -31,6 +32,9 @@ export default function ReturnsPage() {
   const [orderForUpgrade, setOrderForUpgrade] = useState(null);
   const [activeTab, setActiveTab] = useState('createReturns');
   const [isMounted, setIsMounted] = useState(false);
+  const [returnStatuses, setReturnStatuses] = useState({});
+  const [loadingStatuses, setLoadingStatuses] = useState({});
+  const [fetchingAllStatuses, setFetchingAllStatuses] = useState(false);
 
   const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
 
@@ -300,6 +304,59 @@ export default function ReturnsPage() {
     }
   };
 
+  const fetchReturnStatus = useCallback(async (returnParcelId) => {
+    if (!returnParcelId || loadingStatuses[returnParcelId]) return;
+
+    setLoadingStatuses(prev => ({ ...prev, [returnParcelId]: true }));
+    try {
+      const response = await fetch(`/api/returns/get-status?returnParcelId=${encodeURIComponent(returnParcelId)}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to fetch status (${response.status})`);
+      }
+      const data = await response.json();
+      setReturnStatuses(prev => ({ ...prev, [returnParcelId]: data.status }));
+    } catch (error) {
+      console.error(`Error fetching status for ${returnParcelId}:`, error);
+      toast.error(`Failed to fetch status for return ID ${returnParcelId}.`);
+    } finally {
+      setLoadingStatuses(prev => ({ ...prev, [returnParcelId]: false }));
+    }
+  }, [loadingStatuses]);
+
+  const fetchAllReturnStatuses = useCallback(async () => {
+    if (fetchingAllStatuses) return;
+    setFetchingAllStatuses(true);
+    const toastId = toast.loading('Fetching return statuses...');
+    
+    const promises = returnedOrders
+      .filter(order => order.sendcloud_return_parcel_id && !returnStatuses[order.sendcloud_return_parcel_id] && !loadingStatuses[order.sendcloud_return_parcel_id])
+      .map(order => fetchReturnStatus(order.sendcloud_return_parcel_id));
+
+    try {
+      await Promise.all(promises);
+      toast.success('Return statuses updated.', { id: toastId });
+    } catch (error) {
+      console.error("Error fetching all statuses:", error);
+      toast.error('Some statuses could not be fetched.', { id: toastId });
+    } finally {
+      setFetchingAllStatuses(false);
+    }
+  }, [returnedOrders, returnStatuses, loadingStatuses, fetchReturnStatus, fetchingAllStatuses]);
+
+  useEffect(() => {
+    if (activeTab === 'returnedOrders' && returnedOrders.length > 0) {
+       const ordersToFetch = returnedOrders.filter(order => 
+         order.sendcloud_return_parcel_id && 
+         !returnStatuses[order.sendcloud_return_parcel_id] &&
+         !loadingStatuses[order.sendcloud_return_parcel_id]
+       );
+       if (ordersToFetch.length > 0) {
+           fetchAllReturnStatuses();
+       }
+    }
+  }, [returnedOrders, activeTab, returnStatuses, loadingStatuses, fetchAllReturnStatuses]);
+
   const createReturnColumns = [
     {
       id: 'actions',
@@ -358,6 +415,34 @@ export default function ReturnsPage() {
     },
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[120px] whitespace-nowrap border-r' },
     { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
+    { 
+      id: 'return_status', 
+      label: 'Return Status', 
+      className: 'w-[160px] whitespace-nowrap border-r',
+      type: 'custom', 
+      render: (order) => {
+        const parcelId = order.sendcloud_return_parcel_id;
+        if (!parcelId) return <span className="text-gray-400">N/A</span>;
+
+        const status = returnStatuses[parcelId];
+        const isLoading = loadingStatuses[parcelId];
+
+        if (isLoading) {
+          return <span className="text-gray-500 italic">Fetching...</span>;
+        }
+        
+        if (status) {
+            let badgeVariant = 'secondary';
+            if (status.toLowerCase().includes('delivered') || status.toLowerCase().includes('received')) badgeVariant = 'success';
+            if (status.toLowerCase().includes('cancelled') || status.toLowerCase().includes('error')) badgeVariant = 'destructive';
+            if (status.toLowerCase().includes('created') || status.toLowerCase().includes('announced')) badgeVariant = 'outline';
+            
+            return <Badge variant={badgeVariant}>{status}</Badge>;
+        } 
+        
+        return <span className="text-gray-400">N/A</span>;
+      }
+    },
     { id: 'status', label: 'Original Status', className: 'w-[100px] whitespace-nowrap border-r'},
     { id: 'sendcloud_return_parcel_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap border-r'},
     { id: 'order_pack', label: 'Pack', className: 'w-[100px] whitespace-nowrap border-r'},
@@ -398,7 +483,20 @@ export default function ReturnsPage() {
         </TabsContent>
 
         <TabsContent value="returnedOrders">
-           <p className="text-sm text-gray-600 mb-4">Orders that have been returned.</p>
+           <div className="flex justify-between items-center mb-4">
+              <p className="text-sm text-gray-600">Orders that have been returned.</p>
+              <Button 
+                onClick={fetchAllReturnStatuses}
+                disabled={fetchingAllStatuses}
+                size="sm"
+              >
+                {fetchingAllStatuses ? (
+                   <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2"></div> Fetching...</>
+                ) : (
+                   'Fetch All Statuses'
+                )}
+              </Button>
+           </div>
            <ReturnsTable
              orders={returnedOrders}
              loading={loading}
