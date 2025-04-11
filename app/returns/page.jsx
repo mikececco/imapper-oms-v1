@@ -288,18 +288,17 @@ export default function ReturnsPage() {
   };
 
   const createReturnColumns = [
-    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[120px] whitespace-nowrap border-r' },
-    { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
-    { id: 'status', label: 'Status', className: 'w-[80px] whitespace-nowrap border-r'},
-    { id: 'shipping_address', label: 'Shipping Address', className: 'min-w-[200px] border-r', type: 'custom', render: (order) => formatAddressForTable(order) },
-    { id: 'order_pack', label: 'Pack', className: 'w-[100px] whitespace-nowrap border-r'},
-    { id: 'tracking_number', label: 'Tracking', className: 'w-[150px] whitespace-nowrap border-r'},
     {
       id: 'actions',
       label: 'Actions',
       type: 'actions',
-      className: 'w-[250px]',
+      className: 'w-[280px]',
       actions: [
+        { 
+          label: 'Open',
+          handler: handleOpenOrder, 
+          variant: 'outline',
+        },
         { 
           label: creatingLabelOrderId === 'dummy' ? 'Creating...' : 'Create Return',
           handler: handleOpenReturnModal, 
@@ -315,16 +314,16 @@ export default function ReturnsPage() {
           disabled: (orderId) => !!upgradingOrderId,
         }
       ]
-    }
+    },
+    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[100px] whitespace-nowrap border-r' }, 
+    { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
+    { id: 'status', label: 'Status', className: 'w-[70px] whitespace-nowrap border-r'},
+    { id: 'shipping_address', label: 'Shipping Address', className: 'min-w-[200px] border-r', type: 'custom', render: (order) => formatAddressForTable(order) },
+    { id: 'order_pack', label: 'Pack', className: 'w-[80px] whitespace-nowrap border-r'},
+    { id: 'tracking_number', label: 'Tracking', className: 'w-[120px] whitespace-nowrap border-r overflow-hidden text-ellipsis'},
   ];
 
   const returnedOrdersColumns = [
-    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[120px] whitespace-nowrap border-r' },
-    { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
-    { id: 'status', label: 'Original Status', className: 'w-[100px] whitespace-nowrap border-r'},
-    { id: 'sendcloud_return_parcel_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap border-r'},
-    { id: 'order_pack', label: 'Pack', className: 'w-[100px] whitespace-nowrap border-r'},
-    { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap border-r' },
     {
       id: 'actions',
       label: 'Actions',
@@ -332,13 +331,24 @@ export default function ReturnsPage() {
       className: 'w-[150px]',
       actions: [
         { 
+          label: 'Open',
+          handler: handleOpenOrder,
+          variant: 'outline',
+        },
+        { 
           label: 'Track Return',
           handler: handleTrackReturn,
           variant: 'outline',
           condition: (order) => !!order.sendcloud_return_parcel_id 
         },
       ]
-    }
+    },
+    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[120px] whitespace-nowrap border-r' },
+    { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
+    { id: 'status', label: 'Original Status', className: 'w-[100px] whitespace-nowrap border-r'},
+    { id: 'sendcloud_return_parcel_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap border-r'},
+    { id: 'order_pack', label: 'Pack', className: 'w-[100px] whitespace-nowrap border-r'},
+    { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap border-r' },
   ];
 
   // Add console logs for debugging
