@@ -30,11 +30,13 @@ export default function ReturnsPage() {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [orderForUpgrade, setOrderForUpgrade] = useState(null);
   const [activeTab, setActiveTab] = useState('createReturns');
+  const [isMounted, setIsMounted] = useState(false);
 
   const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
 
   useEffect(() => {
     loadOrders();
+    setIsMounted(true);
   }, []);
 
   useEffect(() => {
@@ -52,8 +54,19 @@ export default function ReturnsPage() {
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      console.log("[loadOrders] Fetched Data:", data);
-      setAllOrders(data || []);
+      
+      // Process fetched data to update status based on manual_instruction
+      const processedData = (data || []).map(order => {
+        if (order.manual_instruction?.toLowerCase() === 'delivered' && order.status?.toLowerCase() !== 'delivered') {
+          // Return a new object with updated status if condition met
+          return { ...order, status: 'Delivered' }; 
+        }
+        // Otherwise, return the original order
+        return order;
+      });
+
+      console.log("[loadOrders] Fetched Data (Processed):", processedData);
+      setAllOrders(processedData);
     } catch (error) {
       console.error('Error loading orders:', error);
       toast.error('Failed to load orders');
@@ -318,7 +331,7 @@ export default function ReturnsPage() {
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[100px] whitespace-nowrap border-r' }, 
     { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
     { id: 'status', label: 'Status', className: 'w-[70px] whitespace-nowrap border-r'},
-    { id: 'shipping_address', label: 'Shipping Address', className: 'min-w-[200px] border-r', type: 'custom', render: (order) => formatAddressForTable(order) },
+    { id: 'shipping_address', label: 'Shipping Address', className: 'min-w-[200px] border-r', type: 'custom', render: (order) => formatAddressForTable(order, isMounted) },
     { id: 'order_pack', label: 'Pack', className: 'w-[80px] whitespace-nowrap border-r'},
     { id: 'tracking_number', label: 'Tracking', className: 'w-[120px] whitespace-nowrap border-r overflow-hidden text-ellipsis'},
   ];
