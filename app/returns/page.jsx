@@ -14,6 +14,7 @@ import OrderSearch from '../components/OrderSearch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { formatAddressForTable } from '../utils/formatters';
 import { Badge } from '../components/ui/badge';
+import { RefreshCw } from 'lucide-react';
 
 export default function ReturnsPage() {
   const router = useRouter();
@@ -35,6 +36,9 @@ export default function ReturnsPage() {
   const [returnStatuses, setReturnStatuses] = useState({});
   const [loadingStatuses, setLoadingStatuses] = useState({});
   const [fetchingAllStatuses, setFetchingAllStatuses] = useState(false);
+  const [upgradeStatuses, setUpgradeStatuses] = useState({});
+  const [loadingUpgradeStatuses, setLoadingUpgradeStatuses] = useState({});
+  const [fetchingAllUpgradeStatuses, setFetchingAllUpgradeStatuses] = useState(false);
 
   const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
 
@@ -106,10 +110,15 @@ export default function ReturnsPage() {
 
   const ordersForCreateReturn = filteredOrders.filter(o => 
     (o.status?.toLowerCase() === 'delivered' || o.status?.toLowerCase() === 'delivered') &&
-    !o.sendcloud_return_id && !o.sendcloud_return_parcel_id
+    !o.sendcloud_return_id && !o.sendcloud_return_parcel_id &&
+    !o.upgrade_shipping_id // Exclude upgraded orders from this tab
   );
   const returnedOrders = filteredOrders.filter(o => 
-    o.sendcloud_return_id || o.sendcloud_return_parcel_id
+    (o.sendcloud_return_id || o.sendcloud_return_parcel_id) &&
+    !o.upgrade_shipping_id // Exclude upgraded orders from this tab for now (can adjust if needed)
+  );
+  const upgradedOrders = filteredOrders.filter(o => 
+    o.upgrade_shipping_id // Filter for orders with an upgrade shipping ID
   );
 
   const handleOpenOrder = (orderId) => {
@@ -232,9 +241,12 @@ export default function ReturnsPage() {
   const handleCreateNewLabelForUpgrade = async (orderId, newLabelDetails) => {
     console.log(`Requesting new label for upgraded order ${orderId} with details:`, newLabelDetails);
     setUpgradingOrderId(orderId);
-    const toastId = toast.loading('Updating order details...');
+    // Keep track of the main toast for overall process
+    const mainToastId = toast.loading('Starting upgrade process...'); 
 
     try {
+       // 1. Update Order Pack Details (Existing API Call)
+       toast.loading('Updating order pack details...', { id: mainToastId });
        const updateResponse = await fetch(`/api/orders/${orderId}/update-pack`, {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
@@ -246,52 +258,82 @@ export default function ReturnsPage() {
                order_pack_quantity: newLabelDetails.quantity,
            }),
        });
-
        const updateData = await updateResponse.json();
        if (!updateResponse.ok) {
            throw new Error(updateData.error || 'Failed to update order details');
        }
-       toast.loading('Order updated. Creating new shipping label...', { id: toastId });
 
+       // 2. Create New Shipping Label (Existing API Call)
+       toast.loading('Order pack updated. Creating new shipping label...', { id: mainToastId });
        const labelResponse = await fetch('/api/orders/create-shipping-label', {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ orderId }),
+           body: JSON.stringify({ orderId }), // Uses the same order ID
        });
-
        const labelData = await labelResponse.json();
        if (!labelResponse.ok) {
            console.error("Label creation failed after order update:", labelData.error);
-           throw new Error(labelData.error || 'Order updated, but failed to create new shipping label');
+           // Don't necessarily throw, allow saving pack update, but report error
+           toast.error(`Order pack updated, but failed to create new shipping label: ${labelData.error || 'Unknown error'}. Please create label manually.`, { id: mainToastId, duration: 6000 });
+           // Update local state with just the pack changes
+           setAllOrders(prevOrders => prevOrders.map(order =>
+               order.id === orderId ? { ...order, ...updateData.updatedFields } : order // Assuming update-pack returns updated fields
+           ));
+           handleCloseUpgradeModal();
+           return; // Stop processing if label creation failed
        }
 
-       const existingOrder = allOrders.find(o => o.id === orderId);
-       const finalUpdatedOrderData = {
-           ...newLabelDetails,
-           shipping_id: labelData.shipping_id,
-           tracking_number: labelData.tracking_number,
-           tracking_link: labelData.tracking_link,
-           label_url: labelData.label_url,
-           status: labelData.status || 'Ready to send',
+       // 3. Prepare data for database update (including new upgrade_ fields)
+       toast.loading('New label created. Saving upgrade details...', { id: mainToastId });
+       const upgradeUpdatePayload = {
+           // Include the pack update results if needed (assuming API returns them)
+           ...updateData.updatedFields, 
+           // Map label data to NEW upgrade fields
+           upgrade_shipping_id: labelData.shipping_id,
+           upgrade_tracking_number: labelData.tracking_number,
+           upgrade_tracking_link: labelData.tracking_link,
+           upgrade_status: labelData.status || 'Label Created',
            updated_at: new Date().toISOString(),
-           sendcloud_return_id: existingOrder?.sendcloud_return_id,
-           sendcloud_return_parcel_id: existingOrder?.sendcloud_return_parcel_id,
        };
+       console.log("[Upgrade] Payload for DB Update:", upgradeUpdatePayload); // Log payload
 
+       // 4. Update Database with Upgrade Fields using Supabase client
+       const { data: dbUpdateResult, error: dbUpdateError } = await supabase // Renamed data to dbUpdateResult
+         .from('orders')
+         .update(upgradeUpdatePayload)
+         .eq('id', orderId)
+         .select('id') // Select only id to confirm update, not relying on full row return
+         .single();
+
+       if (dbUpdateError) {
+           console.error("Database update error during upgrade:", dbUpdateError);
+           toast.error(`New label created, but failed to save upgrade details to DB: ${dbUpdateError.message}. Please check order manually.`, { id: mainToastId, duration: 6000 });
+           // Update local state optimistically ONLY if needed - might cause confusion
+           handleCloseUpgradeModal();
+           return; 
+       }
+       console.log("[Upgrade] DB Update Result (Confirmation):"); // Log confirmation
+
+       // 5. Success: Manually merge the update payload into the local state
        setAllOrders(prevOrders =>
-         prevOrders.map(order =>
-           order.id === orderId ? { ...order, ...finalUpdatedOrderData } : order
-         )
+         prevOrders.map(order => {
+           if (order.id === orderId) {
+             // Merge the existing order with the payload we sent to the DB
+             const updatedOrder = { ...order, ...upgradeUpdatePayload };
+             console.log("[Upgrade] Updated Order for State:", updatedOrder); // Log the final state object
+             return updatedOrder;
+           }
+           return order;
+         })
        );
-
-       toast.success(`New label created for upgraded order ${orderId}!`, { id: toastId });
+       toast.success(labelData.message || 'Order upgraded and new label created successfully!', { id: mainToastId });
        handleCloseUpgradeModal();
 
     } catch (error) {
-        console.error('Error during upgrade process:', error);
-        toast.error(`Upgrade failed: ${error.message || 'Unknown error'}`, { id: toastId });
+       console.error('Error during upgrade process:', error);
+       toast.error(`Upgrade failed: ${error.message || 'Unknown error'}`, { id: mainToastId });
     } finally {
-        setUpgradingOrderId(null);
+       setUpgradingOrderId(null);
     }
   };
 
@@ -356,6 +398,83 @@ export default function ReturnsPage() {
        }
     }
   }, [returnedOrders, activeTab, returnStatuses, loadingStatuses, fetchAllReturnStatuses]);
+
+  const fetchUpgradeStatus = useCallback(async (order) => {
+    const orderId = order.id;
+    const shippingId = order.upgrade_shipping_id;
+    const trackingNumber = order.upgrade_tracking_number;
+
+    if (!orderId || (!shippingId && !trackingNumber) || loadingUpgradeStatuses[orderId]) {
+      return; // Skip if no identifiers or already loading
+    }
+
+    setLoadingUpgradeStatuses(prev => ({ ...prev, [orderId]: true }));
+    try {
+      // Construct query params
+      const queryParams = new URLSearchParams({
+          orderId: orderId, // Pass orderId for DB update
+      });
+      if (shippingId) queryParams.set('shippingId', shippingId);
+      if (trackingNumber) queryParams.set('trackingNumber', trackingNumber);
+      
+      const response = await fetch(`/api/shipments/get-status?${queryParams.toString()}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to fetch upgrade status (${response.status})`);
+      }
+      const data = await response.json();
+      
+      // Update local state directly (API handles DB update)
+      setUpgradeStatuses(prev => ({ ...prev, [orderId]: data.status }));
+      // Update the main orders state as well
+      setAllOrders(prevOrders => prevOrders.map(o => 
+          o.id === orderId ? { ...o, upgrade_status: data.status } : o
+      ));
+
+    } catch (error) {
+      console.error(`Error fetching upgrade status for ${orderId}:`, error);
+      toast.error(`Failed to fetch upgrade status for order ${orderId}.`);
+      // Optionally set error state: setUpgradeStatuses(prev => ({ ...prev, [orderId]: 'Error' }));
+    } finally {
+      setLoadingUpgradeStatuses(prev => ({ ...prev, [orderId]: false }));
+    }
+  }, [loadingUpgradeStatuses]);
+
+  const fetchAllUpgradeOrderStatuses = useCallback(async () => {
+    if (fetchingAllUpgradeStatuses) return; 
+    setFetchingAllUpgradeStatuses(true);
+    const toastId = toast.loading('Fetching upgrade shipment statuses...');
+
+    const promises = upgradedOrders
+      .filter(order => 
+          (order.upgrade_shipping_id || order.upgrade_tracking_number) && // Check if identifiers exist
+          !loadingUpgradeStatuses[order.id] // Ensure not already loading
+      )
+      .map(order => fetchUpgradeStatus(order));
+
+    try {
+      await Promise.all(promises);
+      toast.success('Upgrade statuses updated.', { id: toastId });
+    } catch (error) {
+      console.error("Error fetching all upgrade statuses:", error);
+      toast.error('Some upgrade statuses could not be fetched.', { id: toastId });
+    } finally {
+      setFetchingAllUpgradeStatuses(false);
+    }
+  }, [upgradedOrders, loadingUpgradeStatuses, fetchUpgradeStatus, fetchingAllUpgradeStatuses]);
+
+  useEffect(() => {
+    if (activeTab === 'upgradedOrders' && upgradedOrders.length > 0) {
+       const ordersToFetch = upgradedOrders.filter(order => 
+         order.upgrade_shipping_id && 
+         !upgradeStatuses[order.id] &&
+         !loadingUpgradeStatuses[order.id]
+       );
+       if (ordersToFetch.length > 0) {
+           fetchAllUpgradeOrderStatuses();
+       }
+    }
+  }, [upgradedOrders, activeTab, upgradeStatuses, loadingUpgradeStatuses, fetchAllUpgradeOrderStatuses]);
 
   const createReturnColumns = [
     {
@@ -449,6 +568,66 @@ export default function ReturnsPage() {
     { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap border-r' },
   ];
 
+  // Define columns for the "Upgraded Orders" table
+  const upgradedOrdersColumns = [
+    {
+      id: 'actions',
+      label: 'Actions',
+      type: 'actions',
+      className: 'w-[200px]',
+      actions: [
+        { label: 'Open', handler: handleOpenOrder, variant: 'outline' },
+        { 
+          label: 'Track Return', 
+          handler: handleTrackReturn, 
+          variant: 'outline', 
+          condition: (o) => !!o.sendcloud_return_parcel_id 
+        },
+        {
+          label: 'Update Status',
+          handler: (orderId) => {
+              const orderToUpdate = upgradedOrders.find(o => o.id === orderId);
+              if (orderToUpdate) fetchUpgradeStatus(orderToUpdate);
+          },
+          variant: 'ghost',
+          className: 'px-1 py-1 h-auto',
+          loading: (orderId) => loadingUpgradeStatuses[orderId],
+          renderLoading: () => <RefreshCw className="h-4 w-4 animate-spin" />,
+          renderLabel: () => <RefreshCw className="h-4 w-4" />,
+          condition: (o) => !!(o.upgrade_shipping_id || o.upgrade_tracking_number),
+        }
+      ]
+    },
+    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[100px] whitespace-nowrap border-r' },
+    { id: 'name', label: 'Customer', className: 'w-[80px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
+    { id: 'sendcloud_return_parcel_id', label: 'Return ID', className: 'w-[120px] whitespace-nowrap border-r' },
+    { id: 'upgrade_shipping_id', label: 'Upgrade Ship ID', className: 'w-[120px] whitespace-nowrap border-r' },
+    { id: 'upgrade_tracking_number', label: 'Upgrade Tracking', className: 'w-[150px] whitespace-nowrap border-r overflow-hidden text-ellipsis' },
+    { 
+      id: 'upgrade_status', 
+      label: 'Upgrade Status', 
+      className: 'w-[160px] whitespace-nowrap border-r', 
+      type: 'custom',
+      render: (order) => {
+          const status = order.upgrade_status || upgradeStatuses[order.id];
+          const isLoading = loadingUpgradeStatuses[order.id];
+
+          if (isLoading) {
+            return <span className="text-gray-500 italic">Checking...</span>;
+          }
+          if (status) {
+              let badgeVariant = 'secondary';
+              if (status.toLowerCase().includes('delivered')) badgeVariant = 'success';
+              if (status.toLowerCase().includes('cancelled') || status.toLowerCase().includes('error')) badgeVariant = 'destructive';
+              if (status.toLowerCase().includes('created') || status.toLowerCase().includes('announced') || status.toLowerCase().includes('label')) badgeVariant = 'outline';
+              return <Badge variant={badgeVariant}>{status}</Badge>;
+          }
+          return <span className="text-gray-400">N/A</span>;
+      }
+    },
+    { id: 'updated_at', label: 'Last Updated', type: 'date', className: 'w-[120px] whitespace-nowrap border-r' },
+  ];
+
   // Add console logs for debugging
   console.log("[ReturnsPage Render] All Orders Fetched:", allOrders);
   console.log("[ReturnsPage Render] Filtered Delivered (Create Return Tab):", ordersForCreateReturn);
@@ -458,7 +637,7 @@ export default function ReturnsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-4">
-        <h1 className="text-2xl font-bold mb-2">Returns Management</h1>
+        <h1 className="text-2xl font-bold mb-2">Returns and Upgrades Management</h1>
         <p className="text-gray-600">Create and manage return labels for delivered orders</p>
       </header>
 
@@ -470,6 +649,7 @@ export default function ReturnsPage() {
         <TabsList>
           <TabsTrigger value="createReturns">Orders Delivered ({ordersForCreateReturn.length})</TabsTrigger>
           <TabsTrigger value="returnedOrders">Orders Returned ({returnedOrders.length})</TabsTrigger>
+          <TabsTrigger value="upgradedOrders">Upgraded Orders ({upgradedOrders.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="createReturns">
@@ -501,6 +681,29 @@ export default function ReturnsPage() {
              orders={returnedOrders}
              loading={loading}
              columns={returnedOrdersColumns}
+             handleRowClick={handleOpenOrder}
+           />
+        </TabsContent>
+
+        <TabsContent value="upgradedOrders">
+           <div className="flex justify-between items-center mb-4">
+              <p className="text-sm text-gray-600">Orders that have had an upgrade processed.</p>
+              <Button 
+                onClick={fetchAllUpgradeOrderStatuses}
+                disabled={fetchingAllUpgradeStatuses}
+                size="sm"
+              >
+                {fetchingAllUpgradeStatuses ? (
+                   <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2"></div> Fetching All...</>
+                ) : (
+                   'Fetch All Upgrade Statuses'
+                )}
+              </Button>
+           </div>
+           <ReturnsTable
+             orders={upgradedOrders}
+             loading={loading}
+             columns={upgradedOrdersColumns}
              handleRowClick={handleOpenOrder}
            />
         </TabsContent>
