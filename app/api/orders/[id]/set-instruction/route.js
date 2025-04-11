@@ -6,49 +6,48 @@ import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY } from '../../../../utils
 const supabase = createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY);
 
 export async function POST(request, { params }) {
-  try {
-    const { id } = params; // Get order ID from the route parameters
-    const { manual_instruction } = await request.json();
+  const { orderId } = params;
+  const { manual_instruction } = await request.json();
 
-    if (!id) {
-      return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
+  if (!orderId) {
+    return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
+  }
+
+  if (!manual_instruction) {
+    return NextResponse.json({ error: 'Manual instruction is required' }, { status: 400 });
+  }
+
+  try {
+    // Prepare the update object
+    let updateData = {
+      manual_instruction: manual_instruction,
+      updated_at: new Date().toISOString(), // Update timestamp
+    };
+    
+    // If manual_instruction is 'delivered', also update status
+    if (manual_instruction.toLowerCase() === 'delivered') {
+      updateData.status = 'Delivered';
     }
 
-    // Allow setting instruction to null/empty to clear the override
-    // if (!manual_instruction) {
-    //   return NextResponse.json({ error: 'Instruction text is required' }, { status: 400 });
-    // }
-
-    console.log(`Setting manual instruction for order ${id} to: "${manual_instruction || 'NULL'}"`);
-
-    // Update the order in Supabase
     const { data, error } = await supabase
       .from('orders')
-      .update({ 
-        manual_instruction: manual_instruction,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
+      .update(updateData)
+      .eq('id', orderId)
+      .select();
 
     if (error) {
-      console.error('Error updating manual instruction:', error);
-      return NextResponse.json({ error: 'Failed to update manual instruction' }, { status: 500 });
+      console.error('Supabase error updating order instruction:', error);
+      throw new Error(error.message);
+    }
+    
+    if (!data || data.length === 0) {
+      return NextResponse.json({ error: 'Order not found or update failed' }, { status: 404 });
     }
 
-    if (!data) {
-        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Manual instruction updated successfully',
-      order: data
-    });
+    return NextResponse.json({ success: true, updatedOrder: data[0] });
 
   } catch (error) {
-    console.error('Error setting manual instruction:', error);
+    console.error('Error setting order instruction:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 } 
