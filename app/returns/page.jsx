@@ -39,8 +39,17 @@ export default function ReturnsPage() {
   const [upgradeStatuses, setUpgradeStatuses] = useState({});
   const [loadingUpgradeStatuses, setLoadingUpgradeStatuses] = useState({});
   const [fetchingAllUpgradeStatuses, setFetchingAllUpgradeStatuses] = useState(false);
+  const [decodedQuery, setDecodedQuery] = useState('');
 
-  const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
+  useEffect(() => {
+    const queryFromUrl = searchParams?.get('q') || '';
+    try {
+      setDecodedQuery(decodeURIComponent(queryFromUrl));
+    } catch (e) {
+      console.error("Failed to decode query param:", e);
+      setDecodedQuery(queryFromUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadOrders();
@@ -50,7 +59,7 @@ export default function ReturnsPage() {
   useEffect(() => {
     if (loading) return;
     filterOrders();
-  }, [query, allOrders, loading]);
+  }, [decodedQuery, allOrders, loading]);
 
   const loadOrders = async () => {
     try {
@@ -86,8 +95,8 @@ export default function ReturnsPage() {
 
   const filterOrders = () => {
     let filtered = allOrders;
-    if (query) {
-      const lowercaseQuery = query.toLowerCase();
+    if (decodedQuery) {
+      const lowercaseQuery = decodedQuery.toLowerCase();
       filtered = allOrders.filter(order => {
         return (
           (order.id && order.id.toLowerCase().includes(lowercaseQuery)) ||
@@ -142,9 +151,9 @@ export default function ReturnsPage() {
       if (!response.ok) throw new Error(data.error || 'Failed to create return label');
       
       setAllOrders(prevOrders => prevOrders.map(order => 
-        order.id === orderId 
+          order.id === orderId
           ? { ...order, sendcloud_return_id: data.sendcloud_return_id, sendcloud_return_parcel_id: data.sendcloud_return_parcel_id, updated_at: new Date().toISOString() } 
-          : order 
+            : order
       ));
       toast.success(data.message || 'Return initiated successfully', { id: toastId });
       handleCloseReturnModal();
@@ -483,7 +492,7 @@ export default function ReturnsPage() {
       type: 'actions',
       className: 'w-[280px]',
       actions: [
-        { 
+        {
           label: 'Open',
           handler: handleOpenOrder, 
           variant: 'outline',

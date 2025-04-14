@@ -11,9 +11,16 @@ export default function OrderSearch() {
 
   // Initialize search term from URL on component mount
   useEffect(() => {
-    const query = searchParams.get('q');
-    if (query) {
-      setSearchTerm(query);
+    const queryFromUrl = searchParams.get('q');
+    if (queryFromUrl) {
+      try {
+        setSearchTerm(decodeURIComponent(queryFromUrl)); // Decode before setting state
+      } catch (e) {
+        console.error("Failed to decode query param in OrderSearch:", e);
+        setSearchTerm(queryFromUrl); // Fallback to raw value on error
+      }
+    } else {
+      setSearchTerm(''); // Clear if no query param
     }
   }, [searchParams]);
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { fetchOrders, searchOrders, filterOrders } from "../utils/supabase-client";
 import OrderSearch from "../components/OrderSearch";
 import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
@@ -15,6 +15,7 @@ import { toast } from "react-hot-toast";
 
 export default function Orders() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
@@ -24,38 +25,41 @@ export default function Orders() {
   const [isMounted, setIsMounted] = useState(false);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [decodedQuery, setDecodedQuery] = useState('');
 
-  // Get search query from URL parameters using useSearchParams hook
-  const query = searchParams?.get('q') ? decodeURIComponent(searchParams.get('q')) : '';
-  
-  // Fetch orders with search functionality
+  useEffect(() => {
+    const queryFromUrl = searchParams?.get('q') || '';
+    try {
+      setDecodedQuery(decodeURIComponent(queryFromUrl));
+    } catch (e) {
+      console.error("Failed to decode query param:", e);
+      setDecodedQuery(queryFromUrl);
+    }
+  }, [searchParams]);
+
   const loadOrders = async () => {
     try {
       setLoading(true);
       let data;
       
       if (activeFilters) {
-        // If filters are active, use them
+        console.log("[loadOrders] Fetching with filters:", activeFilters);
         data = await filterOrders(activeFilters);
-      } else if (query) {
-        // If search query is present but no filters
-        console.log(`Searching for orders with query: "${query}"`);
-        data = await searchOrders(query);
-        console.log(`Search returned ${data.length} results`);
+      } else if (decodedQuery) {
+        console.log(`[loadOrders] Searching for orders with query: \"${decodedQuery}\"`);
+        data = await searchOrders(decodedQuery);
+        console.log(`[loadOrders] Search returned ${data?.length ?? 0} results`);
       } else {
-        // No filters, no search
+        console.log("[loadOrders] Fetching all orders (no query/filters)");
         data = await fetchOrders();
       }
       
-      // Calculate instruction for each order
-      data = data.map(order => ({
+      data = (data || []).map(order => ({
         ...order,
         instruction: calculateOrderInstruction(order)
       }));
       
-      setOrders(data);
-      const filtered = filterOrdersByCountry(data, activeCountry);
-      setFilteredOrders(filtered);
+      setOrders(data || []);
     } catch (error) {
       console.error('Error loading orders:', error);
       setOrders([]);
@@ -65,7 +69,6 @@ export default function Orders() {
     }
   };
 
-  // Filter orders by country
   const filterOrdersByCountry = (ordersToFilter, country) => {
     if (!ordersToFilter || ordersToFilter.length === 0) {
       return [];
@@ -76,7 +79,6 @@ export default function Orders() {
     }
     
     return ordersToFilter.filter(order => {
-      // Try to get country from different possible fields
       let orderCountry = 'Unknown';
       
       if (order.shipping_address_country) {
@@ -90,19 +92,16 @@ export default function Orders() {
         }
       }
       
-      // Only normalize on client side
       if (isMounted) {
         const normalizedOrderCountry = normalizeCountryToCode(orderCountry);
         const normalizedFilterCountry = normalizeCountryToCode(country);
         return normalizedOrderCountry === normalizedFilterCountry;
       } else {
-        // Simple string comparison on server side
         return orderCountry === country;
       }
     });
   };
 
-  // Handle country tab change
   const handleCountryChange = (country) => {
     setActiveCountry(country);
     const filtered = filterOrdersByCountry(orders, country);
@@ -111,15 +110,13 @@ export default function Orders() {
 
   useEffect(() => {
     loadOrders();
-  }, [query, activeFilters]);
+  }, [decodedQuery, activeFilters]);
 
   const handleFilterChange = (filters) => {
     setActiveFilters(filters);
   };
 
-  // Handle order updates from child components
   const handleOrderUpdate = (updatedOrder) => {
-    // Update the orders state with the updated order
     const updatedOrders = orders.map(order => 
       order.id === updatedOrder.id 
         ? { ...order, ...updatedOrder, instruction: calculateOrderInstruction({ ...order, ...updatedOrder }) } 
@@ -130,26 +127,21 @@ export default function Orders() {
     const filtered = filterOrdersByCountry(updatedOrders, activeCountry);
     setFilteredOrders(filtered);
     
-    // Update the router cache without navigating
     router.refresh();
   };
 
-  // Add useEffect to set isMounted after client-side rendering and initialize filtered orders
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Add separate useEffect to update filtered orders when orders or activeCountry changes
   useEffect(() => {
-    if (orders.length > 0) {
+    if (isMounted) {
       const filtered = filterOrdersByCountry(orders, activeCountry);
       setFilteredOrders(filtered);
     }
   }, [orders, activeCountry, isMounted]);
 
-  // Handle order creation
   const handleOrderCreated = (newOrder) => {
-    // Refresh the orders list
     loadOrders();
   };
 
@@ -167,7 +159,6 @@ export default function Orders() {
       const data = await response.json();
       toast.success('Delivery statuses updated successfully');
       
-      // Refresh the orders list
       loadOrders();
     } catch (error) {
       console.error('Error updating delivery statuses:', error);
@@ -182,11 +173,11 @@ export default function Orders() {
       <header className="orders-header flex justify-between items-center">
         <div>
           <h2 className="text-black">
-            {query ? `SEARCH RESULTS FOR "${query}"` : 
+            {decodedQuery ? `SEARCH RESULTS FOR "${decodedQuery}"` : 
              activeCountry === 'all' ? 'ALL ORDERS' :
              `${COUNTRY_MAPPING[activeCountry]?.name || activeCountry} ORDERS`}
           </h2>
-          {query && (
+          {decodedQuery && (
             <p className="text-sm text-gray-600 mt-1">
               {filteredOrders.length > 0 
                 ? `Found ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} matching your search`
@@ -200,7 +191,7 @@ export default function Orders() {
                 : 'No orders match your filters'}
             </p>
           )}
-          {activeCountry !== 'all' && !query && !activeFilters && (
+          {activeCountry !== 'all' && !decodedQuery && !activeFilters && (
             <p className="text-sm text-gray-600 mt-1">
               {filteredOrders.length > 0
                 ? `Showing ${filteredOrders.length} ${filteredOrders.length === 1 ? 'order' : 'orders'} from ${COUNTRY_MAPPING[activeCountry]?.name || activeCountry}`
