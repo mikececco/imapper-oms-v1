@@ -138,31 +138,54 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                 {orderDetails.sendcloud_return_id && (
                   <div>
                     <h4 className="font-medium mb-2">Return Information</h4>
-                    <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                      {/* Display Return ID */}
                       <p>
-                        <strong>Return Label:</strong>{' '}
-                        {/* <a
-                          href={orderDetails.return_label_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          View Label
-                        </a> */}
+                        <strong>Sendcloud Return ID:</strong> {orderDetails.sendcloud_return_id}
                       </p>
+                      {/* Display Parcel ID if exists */}
                       {orderDetails.sendcloud_return_parcel_id && (
                         <p>
-                          <strong>Return Tracking:</strong>{' '}
-                          {/* <a
-                            href={orderDetails.return_tracking_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            {orderDetails.return_tracking_number}
-                          </a> */}
+                          <strong>Sendcloud Parcel ID:</strong> {orderDetails.sendcloud_return_parcel_id}
                         </p>
                       )}
+                      {/* Display Return Label Button if URL exists */}
+                      {orderDetails.sendcloud_return_label_url && (
+                        <div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const parcelId = orderDetails.sendcloud_return_parcel_id;
+
+                              if (parcelId) {
+                                const proxyUrl = `/api/returns/download-label/${parcelId}`;
+                                console.log(`Opening label via proxy URL: ${proxyUrl}`);
+                                window.open(proxyUrl, '_blank');
+                              } else {
+                                 console.error('Cannot open label: Missing Sendcloud Parcel ID.');
+                                 toast.error('Missing Parcel ID to download label.');
+                              }
+                            }}
+                          >
+                            View Return Label
+                          </Button>
+                        </div>
+                      )}
+                       {/* Placeholder for Tracking Link if needed later */}
+                       {/* {orderDetails.sendcloud_return_tracking_url && (
+                         <p>
+                           <strong>Return Tracking:</strong>{' '}
+                           <a
+                             href={orderDetails.sendcloud_return_tracking_url}
+                             target="_blank"
+                             rel="noopener noreferrer"
+                             className="text-blue-600 hover:underline"
+                           >
+                             Track Return Shipment
+                           </a>
+                         </p>
+                       )} */}
                     </div>
                   </div>
                 )}

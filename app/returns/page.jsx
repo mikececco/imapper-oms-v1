@@ -40,6 +40,8 @@ export default function ReturnsPage() {
   const [loadingUpgradeStatuses, setLoadingUpgradeStatuses] = useState({});
   const [fetchingAllUpgradeStatuses, setFetchingAllUpgradeStatuses] = useState(false);
   const [decodedQuery, setDecodedQuery] = useState('');
+  const [fetchingReturnStatusId, setFetchingReturnStatusId] = useState(null);
+  const [fetchingLabelUrlId, setFetchingLabelUrlId] = useState(null);
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -147,20 +149,33 @@ export default function ReturnsPage() {
         headers: {'Content-Type': 'application/json',},
         body: JSON.stringify({ orderId, returnFromAddress, returnToAddress, parcelWeight }),
       });
-      const data = await response.json();
+      const data = await response.json(); // Contains labelUrl now
       if (!response.ok) throw new Error(data.error || 'Failed to create return label');
-      
-      setAllOrders(prevOrders => prevOrders.map(order => 
+
+      // Update local state including the new label URL
+      setAllOrders(prevOrders => prevOrders.map(order =>
           order.id === orderId
-          ? { ...order, sendcloud_return_id: data.sendcloud_return_id, sendcloud_return_parcel_id: data.sendcloud_return_parcel_id, updated_at: new Date().toISOString() } 
-            : order
+          ? {
+              ...order,
+              sendcloud_return_id: data.sendcloud_return_id,
+              sendcloud_return_parcel_id: data.sendcloud_return_parcel_id,
+              sendcloud_return_label_url: data.sendcloud_return_label_url, // Store the label URL
+              updated_at: new Date().toISOString()
+             }
+          : order
       ));
-      toast.success(data.message || 'Return initiated successfully', { id: toastId });
+
+      // Optionally include link in success toast if URL exists
+      const successMessage = data.sendcloud_return_label_url
+        ? <>Return initiated successfully! <a href={data.sendcloud_return_label_url} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:text-blue-700">View Label</a></>
+        : (data.message || 'Return initiated successfully'); // Fallback message
+
+      toast.success(successMessage, { id: toastId, duration: 6000 }); // Keep toast longer if link is present
       handleCloseReturnModal();
 
     } catch (error) {
       console.error('Error creating return label:', error);
-      toast.error(error.message, { id: toastId });
+      toast.error(`Error: ${error.message}`, { id: toastId });
     } finally {
       setCreatingLabelOrderId(null);
     }
@@ -206,44 +221,56 @@ export default function ReturnsPage() {
 
   const handleCreateReturnLabelForUpgrade = async (orderId, customerAddress, returnToAddress, returnWeight) => {
     console.log("Requesting return label for upgrade:", orderId, customerAddress, returnToAddress, returnWeight);
-    setUpgradingOrderId(orderId);
+    setUpgradingOrderId(orderId); // Assuming this state manages loading for upgrades
     const toastId = toast.loading('Creating return label for original item...');
     try {
         const response = await fetch('/api/returns/create-label', {
             method: 'POST',
             headers: {'Content-Type': 'application/json',},
-            body: JSON.stringify({ 
-                orderId: orderId, 
-                returnFromAddress: customerAddress, 
-                returnToAddress: returnToAddress, 
+            body: JSON.stringify({
+                orderId: orderId,
+                returnFromAddress: customerAddress,
+                returnToAddress: returnToAddress,
                 parcelWeight: returnWeight
             }),
         });
 
-        const data = await response.json();
+        const data = await response.json(); // Contains labelUrl now
 
         if (!response.ok) {
             throw new Error(data.error || 'Failed to create return label');
         }
 
+        // Update local state including the new label URL
         setAllOrders(prevOrders =>
             prevOrders.map(order =>
-            order.id === orderId 
-                ? { 
-                    ...order, 
-                    sendcloud_return_id: data.sendcloud_return_id, 
-                    sendcloud_return_parcel_id: data.sendcloud_return_parcel_id, 
-                    updated_at: new Date().toISOString() 
+            order.id === orderId
+                ? {
+                    ...order,
+                    sendcloud_return_id: data.sendcloud_return_id,
+                    sendcloud_return_parcel_id: data.sendcloud_return_parcel_id,
+                    sendcloud_return_label_url: data.sendcloud_return_label_url, // Store the label URL
+                    updated_at: new Date().toISOString()
                   }
                 : order
             )
         );
-        toast.success(data.message || 'Return label for original item created!', { id: toastId });
+
+        // Optionally include link in success toast if URL exists
+        const successMessage = data.sendcloud_return_label_url
+          ? <>Return label created! <a href={data.sendcloud_return_label_url} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:text-blue-700">View Label</a></>
+          : (data.message || 'Return label for original item created!'); // Fallback message
+
+        toast.success(successMessage, { id: toastId, duration: 6000 });
+
+        // Close relevant modals or update UI as needed for the upgrade flow
+        // handleCloseUpgradeModal(); // Example if you have an upgrade modal
 
     } catch (error) {
         console.error('Error creating return label during upgrade:', error);
         toast.error(`Failed to create return label: ${error.message || 'Unknown error'}`, { id: toastId });
     } finally {
+        setUpgradingOrderId(null); // Reset loading state for upgrades
     }
   };
 
@@ -355,58 +382,69 @@ export default function ReturnsPage() {
     }
   };
 
-  const fetchReturnStatus = useCallback(async (returnParcelId) => {
-    if (!returnParcelId || loadingStatuses[returnParcelId]) return;
-
-    setLoadingStatuses(prev => ({ ...prev, [returnParcelId]: true }));
+  // Function to fetch status for a single return
+  const fetchSingleReturnStatus = useCallback(async (returnId) => {
+    if (!returnId) return;
+    console.log(`Fetching status for return ID: ${returnId}`);
+    setLoadingStatuses(prev => ({ ...prev, [returnId]: true }));
+    setFetchingReturnStatusId(returnId); // Indicate which specific ID is fetching
     try {
-      const response = await fetch(`/api/returns/get-status?returnParcelId=${encodeURIComponent(returnParcelId)}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to fetch status (${response.status})`);
-      }
+      const response = await fetch(`/api/returns/get-status?returnId=${returnId}`);
       const data = await response.json();
-      setReturnStatuses(prev => ({ ...prev, [returnParcelId]: data.status }));
+      if (!response.ok) {
+        // Use the error message from API if available, otherwise generic
+        throw new Error(data.error || 'Failed to fetch status'); 
+      }
+      setReturnStatuses(prev => ({ ...prev, [returnId]: data.status }));
+      // Optionally update the main order state if status needs persistence beyond session
+      // setAllOrders(prev => prev.map(o => o.sendcloud_return_id === returnId ? { ...o, sendcloud_return_status: data.status } : o));
+      toast.success(`Status updated for return ${returnId}: ${data.status}`);
     } catch (error) {
-      console.error(`Error fetching status for ${returnParcelId}:`, error);
-      toast.error(`Failed to fetch status for return ID ${returnParcelId}.`);
+      console.error(`Error fetching return status for ${returnId}:`, error);
+      toast.error(`Could not fetch status for return ${returnId}: ${error.message}`);
+      // Keep existing status or set to an error state if needed
+      // setReturnStatuses(prev => ({ ...prev, [returnId]: 'Error' }));
     } finally {
-      setLoadingStatuses(prev => ({ ...prev, [returnParcelId]: false }));
+      setLoadingStatuses(prev => ({ ...prev, [returnId]: false }));
+      setFetchingReturnStatusId(null); // Clear the fetching indicator
     }
-  }, [loadingStatuses]);
+  }, []); // Dependencies: useCallback needs an empty dependency array if it doesn't rely on component state/props that change
 
-  const fetchAllReturnStatuses = useCallback(async () => {
-    if (fetchingAllStatuses) return;
-    setFetchingAllStatuses(true);
-    const toastId = toast.loading('Fetching return statuses...');
+  // Function to fetch statuses for all visible returned orders ONCE
+  const fetchAllVisibleReturnStatuses = useCallback(async () => {
+    if (fetchingAllStatuses) return; // Prevent concurrent fetches
+    console.log("Attempting to fetch all visible return statuses...");
+    const ordersToFetch = returnedOrders.filter(o => o.sendcloud_return_id && !returnStatuses[o.sendcloud_return_id]);
     
-    const promises = returnedOrders
-      .filter(order => order.sendcloud_return_parcel_id && !returnStatuses[order.sendcloud_return_parcel_id] && !loadingStatuses[order.sendcloud_return_parcel_id])
-      .map(order => fetchReturnStatus(order.sendcloud_return_parcel_id));
+    if (ordersToFetch.length === 0) {
+      console.log("No new return statuses to fetch.");
+      return;
+    }
 
+    setFetchingAllStatuses(true);
+    const promises = ordersToFetch.map(order => fetchSingleReturnStatus(order.sendcloud_return_id));
+    
     try {
-      await Promise.all(promises);
-      toast.success('Return statuses updated.', { id: toastId });
+      await Promise.allSettled(promises); // Wait for all fetches to complete (settled)
+      toast.success('Finished checking return statuses.');
     } catch (error) {
-      console.error("Error fetching all statuses:", error);
-      toast.error('Some statuses could not be fetched.', { id: toastId });
+      // This catch might not be strictly necessary with Promise.allSettled 
+      // as individual errors are handled in fetchSingleReturnStatus
+      console.error("Error during batch status fetch:", error); 
+      toast.error('An error occurred while fetching some statuses.');
     } finally {
-      setFetchingAllStatuses(false);
+       setFetchingAllStatuses(false);
     }
-  }, [returnedOrders, returnStatuses, loadingStatuses, fetchReturnStatus, fetchingAllStatuses]);
+  }, [returnedOrders, returnStatuses, fetchSingleReturnStatus, fetchingAllStatuses]); // Dependencies for useCallback
 
+  // Effect to fetch statuses when the 'returnedOrders' tab becomes active and data is loaded
   useEffect(() => {
-    if (activeTab === 'returnedOrders' && returnedOrders.length > 0) {
-       const ordersToFetch = returnedOrders.filter(order => 
-         order.sendcloud_return_parcel_id && 
-         !returnStatuses[order.sendcloud_return_parcel_id] &&
-         !loadingStatuses[order.sendcloud_return_parcel_id]
-       );
-       if (ordersToFetch.length > 0) {
-           fetchAllReturnStatuses();
-       }
+    if (activeTab === 'returnedOrders' && returnedOrders.length > 0 && !loading) {
+      // Fetch statuses only if the tab is active
+      fetchAllVisibleReturnStatuses();
     }
-  }, [returnedOrders, activeTab, returnStatuses, loadingStatuses, fetchAllReturnStatuses]);
+    // No cleanup needed here as fetchAllVisibleReturnStatuses has its own guards
+  }, [activeTab, returnedOrders, loading, fetchAllVisibleReturnStatuses]); // Dependencies for the effect
 
   const fetchUpgradeStatus = useCallback(async (order) => {
     const orderId = order.id;
@@ -485,6 +523,56 @@ export default function ReturnsPage() {
     }
   }, [upgradedOrders, activeTab, upgradeStatuses, loadingUpgradeStatuses, fetchAllUpgradeOrderStatuses]);
 
+  // Function to fetch or view the label URL
+  const fetchAndViewLabel = useCallback(async (orderId) => {
+    const order = allOrders.find(o => o.id === orderId);
+    if (!order) {
+      toast.error("Order not found.");
+      return;
+    }
+
+    // If label URL already exists, just open it
+    if (order.sendcloud_return_label_url) {
+      window.open(order.sendcloud_return_label_url, '_blank');
+      return;
+    }
+
+    // If URL doesn't exist, but we have parcel ID, try fetching it
+    if (order.sendcloud_return_parcel_id) {
+      setFetchingLabelUrlId(orderId); // Set loading state for this specific button
+      const toastId = toast.loading(`Fetching label for order ${orderId}...`);
+      try {
+        const response = await fetch(`/api/returns/get-label-url?parcelId=${order.sendcloud_return_parcel_id}`);
+        const data = await response.json();
+
+        if (!response.ok || !data.labelUrl) {
+          throw new Error(data.error || 'Failed to retrieve label URL from API');
+        }
+
+        const fetchedLabelUrl = data.labelUrl;
+
+        // Update the state for this order with the new URL
+        setAllOrders(prevOrders => prevOrders.map(o =>
+          o.id === orderId
+          ? { ...o, sendcloud_return_label_url: fetchedLabelUrl, updated_at: new Date().toISOString() }
+          : o
+        ));
+
+        toast.success('Label retrieved successfully!', { id: toastId });
+        window.open(fetchedLabelUrl, '_blank'); // Open the newly fetched URL
+
+      } catch (error) {
+        console.error(`Error fetching label URL for Parcel ID ${order.sendcloud_return_parcel_id}:`, error);
+        toast.error(`Could not fetch label: ${error.message}`, { id: toastId });
+      } finally {
+        setFetchingLabelUrlId(null); // Clear loading state
+      }
+    } else {
+      // If no Parcel ID, we can't fetch the label
+      toast.error('Cannot fetch label: Missing Sendcloud Parcel ID.');
+    }
+  }, [allOrders]); // Dependency: allOrders
+
   const createReturnColumns = [
     {
       id: 'actions',
@@ -526,55 +614,82 @@ export default function ReturnsPage() {
       id: 'actions',
       label: 'Actions',
       type: 'actions',
-      className: 'w-[150px]',
+      className: 'w-[250px]', // Wider for 3 buttons
       actions: [
-        { 
+        {
           label: 'Open',
           handler: handleOpenOrder,
           variant: 'outline',
+          size: 'sm'
         },
-        { 
-          label: 'Track Return',
-          handler: handleTrackReturn,
+        {
+          label: 'Check Status',
+          handler: (orderId) => {
+            const order = allOrders.find(o => o.id === orderId);
+            if (order && order.sendcloud_return_id) {
+              fetchSingleReturnStatus(order.sendcloud_return_id);
+            } else {
+              toast.error('No Sendcloud Return ID found for this order.');
+            }
+          },
+          variant: 'ghost',
+          size: 'sm',
+          condition: (order) => !!order.sendcloud_return_id,
+          disabled: (order) => loadingStatuses[order.sendcloud_return_id] || fetchingReturnStatusId === order.id
+        },
+        {
+          // Combined Fetch/View Label Button
+          label: (order) => order.sendcloud_return_label_url ? 'View Label' : 'Get Label', // Dynamic label
+          handler: fetchAndViewLabel, // Use the new combined handler
           variant: 'outline',
-          condition: (order) => !!order.sendcloud_return_parcel_id 
+          size: 'sm',
+          // Show button if Parcel ID exists (needed to fetch if URL is missing)
+          condition: (order) => !!order.sendcloud_return_parcel_id, 
+          // Disable button if this specific label is currently fetching
+          disabled: (order) => fetchingLabelUrlId === order.id 
         },
       ]
     },
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[120px] whitespace-nowrap border-r' },
-    { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
-    { 
-      id: 'return_status', 
-      label: 'Return Status', 
+    { id: 'name', label: 'Customer', className: 'w-[160px] border-r whitespace-nowrap overflow-hidden text-ellipsis' }, // Adjusted width
+    {
+      id: 'return_status',
+      label: 'Return Status',
       className: 'w-[160px] whitespace-nowrap border-r',
-      type: 'custom', 
+      type: 'custom',
       render: (order) => {
-        const parcelId = order.sendcloud_return_parcel_id;
-        if (!parcelId) return <span className="text-gray-400">N/A</span>;
+        const returnId = order.sendcloud_return_id;
+        if (!returnId) return <span className="text-gray-400">N/A</span>;
 
-        const status = returnStatuses[parcelId];
-        const isLoading = loadingStatuses[parcelId];
+        const status = returnStatuses[returnId];
+        const isLoading = loadingStatuses[returnId];
 
         if (isLoading) {
-          return <span className="text-gray-500 italic">Fetching...</span>;
+          // More specific loading indicator
+          return <span className="text-gray-500 italic flex items-center"><RefreshCw className="animate-spin h-3 w-3 mr-1" /> Checking...</span>;
         }
-        
+
         if (status) {
-            let badgeVariant = 'secondary';
-            if (status.toLowerCase().includes('delivered') || status.toLowerCase().includes('received')) badgeVariant = 'success';
-            if (status.toLowerCase().includes('cancelled') || status.toLowerCase().includes('error')) badgeVariant = 'destructive';
-            if (status.toLowerCase().includes('created') || status.toLowerCase().includes('announced')) badgeVariant = 'outline';
-            
+            let badgeVariant = 'secondary'; // Default/unknown status
+            const lowerStatus = status.toLowerCase();
+            // More specific status matching based on typical Sendcloud return statuses
+            if (lowerStatus.includes('delivered') || lowerStatus.includes('received')) badgeVariant = 'success';
+            else if (lowerStatus.includes('transit') || lowerStatus.includes('shipping')) badgeVariant = 'default'; // Use default blue for in transit
+            else if (lowerStatus.includes('announced') || lowerStatus.includes('created')) badgeVariant = 'outline';
+            else if (lowerStatus.includes('cancelled') || lowerStatus.includes('error')) badgeVariant = 'destructive';
+            else if (status === 'Status Unknown') badgeVariant = 'secondary'; // Specific case for our handling
+
             return <Badge variant={badgeVariant}>{status}</Badge>;
-        } 
-        
+        }
+
+        // Show N/A if status hasn't been fetched yet
         return <span className="text-gray-400">N/A</span>;
       }
     },
-    { id: 'status', label: 'Original Status', className: 'w-[100px] whitespace-nowrap border-r'},
-    { id: 'sendcloud_return_parcel_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap border-r'},
+    { id: 'sendcloud_return_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap border-r'}, // Show Return ID
+    // { id: 'sendcloud_return_parcel_id', label: 'Parcel ID', className: 'w-[150px] whitespace-nowrap border-r'}, // Optional: Show Parcel ID if needed
     { id: 'order_pack', label: 'Pack', className: 'w-[100px] whitespace-nowrap border-r'},
-    { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap border-r' },
+    { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap border-r' }, // Should this be a specific return date?
   ];
 
   // Define columns for the "Upgraded Orders" table
@@ -675,7 +790,7 @@ export default function ReturnsPage() {
            <div className="flex justify-between items-center mb-4">
               <p className="text-sm text-gray-600">Orders that have been returned.</p>
               <Button 
-                onClick={fetchAllReturnStatuses}
+                onClick={fetchAllVisibleReturnStatuses}
                 disabled={fetchingAllStatuses}
                 size="sm"
               >

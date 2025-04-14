@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { createReturnLabel } from '../../../utils/sendcloud';
 
 const supabase = createClient(
-  process.env.NEXT_SUPABASE_URL,
-  process.env.NEXT_SUPABASE_ANON_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 export async function POST(request) {
@@ -65,16 +65,18 @@ export async function POST(request) {
     }
 
     console.log(`API Route: Calling createReturnLabel utility for Order ID: ${orderId}`);
-    // Create return label using SendCloud - pass weight
+    // Create return label - now returns labelUrl as well
     const sendcloudReturnData = await createReturnLabel(order, returnFromAddress, returnToAddress, parcelWeight);
     console.log(`API Route: createReturnLabel utility call completed for Order ID: ${orderId}`, sendcloudReturnData);
 
-    // --- Update Supabase Order --- 
+    // --- Update Supabase Order ---
     const updatePayload = {
-        sendcloud_return_id: sendcloudReturnData.return_id, 
+        sendcloud_return_id: sendcloudReturnData.return_id,
         sendcloud_return_parcel_id: sendcloudReturnData.parcel_id,
+        sendcloud_return_label_url: sendcloudReturnData.labelUrl,
         updated_at: new Date().toISOString(),
-        // return_status: 'pending_label' // Optional status update
+        // Optional: Update return status if needed
+        // sendcloud_return_status: sendcloudReturnData.labelUrl ? 'label_created' : 'pending_label_fetch'
     };
     console.log(`API Route: Updating Supabase order ${orderId} with payload:`, updatePayload);
     
@@ -92,19 +94,25 @@ export async function POST(request) {
     }
     console.log(`API Route: Successfully updated Supabase order ${orderId}.`);
 
-    // --- Return Response --- 
-    console.log(`API Route: Successfully processed return for Order ID: ${orderId}. Returning IDs.`);
+    // --- Return Response ---
+    console.log(`API Route: Successfully processed return for Order ID: ${orderId}. Returning IDs and Label URL.`);
+    // Return the label URL along with the IDs
     return NextResponse.json({
       message: 'Sendcloud return initiated successfully.',
       sendcloud_return_id: sendcloudReturnData.return_id,
-      sendcloud_return_parcel_id: sendcloudReturnData.parcel_id
+      sendcloud_return_parcel_id: sendcloudReturnData.parcel_id,
+      sendcloud_return_label_url: sendcloudReturnData.labelUrl
     });
     
   } catch (error) {
     console.error(`API Route: CATCH BLOCK - Error creating return label for Order ID: ${orderId || 'Unknown'}`, error);
+    // Ensure the error message passed to the client is useful but not overly detailed
+    const clientErrorMessage = error.message.startsWith('Sendcloud API Error') || error.message.startsWith('Failed to update order')
+      ? error.message
+      : 'Failed to create return label';
     return NextResponse.json(
-      { error: error.message || 'Failed to create return label' },
-      { status: 500 }
+      { error: clientErrorMessage },
+      { status: 500 } // Use appropriate status code based on error type if possible
     );
   } finally {
      console.log("--- Return Label API Route END ---"); // Log end

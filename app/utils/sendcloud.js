@@ -435,15 +435,34 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
         console.error("SendCloud success response missing expected return_id or parcel_id:", data);
         throw new Error('SendCloud response missing IDs after creation.');
     }
-    
-    // Return the IDs instead of label/tracking info
+
+    // --- Fetch Label URL Immediately ---
+    let labelUrl = null;
+    try {
+      // Use the existing fetchShippingDetails function
+      const shippingDetails = await fetchShippingDetails(data.parcel_id);
+      if (shippingDetails.success && shippingDetails.labelUrl) {
+        labelUrl = shippingDetails.labelUrl;
+        console.log(`Successfully fetched return label URL: ${labelUrl}`);
+      } else {
+        // Log a warning if fetching the label failed, but don't block the process
+        console.warn(`Could not fetch label URL immediately after creating return. Parcel ID: ${data.parcel_id}. Reason: ${shippingDetails.error || 'Unknown error during fetch'}`);
+      }
+    } catch (fetchError) {
+      // Log an error if the fetch itself throws an exception
+      console.error(`Error fetching label URL after return creation (Parcel ID: ${data.parcel_id}):`, fetchError);
+      // Continue without the label URL, but log the error
+    }
+
+    // Return the IDs and the fetched label URL (which might be null)
     return {
       return_id: data.return_id,
-      parcel_id: data.parcel_id
+      parcel_id: data.parcel_id,
+      labelUrl: labelUrl // Include the potentially null label URL
     };
   } catch (error) {
     console.error('SendCloud API Error creating return label:', error);
-    throw error; 
+    throw error;
   }
 }
 
