@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { fetchShippingDetails } from '../../../utils/sendcloud'; // Assuming sendcloud utils are here
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL, // Ensure correct env vars are used
+  process.env.SUPABASE_URL, // Use the non-public server-side variable
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
