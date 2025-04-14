@@ -73,6 +73,7 @@ export async function fetchDeliveryStatus(trackingNumber) {
  * @returns {Promise<Object>} - Result of the update operation
  */
 export async function updateOrderDeliveryStatus(orderId) {
+  console.log(`[updateOrderDeliveryStatus] Processing order: ${orderId}`); // Log start
   try {
     // Get order details from Supabase
     const { data: order, error: orderError } = await supabase
@@ -82,94 +83,109 @@ export async function updateOrderDeliveryStatus(orderId) {
       .single();
 
     if (orderError) {
-      console.error(`Error fetching order ${orderId}:`, orderError);
+      console.error(`[updateOrderDeliveryStatus] Error fetching order ${orderId}:`, orderError.message); // Log fetch error
       return { success: false, error: 'Failed to fetch order details' };
     }
 
     if (!order) {
-      console.warn(`Order ${orderId} not found for status update.`);
+      console.warn(`[updateOrderDeliveryStatus] Order ${orderId} not found.`); // Log not found
       return { success: false, error: 'Order not found' };
     }
 
     // If no shipping ID or tracking number, nothing to check
-    if (!order.shipping_id && !order.tracking_number) {
-      // Optionally log this state or mark the order
-      console.log(`Order ${orderId} has no shipping_id or tracking_number.`);
-      return { success: false, error: 'No shipping ID or tracking number available' };
+    if (!order.shipping_id && !order.tracking_number && !order.tracking_link) { // Also check tracking_link
+      console.log(`[updateOrderDeliveryStatus] Order ${orderId} has no shipping_id, tracking_number, or tracking_link.`);
+      await supabase.from('orders').update({ last_delivery_status_check: new Date().toISOString() }).eq('id', orderId);
+      return { success: false, error: 'No shipping ID, tracking number, or tracking link available' };
     }
 
     let shippingDetails = null;
+    let fetchedStatus = null;
+    let fetchMethod = null; // Track how status was fetched
+
+    // --- Attempt 1: Fetch using shipping_id if available ---
     if (order.shipping_id) {
+      console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Attempting fetchShippingDetails with shipping_id: ${order.shipping_id}`);
       try {
         shippingDetails = await fetchShippingDetails(order.shipping_id);
-        if (!shippingDetails.success) {
-          // Handle non-404 errors from fetchShippingDetails
+        if (shippingDetails.success && shippingDetails.parcel) {
+            fetchedStatus = shippingDetails.parcel.status?.message;
+            fetchMethod = 'shipping_id';
+            console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Fetched status via shipping_id: ${fetchedStatus}`);
+        } else {
+          console.error(`[updateOrderDeliveryStatus] Failed fetchShippingDetails for shipping ID ${order.shipping_id} (Order ${orderId}): ${shippingDetails.error}`);
           if (!shippingDetails.error?.includes('404')) {
-            console.error(`Failed to fetch details for shipping ID ${order.shipping_id}: ${shippingDetails.error}`);
             return { success: false, error: `Failed to fetch details: ${shippingDetails.error}` };
           }
-          // If it was a 404, log it and clear shippingDetails to prevent update based on stale ID
-          console.warn(`Shipping ID ${order.shipping_id} for order ${orderId} not found in SendCloud.`);
-          shippingDetails = null; // Ensure we don't proceed with invalid ID data
+          console.warn(`[updateOrderDeliveryStatus] Shipping ID ${order.shipping_id} for order ${orderId} resulted in 404. Will try tracking number.`);
+          // Don't set shippingDetails = null yet, let it fall through to tracking number check
         }
       } catch (error) {
-        // Catch unexpected errors during fetch
-        console.error(`Exception fetching shipping details for ID ${order.shipping_id}:`, error);
-        return { success: false, error: 'Exception fetching shipping details' };
+        console.error(`[updateOrderDeliveryStatus] Exception fetching shipping details for ID ${order.shipping_id} (Order ${orderId}):`, error);
+        // Fall through to try tracking number
       }
     }
 
-    // If shippingDetails were successfully fetched (not null and success is true)
-    if (shippingDetails && shippingDetails.success && shippingDetails.parcel) {
-      // Update order with new delivery status
-      const newStatus = shippingDetails.parcel.status?.message;
-      if (newStatus && newStatus !== order.status) {
-        const { error: updateError } = await supabase
-          .from('orders')
-          .update({
-            status: newStatus,
-            last_delivery_status_check: new Date().toISOString()
-          })
-          .eq('id', orderId);
-
-        if (updateError) {
-          console.error(`Error updating order ${orderId} status:`, updateError);
-          return { success: false, error: 'Failed to update order status' };
-        }
-        console.log(`Updated order ${orderId} status to: ${newStatus}`);
-        return { 
-          success: true, 
-          deliveryStatus: newStatus,
-          order: {
-            id: orderId,
-            status: newStatus,
-            last_delivery_status_check: new Date().toISOString()
+    // --- Attempt 2: Fetch using tracking_number (if fetch by shipping_id failed or wasn't attempted) ---
+    if (!fetchedStatus) {
+      const trackingNumber = order.tracking_number || extractTrackingNumber(order.tracking_link);
+      if (trackingNumber) {
+          console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Attempting fetchDeliveryStatus with tracking_number: ${trackingNumber}`);
+          try {
+              const statusResult = await fetchDeliveryStatus(trackingNumber);
+              if (statusResult.status) { // Check if status was successfully retrieved
+                  fetchedStatus = statusResult.status;
+                  fetchMethod = 'tracking_number';
+                  console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Fetched status via tracking_number: ${fetchedStatus}`);
+              } else {
+                  console.error(`[updateOrderDeliveryStatus] Failed fetchDeliveryStatus for tracking number ${trackingNumber} (Order ${orderId}): ${statusResult.error || 'Status not found in response'}`);
+                  // Proceed to update last checked time, but report failure
+                  await supabase.from('orders').update({ last_delivery_status_check: new Date().toISOString() }).eq('id', orderId);
+                  return { success: false, error: `Failed to fetch status via tracking number: ${statusResult.error || 'Status not found in response'}` };
+              }
+          } catch (error) {
+              console.error(`[updateOrderDeliveryStatus] Exception fetching delivery status for tracking ${trackingNumber} (Order ${orderId}):`, error);
+              await supabase.from('orders').update({ last_delivery_status_check: new Date().toISOString() }).eq('id', orderId);
+              return { success: false, error: 'Exception fetching delivery status via tracking number' };
           }
-        };
       } else {
-        // Status hasn't changed or is missing in response
-        console.log(`Status for order ${orderId} hasn't changed (${order.status}) or is missing in SendCloud response.`);
-        // Update last checked time even if status didn't change
-        await supabase
-          .from('orders')
-          .update({ last_delivery_status_check: new Date().toISOString() })
-          .eq('id', orderId);
-        return { success: true, deliveryStatus: order.status, message: 'Status unchanged' };
+          console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Could not determine tracking number.`);
       }
+    }
+    
+    // --- Update Database if status fetched and changed ---
+    if (fetchedStatus) {
+        if (fetchedStatus !== order.status) {
+            console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Status changed (${order.status} -> ${fetchedStatus}). Updating DB...`);
+            const { error: updateError } = await supabase
+              .from('orders')
+              .update({ status: fetchedStatus, last_delivery_status_check: new Date().toISOString() })
+              .eq('id', orderId);
+
+            if (updateError) {
+              console.error(`[updateOrderDeliveryStatus] Error updating DB for order ${orderId}:`, updateError.message);
+              return { success: false, error: 'Failed to update order status' };
+            }
+            console.log(`[updateOrderDeliveryStatus] Successfully updated order ${orderId} status to: ${fetchedStatus}`);
+            return { success: true, deliveryStatus: fetchedStatus, order: {
+              id: orderId,
+              status: fetchedStatus,
+              last_delivery_status_check: new Date().toISOString()
+            } };
+        } else {
+            console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Status unchanged (${order.status}). Updating last checked time.`);
+            await supabase.from('orders').update({ last_delivery_status_check: new Date().toISOString() }).eq('id', orderId);
+            return { success: true, deliveryStatus: order.status, message: 'Status unchanged' };
+        }
     } else {
-      // Handle cases where shipping_id was invalid (404) or missing, and no details were fetched
-      console.log(`Skipping status update for order ${orderId} as shipping details could not be fetched via shipping_id.`);
-      // Optionally, you could try fetching by tracking number here if needed, using fetchDeliveryStatus
-      // For now, we just mark it as checked
-       await supabase
-          .from('orders')
-          .update({ last_delivery_status_check: new Date().toISOString() })
-          .eq('id', orderId);
-      return { success: false, error: 'Shipping details not found via ID' };
+        // If status couldn't be fetched by either method
+        console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Could not fetch status via shipping_id or tracking_number. Updating last checked time.`);
+        await supabase.from('orders').update({ last_delivery_status_check: new Date().toISOString() }).eq('id', orderId);
+        return { success: false, error: 'Could not fetch status from Sendcloud' };
     }
 
   } catch (error) {
-    console.error(`Error in updateOrderDeliveryStatus for order ${orderId}:`, error);
+    console.error(`[updateOrderDeliveryStatus] Uncaught error processing order ${orderId}:`, error);
     return { success: false, error: error.message };
   }
 }
@@ -181,29 +197,41 @@ export async function updateOrderDeliveryStatus(orderId) {
  */
 export async function batchUpdateDeliveryStatus(limit = 50) {
   try {
-    // Get orders with tracking links that haven't been checked recently
-    // and are not already marked as delivered
+    console.log(`[batchUpdateDeliveryStatus] Fetching up to ${limit} orders for status check (prioritizing oldest checks)...`);
+    
+    // Calculate time threshold (e.g., 12 hours ago)
+    const checkThreshold = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+
+    // Get orders with tracking links that are not delivered 
+    // AND haven't been checked recently (or ever)
     const { data: orders, error: fetchError } = await supabase
       .from('orders')
-      .select('id, tracking_link, status')
+      .select('id, tracking_link, status, shipping_id, tracking_number, last_delivery_status_check') // Select last_delivery_status_check
       .not('tracking_link', 'is', null)
-      // .not('tracking_link', 'eq', 'Empty label')
       .not('status', 'eq', 'delivered')
-      // .or('last_delivery_status_check.is.null,last_delivery_status_check.lt.' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-      .limit(limit);
+      // Filter for orders not checked recently or never checked
+      .or(`last_delivery_status_check.is.null,last_delivery_status_check.lt.${checkThreshold}`) 
+      .order('last_delivery_status_check', { ascending: true, nullsFirst: true }) // Process oldest first
+      .limit(limit); // Keep the limit
     
     if (fetchError) {
-      console.error('Error fetching orders for batch update:', fetchError);
+      console.error('[batchUpdateDeliveryStatus] Error fetching orders:', fetchError.message);
       return { success: false, error: fetchError };
     }
     
     if (!orders || orders.length === 0) {
+      console.log('[batchUpdateDeliveryStatus] No eligible orders found to update.');
       return { success: true, message: 'No orders to update', updatedCount: 0 };
     }
     
+    // Log the IDs of the selected orders
+    const selectedOrderIds = orders.map(o => o.id);
+    console.log(`[batchUpdateDeliveryStatus] Selected ${selectedOrderIds.length} orders for processing:`, selectedOrderIds);
+    
     // Update each order
     const results = [];
-    for (const order of orders) {
+    // Using Promise.all for potential concurrency, adjust if needed
+    await Promise.all(orders.map(async (order) => {
       const result = await updateOrderDeliveryStatus(order.id);
       results.push({
         orderId: order.id,
@@ -211,7 +239,7 @@ export async function batchUpdateDeliveryStatus(limit = 50) {
         deliveryStatus: result.deliveryStatus || null,
         error: result.error || null
       });
-    }
+    }));
     
     const successCount = results.filter(r => r.success).length;
     
@@ -223,7 +251,7 @@ export async function batchUpdateDeliveryStatus(limit = 50) {
       results
     };
   } catch (error) {
-    console.error('Error in batchUpdateDeliveryStatus:', error);
+    console.error('[batchUpdateDeliveryStatus] Error:', error.message);
     return { success: false, error: error.message };
   }
 }
