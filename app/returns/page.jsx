@@ -41,7 +41,6 @@ export default function ReturnsPage() {
   const [fetchingAllUpgradeStatuses, setFetchingAllUpgradeStatuses] = useState(false);
   const [decodedQuery, setDecodedQuery] = useState('');
   const [fetchingReturnStatusId, setFetchingReturnStatusId] = useState(null);
-  const [fetchingLabelUrlId, setFetchingLabelUrlId] = useState(null);
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -523,55 +522,27 @@ export default function ReturnsPage() {
     }
   }, [upgradedOrders, activeTab, upgradeStatuses, loadingUpgradeStatuses, fetchAllUpgradeOrderStatuses]);
 
-  // Function to fetch or view the label URL
+  // Function to fetch or view the label URL via proxy
   const fetchAndViewLabel = useCallback(async (orderId) => {
     const order = allOrders.find(o => o.id === orderId);
+    console.log('Table button: Found order in allOrders:', order); // Log found order
     if (!order) {
-      toast.error("Order not found.");
+      toast.error("Order not found in current table data."); // Clarify error
       return;
     }
 
-    // If label URL already exists, just open it
-    if (order.sendcloud_return_label_url) {
-      window.open(order.sendcloud_return_label_url, '_blank');
-      return;
-    }
-
-    // If URL doesn't exist, but we have parcel ID, try fetching it
+    // We only need the parcel ID to use the download proxy
+    console.log('Table button: Parcel ID found:', order.sendcloud_return_parcel_id); // Log parcel ID
     if (order.sendcloud_return_parcel_id) {
-      setFetchingLabelUrlId(orderId); // Set loading state for this specific button
-      const toastId = toast.loading(`Fetching label for order ${orderId}...`);
-      try {
-        const response = await fetch(`/api/returns/get-label-url?parcelId=${order.sendcloud_return_parcel_id}`);
-        const data = await response.json();
-
-        if (!response.ok || !data.labelUrl) {
-          throw new Error(data.error || 'Failed to retrieve label URL from API');
-        }
-
-        const fetchedLabelUrl = data.labelUrl;
-
-        // Update the state for this order with the new URL
-        setAllOrders(prevOrders => prevOrders.map(o =>
-          o.id === orderId
-          ? { ...o, sendcloud_return_label_url: fetchedLabelUrl, updated_at: new Date().toISOString() }
-          : o
-        ));
-
-        toast.success('Label retrieved successfully!', { id: toastId });
-        window.open(fetchedLabelUrl, '_blank'); // Open the newly fetched URL
-
-      } catch (error) {
-        console.error(`Error fetching label URL for Parcel ID ${order.sendcloud_return_parcel_id}:`, error);
-        toast.error(`Could not fetch label: ${error.message}`, { id: toastId });
-      } finally {
-        setFetchingLabelUrlId(null); // Clear loading state
-      }
+      const parcelId = order.sendcloud_return_parcel_id;
+      const proxyUrl = `/api/returns/download-label/${parcelId}`;
+      console.log(`Opening label via proxy URL from table button: ${proxyUrl}`);
+      window.open(proxyUrl, '_blank'); 
     } else {
       // If no Parcel ID, we can't fetch the label
-      toast.error('Cannot fetch label: Missing Sendcloud Parcel ID.');
+      toast.error('Cannot view/get label: Missing Sendcloud Parcel ID in table data.'); // Clarify error
     }
-  }, [allOrders]); // Dependency: allOrders
+  }, [allOrders]);
 
   const createReturnColumns = [
     {
@@ -638,15 +609,11 @@ export default function ReturnsPage() {
           disabled: (order) => loadingStatuses[order.sendcloud_return_id] || fetchingReturnStatusId === order.id
         },
         {
-          // Combined Fetch/View Label Button
-          label: (order) => order.sendcloud_return_label_url ? 'View Label' : 'Get Label', // Dynamic label
-          handler: fetchAndViewLabel, // Use the new combined handler
+          label: 'View/Get Label',
+          handler: fetchAndViewLabel,
           variant: 'outline',
           size: 'sm',
-          // Show button if Parcel ID exists (needed to fetch if URL is missing)
-          condition: (order) => !!order.sendcloud_return_parcel_id, 
-          // Disable button if this specific label is currently fetching
-          disabled: (order) => fetchingLabelUrlId === order.id 
+          condition: (order) => !!order.sendcloud_return_parcel_id,
         },
       ]
     },

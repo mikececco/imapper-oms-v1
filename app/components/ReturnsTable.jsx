@@ -69,27 +69,33 @@ export default function ReturnsTable({
               // Ensure handler exists before rendering button
               if (!action.handler) return null;
 
-              const isLoading = action.loading ? action.loading(order.id) : false;
-              // Ensure disabled function exists before calling
-              const isDisabledCheck = action.disabled ? action.disabled(order.id) : false;
-              const isDisabled = isDisabledCheck || isLoading;
+              // Check for loading state
+              const isLoading = typeof action.loading === 'function' ? action.loading(order.id) : false;
+              // Check for disabled state
+              const isDisabled = typeof action.disabled === 'function' ? action.disabled(order) : false; // Pass the whole order object if needed by disabled check
+              const finalDisabled = isLoading || isDisabled;
+
+              // Determine the label (can be string or function)
+              const labelContent = typeof action.label === 'function' ? action.label(order) : action.label;
 
               return (
                 <Button
                   key={`${action.label}-${index}`}
-                  variant={action.variant || 'outline'} // Changed default variant
-                  size="sm"
+                  variant={action.variant || 'outline'}
+                  size={action.size || 'sm'} // Ensure size prop is used
                   onClick={(e) => {
                       e.stopPropagation(); // Prevent row click if needed
-                      action.handler(order.id);
+                      // Call the handler with the order ID
+                      action.handler(order.id); 
                     }}
-                  disabled={isDisabled}
+                  disabled={finalDisabled}
                   className={action.className}
                 >
                   {isLoading ? (
                      <><div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2"></div> {action.loadingText || 'Loading...'}</>
                   ) : (
-                    action.label
+                    // Render the determined label content
+                    labelContent
                   )}
                 </Button>
               );
