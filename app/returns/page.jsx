@@ -578,7 +578,7 @@ export default function ReturnsPage() {
       ]
     },
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' }, 
-    { id: 'name', label: 'Customer', className: 'w-[150px] whitespace-nowrap truncate' },
+    { id: 'name', label: 'Customer', className: 'w-[80px] whitespace-nowrap truncate' },
     { 
       id: 'status', 
       label: 'Status', 
@@ -640,7 +640,7 @@ export default function ReturnsPage() {
       ]
     },
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' },
-    { id: 'name', label: 'Customer', className: 'w-[160px] whitespace-nowrap truncate' },
+    { id: 'name', label: 'Customer', className: 'w-[100px] whitespace-nowrap truncate' },
     {
       id: 'return_status',
       label: 'Return Status',
@@ -705,7 +705,7 @@ export default function ReturnsPage() {
       ]
     },
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' },
-    { id: 'name', label: 'Customer', className: 'w-[150px] whitespace-nowrap truncate' },
+    { id: 'name', label: 'Customer', className: 'w-[100px] whitespace-nowrap truncate' },
     { id: 'sendcloud_return_parcel_id', label: 'Return Parcel ID', className: 'w-[150px] whitespace-nowrap truncate' },
     { id: 'upgrade_shipping_id', label: 'Upgrade Ship ID', className: 'w-[150px] whitespace-nowrap truncate' },
     { id: 'upgrade_tracking_number', label: 'Upgrade Tracking', className: 'w-[180px] whitespace-nowrap truncate' },
@@ -739,7 +739,7 @@ export default function ReturnsPage() {
   console.log("[ReturnsPage Render] Filtered Returned (Returned Orders Tab):", returnedOrders);
   console.log("[ReturnsPage Render] isUpgradeModalOpen:", isUpgradeModalOpen, "orderForUpgrade:", !!orderForUpgrade);
 
-  const handleOrderCreated = async () => {
+  const handleOrderCreated = async (newOrder) => {
     // Close the modal first
     setIsNewOrderModalOpen(false);
 
@@ -752,24 +752,15 @@ export default function ReturnsPage() {
       try {
         const response = await fetch(`/api/orders/${originalOrderId}/mark-manual-delivered`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }, // Add headers if needed
+          headers: { 'Content-Type': 'application/json' },
         });
 
         const result = await response.json();
-
         if (!response.ok) {
           throw new Error(result.error || 'API error marking order as delivered');
         }
-
         toast.success(`Original order ${originalOrderId} marked as delivered.`, { id: toastId });
-
-        // Optional: Refresh data to reflect the change in the table
-        // We might need to update the local state `allOrders` directly too for immediate UI update
-        setAllOrders(prevOrders => prevOrders.map(o => 
-            o.id === originalOrderId ? { ...o, manual_instruction: 'delivered', updated_at: new Date().toISOString() } : o
-        ));
-        // loadOrders(); // Or refetch all data
-
+        // No need for local state update here, loadOrders will fetch the change
       } catch (error) {
         console.error(`Failed to mark original order ${originalOrderId} as delivered:`, error);
         toast.error(`Failed to update original order status: ${error.message}`, { id: toastId });
@@ -777,8 +768,13 @@ export default function ReturnsPage() {
     } else {
        console.log('New order created without specific return context (no selectedOrder).');
     }
-    // Reset selectedOrder after handling? Optional, depends on desired UX.
-    // setSelectedOrder(null);
+
+    // Refresh the orders list to include the new order and reflect any status changes
+    console.log("Refreshing orders list after new order creation...");
+    await loadOrders();
+
+    // Reset selectedOrder after handling if needed
+    // setSelectedOrder(null); 
   };
 
   return (
@@ -793,7 +789,7 @@ export default function ReturnsPage() {
             onClick={() => setIsNewOrderModalOpen(true)}
             variant="default"
           >
-            New Order
+            New Order to Return
           </Button>
         </div>
       </header>

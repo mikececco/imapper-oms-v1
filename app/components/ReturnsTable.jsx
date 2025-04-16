@@ -140,7 +140,8 @@ export default function ReturnsTable({
                   <TableCell 
                     key={`${order.id}-${column.id}`} 
                     // Consistent padding, vertical alignment, and column specifics
-                    className={`px-4 py-3 text-sm text-gray-700 align-top ${column.className || ''}`}
+                    // Added overflow-hidden here to help enforce width constraints
+                    className={`px-4 py-3 text-sm text-gray-700 align-top overflow-hidden ${column.className || ''}`}
                   >
                     {renderCellContent(order, column)}
                   </TableCell>

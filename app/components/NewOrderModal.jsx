@@ -326,7 +326,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Create New Order</DialogTitle>
+          <DialogTitle>{isReturnsContext ? 'Create New Order for Return' : 'Create New Order'}</DialogTitle>
         </DialogHeader>
         <div className="flex-grow overflow-y-auto p-1 pr-4">
           {loading ? (
@@ -503,7 +503,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
               </section>
 
               <div className="pt-4 border-t">
-                <Button type="submit">Create Order</Button>
+                <Button type="submit">{isReturnsContext ? 'Create Return Order' : 'Create Order'}</Button>
               </div>
             </form>
           )}
