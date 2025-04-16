@@ -42,14 +42,15 @@ export default function ShippingNotificationHandler() {
         //    ASSUMPTION: 'became_to_ship_at' column exists and is updated correctly.
         const { data: potentialOrders, error } = await supabase
           .from('orders')
-          .select('id, became_to_ship_at, status, ok_to_ship, is_paid, tracking_number, manual_instruction') // Select fields needed
+          .select('id, became_to_ship_at, status, ok_to_ship, tracking_number, manual_instruction')
           .lt('became_to_ship_at', twentyFourHoursAgoISO) // Label created > 24h ago
           .not('became_to_ship_at', 'is', null)
           // ADDED: Check if status is still pending or ready
           .in('status', ['Ready to send', 'pending'])
+          // Corrected column name
+          .eq('paid', true) 
           // Other filters might be removed/adjusted depending on exact logic
           // .eq('ok_to_ship', true)                  
-          // .eq('is_paid', true)                    
           // .is('tracking_number', null) // Conflicts?
           // .not('status', 'in', '("shipped", "delivered", "cancelled")') // Redundant
           .order('became_to_ship_at', { ascending: true });

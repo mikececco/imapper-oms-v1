@@ -74,9 +74,9 @@ export default function Orders() {
         .not('became_to_ship_at', 'is', null)        
         // ADDED: Check if status is still pending or ready
         .in('status', ['Ready to send', 'pending']) 
-        // Keep original pre-filters just in case?
-        // .eq('ok_to_ship', true)                  
-        // .eq('is_paid', true)                    
+        // Corrected column name
+        .eq('paid', true)
+        // .eq('ok_to_ship', true) // Also check if this column name is correct?
         // .is('tracking_number', null) // This might conflict now         
         // .not('status', 'in', '("shipped", "delivered", "cancelled")') // Redundant due to .in()
 
@@ -117,9 +117,9 @@ export default function Orders() {
         .not('became_to_ship_at', 'is', null)
         // ADDED: Check if status is still pending or ready
         .in('status', ['Ready to send', 'pending']) 
-        // Keep other filters as a safeguard if needed?
-        // .eq('ok_to_ship', true)                  
-        // .eq('is_paid', true)                    
+        // Corrected column name
+        .eq('paid', true)
+        // .eq('ok_to_ship', true) // Also check if this column name is correct?
         // .is('tracking_number', null) // Conflicts? Tracking number should exist if label created
         // .not('status', 'in', '("shipped", "delivered", "cancelled")') // Redundant
         .order('became_to_ship_at', { ascending: true }); // Order by oldest label creation time
@@ -282,9 +282,9 @@ export default function Orders() {
   // NEW: Handler for the notification button click
   const handleNotificationClick = async () => {
     console.log('[handleNotificationClick] Clicked. hasOverdueOrders:', hasOverdueOrders, 'isLoadingOverdue:', isLoadingOverdue);
-    // Fetch data only if the indicator is shown, or if not already loading
-    if (!hasOverdueOrders || isLoadingOverdue) {
-      console.log('[handleNotificationClick] Exiting: No overdue orders or already loading.');
+    // Only exit if already loading, otherwise always proceed
+    if (isLoadingOverdue) {
+      console.log('[handleNotificationClick] Exiting: Currently loading.');
       return;
     }
     
@@ -352,12 +352,10 @@ export default function Orders() {
           <button 
              onClick={handleNotificationClick}
              title={hasOverdueOrders ? "Show overdue orders" : "No overdue orders"}
-             disabled={isLoadingOverdue || !hasOverdueOrders}
-             className={`relative p-2 rounded-full transition-colors duration-150 
-                         ${hasOverdueOrders 
-                           ? 'bg-red-100 text-red-700 hover:bg-red-200 disabled:bg-red-50 disabled:text-red-300' 
-                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400'}
-                         ${isLoadingOverdue ? 'cursor-wait' : 'cursor-pointer'}`
+             disabled={isLoadingOverdue}
+             className={`relative px-3 py-2 rounded-md transition-colors duration-150 
+                         bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:bg-opacity-50 
+                         flex items-center gap-1.5 ${isLoadingOverdue ? 'cursor-wait' : 'cursor-pointer'}`
             }
            >
             {isLoadingOverdue ? (
@@ -365,9 +363,12 @@ export default function Orders() {
             ) : (
               <Bell className="h-5 w-5" />
             )}
-            {hasOverdueOrders && !isLoadingOverdue && (
-              <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-            )}
+            {/* Removed conditional logic - Text and Dot are always visible */}
+            <>
+              <span className="text-xs font-semibold text-red-600">NOT SHIPPED YET</span>
+              {/* Adjusted dot slightly for better visual placement when always shown */}
+              <span className="absolute -top-1 -right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" /> 
+            </>
            </button>
           <button 
             onClick={handleUpdateDeliveryStatus}
