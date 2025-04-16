@@ -70,7 +70,7 @@ export default function ReturnsPage() {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .or('status.in.(\"delivered\",\"Delivered\"),sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null')
+        .or('status.in.(\"delivered\",\"Delivered\"),sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -121,9 +121,9 @@ export default function ReturnsPage() {
   };
 
   const ordersForCreateReturn = filteredOrders.filter(o => 
-    (o.status?.toLowerCase() === 'delivered' || o.status?.toLowerCase() === 'delivered') &&
+    (o.status?.toLowerCase() === 'delivered' || o.created_via === 'returns_portal') &&
     !o.sendcloud_return_id && !o.sendcloud_return_parcel_id &&
-    !o.upgrade_shipping_id // Exclude upgraded orders from this tab
+    !o.upgrade_shipping_id
   );
   const returnedOrders = filteredOrders.filter(o => 
     (o.sendcloud_return_id || o.sendcloud_return_parcel_id) &&
@@ -727,12 +727,46 @@ export default function ReturnsPage() {
   console.log("[ReturnsPage Render] Filtered Returned (Returned Orders Tab):", returnedOrders);
   console.log("[ReturnsPage Render] isUpgradeModalOpen:", isUpgradeModalOpen, "orderForUpgrade:", !!orderForUpgrade);
 
-  const handleOrderCreated = () => {
-    // Handle what happens after an order is potentially created via the modal
-    // For now, just close the modal. We might want to refresh data later if needed.
+  const handleOrderCreated = async () => {
+    // Close the modal first
     setIsNewOrderModalOpen(false);
-    // Optional: Refresh return-related data if the new order impacts it
-    // loadOrders(); 
+
+    // Check if an order was selected/viewed previously (context)
+    if (selectedOrder && selectedOrder.id) {
+      const originalOrderId = selectedOrder.id;
+      console.log(`New order created contextually. Attempting to mark original order ${originalOrderId} as manually delivered.`);
+      
+      const toastId = toast.loading(`Updating status for original order ${originalOrderId}...`);
+      try {
+        const response = await fetch(`/api/orders/${originalOrderId}/mark-manual-delivered`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, // Add headers if needed
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'API error marking order as delivered');
+        }
+
+        toast.success(`Original order ${originalOrderId} marked as delivered.`, { id: toastId });
+
+        // Optional: Refresh data to reflect the change in the table
+        // We might need to update the local state `allOrders` directly too for immediate UI update
+        setAllOrders(prevOrders => prevOrders.map(o => 
+            o.id === originalOrderId ? { ...o, manual_instruction: 'delivered', updated_at: new Date().toISOString() } : o
+        ));
+        // loadOrders(); // Or refetch all data
+
+      } catch (error) {
+        console.error(`Failed to mark original order ${originalOrderId} as delivered:`, error);
+        toast.error(`Failed to update original order status: ${error.message}`, { id: toastId });
+      }
+    } else {
+       console.log('New order created without specific return context (no selectedOrder).');
+    }
+    // Reset selectedOrder after handling? Optional, depends on desired UX.
+    // setSelectedOrder(null);
   };
 
   return (
@@ -855,6 +889,8 @@ export default function ReturnsPage() {
         isOpen={isNewOrderModalOpen} 
         onClose={() => setIsNewOrderModalOpen(false)}
         onOrderCreated={handleOrderCreated}
+        originalOrderContext={selectedOrder}
+        isReturnsContext={true}
       />
     </div>
   );

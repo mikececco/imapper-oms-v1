@@ -8,6 +8,7 @@ import { Textarea } from './ui/textarea';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../utils/country-utils';
+import { Badge } from './ui/badge';
 
 const initialFormData = {
   customer_id: '',
@@ -34,7 +35,7 @@ const initialNewPackData = {
   comment: ''
 };
 
-export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
+export default function NewOrderModal({ isOpen, onClose, onOrderCreated, originalOrderContext, isReturnsContext }) {
   const [customers, setCustomers] = useState([]);
   const [orderPacks, setOrderPacks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -269,9 +270,8 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
     if (!supabase) return;
 
     try {
-      const { data: newOrder, error } = await supabase
-        .from('orders')
-        .insert([{
+      // Prepare the data payload for insertion
+      const insertPayload = {
           customer_id: formData.customer_id || null,
           name: formData.name,
           email: formData.email,
@@ -287,17 +287,25 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
           order_notes: formData.order_notes,
           paid: false,
           ok_to_ship: false,
-          status: 'pending'
-        }])
+          status: 'pending',
+          // Set created_via based on context
+          created_via: isReturnsContext ? 'returns_portal' : 'standard' 
+      };
+      
+      console.log("Creating order with payload:", insertPayload); // Log payload
+
+      const { data: newOrder, error } = await supabase
+        .from('orders')
+        .insert([insertPayload]) // Use the prepared payload
         .select()
         .single();
 
       if (error) throw error;
 
       toast.success('Order created successfully!');
-      onOrderCreated(newOrder);
-      resetForm();
-      onClose();
+      onOrderCreated(newOrder); // Pass the created order data back
+      resetForm(); // Reset form fields
+      onClose(); // Close the modal
 
     } catch (error) {
       console.error('Error creating order:', error);
@@ -310,8 +318,10 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Create New Order</DialogTitle>
@@ -321,6 +331,18 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated }) {
             <div>Loading...</div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {isReturnsContext && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm font-medium text-yellow-800">
+                    Note: Creating an order from the Returns portal typically marks the original order as 'Delivered'.
+                    {originalOrderContext && (
+                      <span>
+                        {' '}Original Order ID referenced: <code className="font-mono bg-yellow-100 px-1 rounded">{originalOrderContext.id}</code>.
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
               <section>
                 <h3 className="text-lg font-medium mb-2">Customer</h3>
                 <div className="space-y-2">

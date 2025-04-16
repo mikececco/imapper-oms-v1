@@ -131,6 +131,7 @@ export async function fetchOrders() {
     const { data, error } = await supabase
       .from('orders')
       .select('*')
+      .eq('created_via', 'standard')
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -160,6 +161,7 @@ export async function searchOrders(query) {
     const { data, error } = await supabase
       .from('orders')
       .select('*')
+      .eq('created_via', 'standard')
       .or(
         `id.ilike.%${cleanQuery}%,` +
         `name.ilike.%${cleanQuery}%,` +
@@ -296,7 +298,8 @@ export async function filterOrders(filters) {
   try {
     let query = supabase
       .from('orders')
-      .select('*');
+      .select('*')
+      .eq('created_via', 'standard');
     
     // Apply paid status filter
     if (filters.paid && filters.paid !== 'all') {
