@@ -11,6 +11,7 @@ import ReturnsTable from '../components/ReturnsTable';
 import ReturnConfirmationModal from '../components/ReturnConfirmationModal';
 import UpgradeOrderModal from '../components/UpgradeOrderModal';
 import OrderSearch from '../components/OrderSearch';
+import NewOrderModal from '../components/NewOrderModal';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { formatAddressForTable } from '../utils/formatters';
 import { Badge } from '../components/ui/badge';
@@ -41,6 +42,7 @@ export default function ReturnsPage() {
   const [fetchingAllUpgradeStatuses, setFetchingAllUpgradeStatuses] = useState(false);
   const [decodedQuery, setDecodedQuery] = useState('');
   const [fetchingReturnStatusId, setFetchingReturnStatusId] = useState(null);
+  const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -725,11 +727,29 @@ export default function ReturnsPage() {
   console.log("[ReturnsPage Render] Filtered Returned (Returned Orders Tab):", returnedOrders);
   console.log("[ReturnsPage Render] isUpgradeModalOpen:", isUpgradeModalOpen, "orderForUpgrade:", !!orderForUpgrade);
 
+  const handleOrderCreated = () => {
+    // Handle what happens after an order is potentially created via the modal
+    // For now, just close the modal. We might want to refresh data later if needed.
+    setIsNewOrderModalOpen(false);
+    // Optional: Refresh return-related data if the new order impacts it
+    // loadOrders(); 
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold mb-2">Returns and Upgrades Management</h1>
-        <p className="text-gray-600">Create and manage return labels for delivered orders</p>
+      <header className="mb-4 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">Returns and Upgrades Management</h1>
+          <p className="text-gray-600">Create and manage return labels for delivered orders</p>
+        </div>
+        <div>
+          <Button 
+            onClick={() => setIsNewOrderModalOpen(true)}
+            variant="default"
+          >
+            New Order
+          </Button>
+        </div>
       </header>
 
       <div className="mb-6">
@@ -830,6 +850,12 @@ export default function ReturnsPage() {
           onCreateNewLabel={handleCreateNewLabelForUpgrade}
         />
       )}
+
+      <NewOrderModal 
+        isOpen={isNewOrderModalOpen} 
+        onClose={() => setIsNewOrderModalOpen(false)}
+        onOrderCreated={handleOrderCreated}
+      />
     </div>
   );
 } 
