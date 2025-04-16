@@ -578,7 +578,7 @@ export default function ReturnsPage() {
       ]
     },
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' }, 
-    { id: 'name', label: 'Customer', className: 'w-[80px] whitespace-nowrap truncate' },
+    { id: 'name', label: 'Customer', className: 'w-[200px] max-w-[200px] whitespace-nowrap truncate' },
     { 
       id: 'status', 
       label: 'Status', 
@@ -596,7 +596,7 @@ export default function ReturnsPage() {
         return displayStatus ? <Badge variant={badgeVariant}>{displayStatus}</Badge> : <span className="text-gray-400">N/A</span>;
       } 
     },
-    { id: 'shipping_address', label: 'Shipping Address', className: 'min-w-[250px] whitespace-nowrap', type: 'custom', render: (order) => formatAddressForTable(order, isMounted) },
+    { id: 'shipping_address', label: 'Shipping Address', className: 'w-[250px] max-w-[250px] whitespace-nowrap', type: 'custom', render: (order) => formatAddressForTable(order, isMounted) },
     { id: 'order_pack', label: 'Pack', className: 'w-[120px] whitespace-nowrap truncate'},
     { id: 'tracking_number', label: 'Tracking', className: 'w-[180px] whitespace-nowrap truncate'},
     { id: 'created_at', label: 'Created', type: 'date', className: 'w-[120px] whitespace-nowrap' },
@@ -640,7 +640,7 @@ export default function ReturnsPage() {
       ]
     },
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' },
-    { id: 'name', label: 'Customer', className: 'w-[100px] whitespace-nowrap truncate' },
+    { id: 'name', label: 'Customer', className: 'w-[80px] max-w-[80px] whitespace-nowrap truncate' },
     {
       id: 'return_status',
       label: 'Return Status',
@@ -705,7 +705,7 @@ export default function ReturnsPage() {
       ]
     },
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' },
-    { id: 'name', label: 'Customer', className: 'w-[100px] whitespace-nowrap truncate' },
+    { id: 'name', label: 'Customer', className: 'w-[80px] max-w-[80px] whitespace-nowrap truncate' },
     { id: 'sendcloud_return_parcel_id', label: 'Return Parcel ID', className: 'w-[150px] whitespace-nowrap truncate' },
     { id: 'upgrade_shipping_id', label: 'Upgrade Ship ID', className: 'w-[150px] whitespace-nowrap truncate' },
     { id: 'upgrade_tracking_number', label: 'Upgrade Tracking', className: 'w-[180px] whitespace-nowrap truncate' },
