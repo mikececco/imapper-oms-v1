@@ -122,6 +122,7 @@ export async function POST(request) {
           status: 'Ready to send',
           last_delivery_status_check: currentTimestamp,
           updated_at: currentTimestamp,
+          became_to_ship_at: currentTimestamp,
           sendcloud_data: parcel // Store the full parcel data in the sendcloud_data column
         })
         .eq('id', orderId);

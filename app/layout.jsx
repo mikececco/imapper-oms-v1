@@ -2,6 +2,7 @@ import "./globals.css"; // Using our new global CSS file with Tailwind
 import Navigation from "./components/Navigation";
 import Providers from "./components/Providers";
 import { Toaster } from 'react-hot-toast';
+import ShippingNotificationHandler from './components/ShippingNotificationHandler';
 
 // Get environment variables with fallbacks
 const getEnvVar = (key) => {
@@ -73,6 +74,7 @@ export default function RootLayout({ children }) {
           <div className="content-wrapper">
             <main className="main-content">
               <Providers>
+                <ShippingNotificationHandler />
                 {children}
               </Providers>
             </main>
