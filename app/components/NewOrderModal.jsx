@@ -289,7 +289,9 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
           ok_to_ship: false,
           status: 'pending',
           // Set created_via based on context
-          created_via: isReturnsContext ? 'returns_portal' : 'standard' 
+          created_via: isReturnsContext ? 'returns_portal' : 'standard', 
+          // Set manual_instruction if created in returns context
+          manual_instruction: isReturnsContext ? 'delivered' : null 
       };
       
       console.log("Creating order with payload:", insertPayload); // Log payload

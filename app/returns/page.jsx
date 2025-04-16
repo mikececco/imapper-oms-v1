@@ -551,17 +551,19 @@ export default function ReturnsPage() {
       id: 'actions',
       label: 'Actions',
       type: 'actions',
-      className: 'w-[280px]',
+      className: 'whitespace-nowrap',
       actions: [
         {
           label: 'Open',
           handler: handleOpenOrder, 
-          variant: 'outline',
+          variant: 'outline', 
+          size: 'sm'
         },
         { 
-          label: creatingLabelOrderId === 'dummy' ? 'Creating...' : 'Create Return',
+          label: (order) => creatingLabelOrderId === order.id ? 'Creating...' : 'Create Return', 
           handler: handleOpenReturnModal, 
-          variant: 'outline',
+          variant: 'outline', 
+          size: 'sm',
           loading: (orderId) => creatingLabelOrderId === orderId,
           disabled: (orderId) => !!creatingLabelOrderId,
         },
@@ -569,17 +571,35 @@ export default function ReturnsPage() {
           label: 'Upgrade Order',
           handler: handleOpenUpgradeModal,
           variant: 'secondary',
+          size: 'sm',
           loading: (orderId) => upgradingOrderId === orderId,
           disabled: (orderId) => !!upgradingOrderId,
         }
       ]
     },
-    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[100px] whitespace-nowrap border-r' }, 
-    { id: 'name', label: 'Customer', className: 'w-[60px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
-    { id: 'status', label: 'Status', className: 'w-[70px] whitespace-nowrap border-r'},
-    { id: 'shipping_address', label: 'Shipping Address', className: 'min-w-[200px] border-r', type: 'custom', render: (order) => formatAddressForTable(order, isMounted) },
-    { id: 'order_pack', label: 'Pack', className: 'w-[80px] whitespace-nowrap border-r'},
-    { id: 'tracking_number', label: 'Tracking', className: 'w-[120px] whitespace-nowrap border-r overflow-hidden text-ellipsis'},
+    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' }, 
+    { id: 'name', label: 'Customer', className: 'w-[150px] whitespace-nowrap truncate' },
+    { 
+      id: 'status', 
+      label: 'Status', 
+      className: 'w-[120px] whitespace-nowrap',
+      type: 'custom',
+      render: (order) => {
+        const displayStatus = order.manual_instruction || order.status;
+        let badgeVariant = 'secondary';
+        const lowerStatus = displayStatus?.toLowerCase();
+        if (lowerStatus === 'delivered') badgeVariant = 'success';
+        else if (lowerStatus === 'pending') badgeVariant = 'outline';
+        else if (lowerStatus === 'processing') badgeVariant = 'default';
+        else if (lowerStatus === 'cancelled') badgeVariant = 'destructive';
+
+        return displayStatus ? <Badge variant={badgeVariant}>{displayStatus}</Badge> : <span className="text-gray-400">N/A</span>;
+      } 
+    },
+    { id: 'shipping_address', label: 'Shipping Address', className: 'min-w-[250px] whitespace-nowrap', type: 'custom', render: (order) => formatAddressForTable(order, isMounted) },
+    { id: 'order_pack', label: 'Pack', className: 'w-[120px] whitespace-nowrap truncate'},
+    { id: 'tracking_number', label: 'Tracking', className: 'w-[180px] whitespace-nowrap truncate'},
+    { id: 'created_at', label: 'Created', type: 'date', className: 'w-[120px] whitespace-nowrap' },
   ];
 
   const returnedOrdersColumns = [
@@ -587,7 +607,7 @@ export default function ReturnsPage() {
       id: 'actions',
       label: 'Actions',
       type: 'actions',
-      className: 'w-[250px]', // Wider for 3 buttons
+      className: 'whitespace-nowrap',
       actions: [
         {
           label: 'Open',
@@ -597,8 +617,7 @@ export default function ReturnsPage() {
         },
         {
           label: 'Check Status',
-          handler: (orderId) => {
-            const order = allOrders.find(o => o.id === orderId);
+          handler: (orderId, order) => {
             if (order && order.sendcloud_return_id) {
               fetchSingleReturnStatus(order.sendcloud_return_id);
             } else {
@@ -608,7 +627,8 @@ export default function ReturnsPage() {
           variant: 'ghost',
           size: 'sm',
           condition: (order) => !!order.sendcloud_return_id,
-          disabled: (order) => loadingStatuses[order.sendcloud_return_id] || fetchingReturnStatusId === order.id
+          loading: (orderId, order) => loadingStatuses[order.sendcloud_return_id],
+          disabled: (orderId, order) => loadingStatuses[order.sendcloud_return_id] || fetchingReturnStatusId === order.id 
         },
         {
           label: 'View/Get Label',
@@ -619,46 +639,37 @@ export default function ReturnsPage() {
         },
       ]
     },
-    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[120px] whitespace-nowrap border-r' },
-    { id: 'name', label: 'Customer', className: 'w-[160px] border-r whitespace-nowrap overflow-hidden text-ellipsis' }, // Adjusted width
+    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' },
+    { id: 'name', label: 'Customer', className: 'w-[160px] whitespace-nowrap truncate' },
     {
       id: 'return_status',
       label: 'Return Status',
-      className: 'w-[160px] whitespace-nowrap border-r',
+      className: 'w-[160px] whitespace-nowrap',
       type: 'custom',
       render: (order) => {
         const returnId = order.sendcloud_return_id;
         if (!returnId) return <span className="text-gray-400">N/A</span>;
-
         const status = returnStatuses[returnId];
         const isLoading = loadingStatuses[returnId];
-
         if (isLoading) {
-          // More specific loading indicator
           return <span className="text-gray-500 italic flex items-center"><RefreshCw className="animate-spin h-3 w-3 mr-1" /> Checking...</span>;
         }
-
         if (status) {
-            let badgeVariant = 'secondary'; // Default/unknown status
+            let badgeVariant = 'secondary';
             const lowerStatus = status.toLowerCase();
-            // More specific status matching based on typical Sendcloud return statuses
             if (lowerStatus.includes('delivered') || lowerStatus.includes('received')) badgeVariant = 'success';
-            else if (lowerStatus.includes('transit') || lowerStatus.includes('shipping')) badgeVariant = 'default'; // Use default blue for in transit
+            else if (lowerStatus.includes('transit') || lowerStatus.includes('shipping')) badgeVariant = 'default';
             else if (lowerStatus.includes('announced') || lowerStatus.includes('created')) badgeVariant = 'outline';
             else if (lowerStatus.includes('cancelled') || lowerStatus.includes('error')) badgeVariant = 'destructive';
-            else if (status === 'Status Unknown') badgeVariant = 'secondary'; // Specific case for our handling
-
+            else if (status === 'Status Unknown') badgeVariant = 'secondary';
             return <Badge variant={badgeVariant}>{status}</Badge>;
         }
-
-        // Show N/A if status hasn't been fetched yet
         return <span className="text-gray-400">N/A</span>;
       }
     },
-    { id: 'sendcloud_return_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap border-r'}, // Show Return ID
-    // { id: 'sendcloud_return_parcel_id', label: 'Parcel ID', className: 'w-[150px] whitespace-nowrap border-r'}, // Optional: Show Parcel ID if needed
-    { id: 'order_pack', label: 'Pack', className: 'w-[100px] whitespace-nowrap border-r'},
-    { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap border-r' }, // Should this be a specific return date?
+    { id: 'sendcloud_return_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap truncate'},
+    { id: 'order_pack', label: 'Pack', className: 'w-[120px] whitespace-nowrap truncate'},
+    { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap' },
   ];
 
   // Define columns for the "Upgraded Orders" table
@@ -667,44 +678,45 @@ export default function ReturnsPage() {
       id: 'actions',
       label: 'Actions',
       type: 'actions',
-      className: 'w-[200px]',
+      className: 'whitespace-nowrap',
       actions: [
-        { label: 'Open', handler: handleOpenOrder, variant: 'outline' },
+        { label: 'Open', handler: handleOpenOrder, variant: 'outline', size: 'sm' },
         { 
           label: 'Track Return', 
           handler: handleTrackReturn, 
           variant: 'outline', 
+          size: 'sm',
           condition: (o) => !!o.sendcloud_return_parcel_id 
         },
         {
           label: 'Update Status',
-          handler: (orderId) => {
-              const orderToUpdate = upgradedOrders.find(o => o.id === orderId);
+          handler: (orderId, order) => {
               if (orderToUpdate) fetchUpgradeStatus(orderToUpdate);
           },
           variant: 'ghost',
-          className: 'px-1 py-1 h-auto',
-          loading: (orderId) => loadingUpgradeStatuses[orderId],
+          size: 'icon',
+          className: 'p-1',
+          loading: (orderId, order) => loadingUpgradeStatuses[order.id],
+          disabled: (orderId, order) => loadingUpgradeStatuses[order.id],
           renderLoading: () => <RefreshCw className="h-4 w-4 animate-spin" />,
           renderLabel: () => <RefreshCw className="h-4 w-4" />,
           condition: (o) => !!(o.upgrade_shipping_id || o.upgrade_tracking_number),
         }
       ]
     },
-    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[100px] whitespace-nowrap border-r' },
-    { id: 'name', label: 'Customer', className: 'w-[80px] border-r border-none whitespace-nowrap overflow-hidden text-ellipsis' },
-    { id: 'sendcloud_return_parcel_id', label: 'Return ID', className: 'w-[120px] whitespace-nowrap border-r' },
-    { id: 'upgrade_shipping_id', label: 'Upgrade Ship ID', className: 'w-[120px] whitespace-nowrap border-r' },
-    { id: 'upgrade_tracking_number', label: 'Upgrade Tracking', className: 'w-[150px] whitespace-nowrap border-r overflow-hidden text-ellipsis' },
+    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' },
+    { id: 'name', label: 'Customer', className: 'w-[150px] whitespace-nowrap truncate' },
+    { id: 'sendcloud_return_parcel_id', label: 'Return Parcel ID', className: 'w-[150px] whitespace-nowrap truncate' },
+    { id: 'upgrade_shipping_id', label: 'Upgrade Ship ID', className: 'w-[150px] whitespace-nowrap truncate' },
+    { id: 'upgrade_tracking_number', label: 'Upgrade Tracking', className: 'w-[180px] whitespace-nowrap truncate' },
     { 
       id: 'upgrade_status', 
       label: 'Upgrade Status', 
-      className: 'w-[160px] whitespace-nowrap border-r', 
+      className: 'w-[160px] whitespace-nowrap', 
       type: 'custom',
       render: (order) => {
           const status = order.upgrade_status || upgradeStatuses[order.id];
           const isLoading = loadingUpgradeStatuses[order.id];
-
           if (isLoading) {
             return <span className="text-gray-500 italic">Checking...</span>;
           }
@@ -718,7 +730,7 @@ export default function ReturnsPage() {
           return <span className="text-gray-400">N/A</span>;
       }
     },
-    { id: 'updated_at', label: 'Last Updated', type: 'date', className: 'w-[120px] whitespace-nowrap border-r' },
+    { id: 'updated_at', label: 'Last Updated', type: 'date', className: 'w-[120px] whitespace-nowrap' },
   ];
 
   // Add console logs for debugging
