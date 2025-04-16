@@ -21,7 +21,7 @@
     }
   ],
   "crons": [{
-    "path": "/api/cron/check-sendcloud-status",
-    "schedule": "0 0 * * *"
+    "path": "/api/scheduled-tasks",
+    "schedule": "0 */12 * * *"
   }]
 } 
