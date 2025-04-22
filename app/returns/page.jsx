@@ -141,19 +141,25 @@ export default function ReturnsPage() {
     }
   };
 
-  const createReturnLabelStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
+  const createReturnLabelStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight, returnReason) => {
     setCreatingLabelOrderId(orderId);
     const toastId = toast.loading('Creating return label...');
     try {
       const response = await fetch('/api/returns/create-label', {
         method: 'POST',
         headers: {'Content-Type': 'application/json',},
-        body: JSON.stringify({ orderId, returnFromAddress, returnToAddress, parcelWeight }),
+        body: JSON.stringify({ 
+          orderId, 
+          returnFromAddress, 
+          returnToAddress, 
+          parcelWeight, 
+          returnReason
+        }),
       });
       const data = await response.json(); // Contains labelUrl now
       if (!response.ok) throw new Error(data.error || 'Failed to create return label');
 
-      // Update local state including the new label URL
+      // Update local state including the new label URL AND reason
       setAllOrders(prevOrders => prevOrders.map(order =>
           order.id === orderId
           ? {
@@ -161,6 +167,7 @@ export default function ReturnsPage() {
               sendcloud_return_id: data.sendcloud_return_id,
               sendcloud_return_parcel_id: data.sendcloud_return_parcel_id,
               sendcloud_return_label_url: data.sendcloud_return_label_url, // Store the label URL
+              sendcloud_return_reason: returnReason, // Store the reason
               updated_at: new Date().toISOString()
              }
           : order
@@ -197,8 +204,8 @@ export default function ReturnsPage() {
     setOrderForReturn(null);
   };
 
-  const handleConfirmReturnStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight) => {
-    await createReturnLabelStandard(orderId, returnFromAddress, returnToAddress, parcelWeight);
+  const handleConfirmReturnStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight, returnReason) => {
+    await createReturnLabelStandard(orderId, returnFromAddress, returnToAddress, parcelWeight, returnReason);
   };
 
   const handleOpenUpgradeModal = async (orderId) => {

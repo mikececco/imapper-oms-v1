@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   Dialog,
@@ -12,6 +12,13 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue,
+// } from "./ui/select";
 
 // Helper to format address object or string
 const formatAddress = (address) => {
@@ -48,6 +55,17 @@ const fixedWarehouseAddress = {
   email: "shipment@imapper.tech"
 };
 
+// Define return reasons
+const RETURN_REASONS = [
+  'Item defective or not working',
+  'Wrong item sent',
+  'Item not as described',
+  'Changed my mind',
+  'Ordered by mistake',
+  'Arrived too late',
+  'Other'
+];
+
 export default function ReturnConfirmationModal({
   isOpen,
   onClose,
@@ -76,6 +94,12 @@ export default function ReturnConfirmationModal({
   const [isEditingWarehouseAddress, setIsEditingWarehouseAddress] = useState(false);
   // State for parcel weight
   const [parcelWeight, setParcelWeight] = useState('1.000'); // Default weight
+  // ADDED: State for return reason
+  const [returnReason, setReturnReason] = useState('');
+
+  // ADDED: Refs for Edit buttons
+  const editCustomerAddressButtonRef = useRef(null);
+  const editWarehouseAddressButtonRef = useRef(null);
 
   // Effect to initialize/reset address state when order changes
   useEffect(() => {
@@ -137,6 +161,8 @@ export default function ReturnConfirmationModal({
     setIsEditingWarehouseAddress(false);
     // Reset warehouse address state to fixed value on order change
     setReturnToAddressState({...fixedWarehouseAddress});
+    // ADDED: Reset return reason
+    setReturnReason('');
   }, [order]); 
 
   if (!order) return null;
@@ -167,6 +193,11 @@ export default function ReturnConfirmationModal({
         missingFields.push('Parcel Weight (must be > 0)');
     }
 
+    // ADDED: Check Return Reason
+    if (!returnReason || returnReason.trim() === '') {
+        missingFields.push('Return Reason');
+    }
+
     if (missingFields.length > 0) {
       toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`, { duration: 5000 });
       return; // Stop if validation fails
@@ -175,7 +206,7 @@ export default function ReturnConfirmationModal({
 
     // Proceed if validation passes
     if (order && order.id) {
-      onConfirm(order.id, returnFromAddress, returnToAddressState, parcelWeight);
+      onConfirm(order.id, returnFromAddress, returnToAddressState, parcelWeight, returnReason);
     }
   };
 
@@ -198,6 +229,29 @@ export default function ReturnConfirmationModal({
       if (/^\d*\.?\d*$/.test(value)) { 
           setParcelWeight(value);
       }
+  };
+
+  // ADDED: Handler for standard HTML select change
+  const handleStandardSelectChange = (e) => {
+    setReturnReason(e.target.value);
+  };
+
+  // ADDED: Function to handle confirming customer address edit
+  const handleConfirmCustomerAddress = () => {
+    setIsEditingCustomerAddress(false);
+    // Ensure focus returns to the edit button after state update
+    requestAnimationFrame(() => {
+      editCustomerAddressButtonRef.current?.focus();
+    });
+  };
+
+  // ADDED: Function to handle confirming warehouse address edit
+  const handleConfirmWarehouseAddress = () => {
+    setIsEditingWarehouseAddress(false);
+    // Ensure focus returns to the edit button after state update
+    requestAnimationFrame(() => {
+      editWarehouseAddressButtonRef.current?.focus();
+    });
   };
 
   return (
@@ -358,7 +412,7 @@ export default function ReturnConfirmationModal({
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => setIsEditingCustomerAddress(false)} 
+                    onClick={handleConfirmCustomerAddress}
                     disabled={isLoading}
                     className="mt-2 justify-self-start" 
                   >
@@ -381,6 +435,7 @@ export default function ReturnConfirmationModal({
                     <><span className="font-medium text-gray-600 text-right">Country: <span className="text-red-500">*</span></span><span>{returnFromAddress.country}</span></>
                   </div>
                   <Button 
+                    ref={editCustomerAddressButtonRef}
                     variant="outline"
                     size="sm"
                     onClick={() => setIsEditingCustomerAddress(true)}
@@ -447,7 +502,7 @@ export default function ReturnConfirmationModal({
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => setIsEditingWarehouseAddress(false)}
+                    onClick={handleConfirmWarehouseAddress}
                     disabled={isLoading}
                     className="mt-2 justify-self-start" 
                   >
@@ -470,6 +525,7 @@ export default function ReturnConfirmationModal({
                       <><span className="font-medium text-gray-600 text-right">Country: <span className="text-red-500">*</span></span><span>{returnToAddressState.country}</span></>
                    </div>
                    <Button 
+                      ref={editWarehouseAddressButtonRef}
                       variant="outline"
                       size="sm"
                       onClick={() => setIsEditingWarehouseAddress(true)}
@@ -482,23 +538,41 @@ export default function ReturnConfirmationModal({
               )}
             </div>
           </div>
-          <div className="mt-4 border-t pt-4">
-              <label htmlFor="parcel-weight" className="block text-sm font-medium text-gray-700 mb-1">Parcel Weight (kg) <span className="text-red-500">*</span></label>
-              <Input 
-                id="parcel-weight"
-                name="parcelWeight"
-                type="text" // Use text for more flexible input, validation is manual
-                inputMode="decimal" // Hint for mobile keyboards
-                placeholder="e.g., 1.500"
-                value={parcelWeight}
-                onChange={handleWeightChange}
-                disabled={isLoading}
-                required
-                className="max-w-xs" // Limit width
-              />
-           </div>
+          <div className="mt-4 border-t pt-4 grid gap-4 md:grid-cols-2">
+             <div> 
+                <label htmlFor="parcel-weight" className="block text-sm font-medium text-gray-700 mb-1">Parcel Weight (kg) <span className="text-red-500">*</span></label>
+                <Input 
+                  id="parcel-weight"
+                  name="parcelWeight"
+                  type="text" // Use text for more flexible input, validation is manual
+                  inputMode="decimal" // Hint for mobile keyboards
+                  placeholder="e.g., 1.500"
+                  value={parcelWeight}
+                  onChange={handleWeightChange}
+                  disabled={isLoading}
+                  required
+                  className="max-w-xs" // Limit width
+                />
+             </div>
+             <div>
+                <label htmlFor="return-reason" className="block text-sm font-medium text-gray-700 mb-1">Return Reason <span className="text-red-500">*</span></label>
+                <select 
+                  id="return-reason"
+                  value={returnReason} 
+                  onChange={handleStandardSelectChange} // Use new handler
+                  disabled={isLoading} 
+                  required
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" // Basic styling similar to Input/SelectTrigger
+                >
+                  <option value="" disabled>Select a reason...</option>
+                  {RETURN_REASONS.map(reason => (
+                    <option key={reason} value={reason}>{reason}</option>
+                  ))}
+                </select>
+             </div>
+          </div>
           <p className="text-sm text-muted-foreground mt-6">
-            This will generate a Sendcloud return label using the addresses above. 
+            This will generate a Sendcloud return label using the addresses and reason above. 
             The label PDF and tracking information will be linked to this order.
           </p>
         </div>

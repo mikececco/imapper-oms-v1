@@ -15,7 +15,8 @@ export async function POST(request) {
       orderId: receivedOrderId, // Rename to avoid conflict in catch block scope
       returnFromAddress, 
       returnToAddress, 
-      parcelWeight 
+      parcelWeight, 
+      returnReason // ADDED: Extract returnReason
     } = await request.json();
     orderId = receivedOrderId; // Assign to outer scope variable
 
@@ -52,6 +53,11 @@ export async function POST(request) {
        return NextResponse.json({ error: 'Valid parcel weight (e.g., 1.000) is required' }, { status: 400 });
     }
 
+    // ADDED: Validate returnReason (ensure it's a non-empty string)
+    if (!returnReason || typeof returnReason !== 'string' || returnReason.trim() === '') {
+       return NextResponse.json({ error: 'A valid return reason is required' }, { status: 400 });
+    }
+
     // Fetch order details from Supabase
     const { data: order, error: orderError } = await supabase
       .from('orders')
@@ -74,6 +80,7 @@ export async function POST(request) {
         sendcloud_return_id: sendcloudReturnData.return_id,
         sendcloud_return_parcel_id: sendcloudReturnData.parcel_id,
         sendcloud_return_label_url: sendcloudReturnData.labelUrl,
+        sendcloud_return_reason: returnReason, // ADDED: Include reason in payload
         updated_at: new Date().toISOString(),
         // Optional: Update return status if needed
         // sendcloud_return_status: sendcloudReturnData.labelUrl ? 'label_created' : 'pending_label_fetch'
@@ -95,13 +102,14 @@ export async function POST(request) {
     console.log(`API Route: Successfully updated Supabase order ${orderId}.`);
 
     // --- Return Response ---
-    console.log(`API Route: Successfully processed return for Order ID: ${orderId}. Returning IDs and Label URL.`);
-    // Return the label URL along with the IDs
+    console.log(`API Route: Successfully processed return for Order ID: ${orderId}. Returning IDs, Label URL, and Reason.`);
+    // Return the label URL along with the IDs and reason
     return NextResponse.json({
       message: 'Sendcloud return initiated successfully.',
       sendcloud_return_id: sendcloudReturnData.return_id,
       sendcloud_return_parcel_id: sendcloudReturnData.parcel_id,
-      sendcloud_return_label_url: sendcloudReturnData.labelUrl
+      sendcloud_return_label_url: sendcloudReturnData.labelUrl,
+      sendcloud_return_reason: returnReason // ADDED: Optionally return reason too
     });
     
   } catch (error) {
