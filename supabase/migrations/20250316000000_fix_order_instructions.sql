@@ -1,13 +1,18 @@
+-- Migration: Fix order instructions logic
+-- Description: Update the logic for calculating order instructions
+
+-- Commented out: This UPDATE targeted the 'instruction' column which was removed earlier.
+/*
 -- Update instructions for all orders to match frontend logic
 UPDATE orders
-SET instruction = CASE
-    WHEN status = 'delivered' AND paid = TRUE AND stripe_customer_id IS NOT NULL THEN 'DELIVERED'
-    WHEN status = 'shipped' AND paid = TRUE AND stripe_customer_id IS NOT NULL AND tracking_link IS NOT NULL THEN 'SHIPPED'
-    WHEN status = 'pending' AND paid = TRUE AND stripe_customer_id IS NOT NULL AND (tracking_link IS NULL OR tracking_link = 'Empty label') THEN 'TO BE SHIPPED BUT NO STICKER'
-    WHEN status = 'pending' AND paid = TRUE AND stripe_customer_id IS NOT NULL AND tracking_link IS NOT NULL THEN 'TO BE SHIPPED BUT WRONG TRACKING LINK'
-    WHEN status = 'ready_to_ship' AND paid = TRUE AND stripe_customer_id IS NOT NULL AND tracking_link IS NOT NULL THEN 'TO SHIP'
-    WHEN tracking_link = 'Empty label' AND paid = FALSE AND status = 'pending' THEN 'DO NOT SHIP'
-    WHEN tracking_link IS NOT NULL AND paid = TRUE AND stripe_customer_id IS NOT NULL AND shipping_id IS NOT NULL AND status != 'delivered' THEN 'NO ACTION REQUIRED'
+SET instruction = CASE 
+    WHEN status = 'delivered' AND (shipping_id IS NULL OR shipping_id = '') THEN 'NO ACTION REQUIRED' 
+    WHEN status = 'shipped' AND (tracking_number IS NULL OR tracking_number = '') THEN 'PASTE BACK TRACKING LINK'
+    WHEN status = 'pending' AND ok_to_ship = false AND paid = true THEN 'ORDER OK BUT NOT SHIPPED'
+    WHEN status = 'pending' AND ok_to_ship = true AND paid = true AND (shipping_id IS NULL OR shipping_id = '') THEN 'TO BE SHIPPED BUT NO STICKER'
     ELSE 'ACTION REQUIRED'
-END,
-updated_at = NOW(); 
+  END;
+*/
+
+-- Log the completion of the migration
+-- ... (Keep DO $$ block with RAISE NOTICE) 

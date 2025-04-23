@@ -18,6 +18,10 @@ CREATE POLICY "Allow anonymous read access"
     FOR SELECT 
     USING (true);
 
+-- Ensure the unique constraint exists on the 'code' column for ON CONFLICT
+-- This might error if the constraint ALREADY exists, but the INSERT error suggests it doesn't.
+ALTER TABLE public.shipping_methods ADD CONSTRAINT shipping_methods_code_key UNIQUE (code);
+
 -- Insert default shipping methods
 INSERT INTO public.shipping_methods (code, name, display_order, active)
 VALUES 

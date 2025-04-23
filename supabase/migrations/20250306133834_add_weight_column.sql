@@ -4,11 +4,19 @@
 -- Add weight column if it doesn't exist
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS weight TEXT DEFAULT '1.000';
 
+-- Update existing orders to have a default weight if it's NULL
+UPDATE orders SET weight = 1.0 WHERE weight IS NULL;
+
+-- Change the column type to NUMERIC for proper decimal storage 
+-- (Assuming this was the intent - adjust if needed)
+ALTER TABLE orders 
+ALTER COLUMN weight TYPE NUMERIC USING weight::numeric;
+
+-- Add comment to the column
+COMMENT ON COLUMN orders.weight IS 'Weight of the order package in kilograms';
+
 -- Create index for faster searching
 CREATE INDEX IF NOT EXISTS idx_orders_weight ON orders(weight);
-
--- Update existing orders to have a default weight if it's NULL
-UPDATE orders SET weight = '1.000' WHERE weight IS NULL;
 
 -- Log the migration
 DO $$

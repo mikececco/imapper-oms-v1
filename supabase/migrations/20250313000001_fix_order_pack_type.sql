@@ -21,10 +21,36 @@ INSERT INTO order_pack_lists (value, label, weight, height, width, length, comme
 VALUES ('R1', 'R1', 1.000, 20.00, 15.00, 10.00, NULL)
 ON CONFLICT (value) DO NOTHING;
 
+-- Set invalid foreign keys to NULL before adding the constraint (REVISED LOGIC)
+UPDATE public.orders o
+SET order_pack_list_id = NULL
+WHERE 
+    -- Condition 1: The column is not NULL
+    o.order_pack_list_id IS NOT NULL 
+    AND 
+    (
+        -- Condition 2a: The text value IS NOT a valid UUID format
+        NOT o.order_pack_list_id ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+        OR
+        -- Condition 2b: The text value IS a valid UUID format BUT doesn't exist in order_pack_lists
+        (
+            o.order_pack_list_id ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+            AND NOT EXISTS (
+                SELECT 1 
+                FROM public.order_pack_lists opl 
+                WHERE opl.id = o.order_pack_list_id::uuid -- Cast only if format is valid
+            )
+        )
+    );
+
+-- Additionally, ensure the column type IS UUID before adding constraint
+ALTER TABLE public.orders ALTER COLUMN order_pack_list_id TYPE UUID USING order_pack_list_id::uuid;
+-- This ALTER might fail if invalid UUIDs remain after UPDATE, but hopefully not.
+
 -- Recreate the foreign key constraint
-ALTER TABLE orders
-    ADD CONSTRAINT orders_order_pack_list_id_fkey
-    FOREIGN KEY (order_pack_list_id)
+ALTER TABLE orders 
+    ADD CONSTRAINT orders_order_pack_list_id_fkey 
+    FOREIGN KEY (order_pack_list_id) 
     REFERENCES order_pack_lists(id);
 
 -- Add comment to explain the changes
