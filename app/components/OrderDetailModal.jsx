@@ -478,11 +478,11 @@ export default function OrderDetailModal({ children }) {
                       <button
                         onClick={() => createShippingLabel()}
                         className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
-                          order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack && order.name && order.email && order.phone
+                          order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone
                             ? 'bg-green-500 text-white hover:bg-green-600'
                             : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                         }`}
-                        disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || !order.name || !order.email || !order.phone || creatingLabel}
+                        disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone || creatingLabel}
                       >
                         {creatingLabel ? (
                           <>
@@ -544,7 +544,7 @@ export default function OrderDetailModal({ children }) {
                         </div>
                       )}
 
-                      {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || !order.name || !order.email || !order.phone) && (
+                      {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone) && (
                         <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                           <h4 className="text-sm font-semibold text-yellow-800 mb-2">Missing Required Fields</h4>
                           <div className="space-y-2">
@@ -578,11 +578,11 @@ export default function OrderDetailModal({ children }) {
                             )}
 
                             {/* Order Details */}
-                            {(!order.order_pack || !order.ok_to_ship || !order.paid) && (
+                            {(!order.order_pack_list_id || !order.ok_to_ship || !order.paid) && (
                               <div>
                                 <p className="text-xs font-medium text-yellow-800 mb-1">Order Details:</p>
                                 <div className="space-y-1">
-                                  {!order.order_pack && <p className="text-sm text-red-600">❌ Order Pack is required</p>}
+                                  {!order.order_pack_list_id && <p className="text-sm text-red-600">❌ Order Pack is required</p>}
                                   {!order.ok_to_ship && <p className="text-sm text-red-600">❌ Order must be marked as OK TO SHIP</p>}
                                   {!order.paid && <p className="text-sm text-red-600">❌ Payment is required</p>}
                                 </div>

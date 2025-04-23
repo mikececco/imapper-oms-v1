@@ -152,7 +152,7 @@ export function calculateOrderInstruction(order) {
     shipping_id,
     tracking_number,
     ok_to_ship,
-    order_pack
+    order_pack_list_id
   } = order;
   
   // Check conditions for each instruction value
@@ -163,7 +163,7 @@ export function calculateOrderInstruction(order) {
     paid === true &&
     ok_to_ship === true &&
     status === "pending" && 
-    !isEmpty(order_pack)
+    !!order_pack_list_id
   ) {
     return 'NO ACTION REQUIRED';
   }
@@ -175,7 +175,7 @@ export function calculateOrderInstruction(order) {
     isEmpty(tracking_link) &&
     paid === true &&
     ok_to_ship === true &&
-    !isEmpty(order_pack)
+    !!order_pack_list_id
   ) {
     return 'PASTE BACK TRACKING LINK';
   }
@@ -208,7 +208,7 @@ export function calculateOrderInstruction(order) {
     isEmpty(tracking_link) &&
     isEmpty(shipping_id) &&
     isEmpty(tracking_number) &&
-    !isEmpty(order_pack)
+    !!order_pack_list_id
   ) {
     return 'TO BE SHIPPED BUT NO STICKER';
   }
@@ -218,7 +218,7 @@ export function calculateOrderInstruction(order) {
     status === 'Ready to send' &&
     paid === true &&
     !isEmpty(tracking_link) && 
-    !isEmpty(order_pack)
+    !!order_pack_list_id
   ) {
     return 'TO SHIP';
   }

@@ -23,6 +23,7 @@ export default function ReturnsPage() {
   const supabase = useSupabase();
   const [allOrders, setAllOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
+  const [orderPackLists, setOrderPackLists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creatingLabelOrderId, setCreatingLabelOrderId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -43,6 +44,7 @@ export default function ReturnsPage() {
   const [decodedQuery, setDecodedQuery] = useState('');
   const [fetchingReturnStatusId, setFetchingReturnStatusId] = useState(null);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+  const [loadingPacks, setLoadingPacks] = useState(true);
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -55,44 +57,70 @@ export default function ReturnsPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    loadOrders();
+    loadData();
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || loadingPacks) return;
     filterOrders();
-  }, [decodedQuery, allOrders, loading]);
+  }, [decodedQuery, allOrders, orderPackLists, loading, loadingPacks]);
 
-  const loadOrders = async () => {
+  const loadData = async () => {
+    setLoading(true);
+    setLoadingPacks(true);
     try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .or('status.in.(\"delivered\",\"Delivered\"),sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal')
-        .order('updated_at', { ascending: false });
+      const [ordersResult, packsResult] = await Promise.allSettled([
+        supabase
+          .from('orders')
+          .select('*')
+          .or('status.in.(\"delivered\",\"Delivered\"),sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal')
+          .order('updated_at', { ascending: false }),
+        supabase
+          .from('order_pack_lists')
+          .select('id, label')
+      ]);
 
-      if (error) throw error;
-      
-      // Process fetched data to update status based on manual_instruction
-      const processedData = (data || []).map(order => {
-        if (order.manual_instruction?.toLowerCase() === 'delivered' && order.status?.toLowerCase() !== 'delivered') {
-          // Return a new object with updated status if condition met
-          return { ...order, status: 'Delivered' }; 
+      if (ordersResult.status === 'fulfilled') {
+        const { data, error } = ordersResult.value;
+        if (error) throw error;
+        const processedData = (data || []).map(order => {
+          if (order.manual_instruction?.toLowerCase() === 'delivered' && order.status?.toLowerCase() !== 'delivered') {
+            return { ...order, status: 'Delivered' }; 
+          }
+          return order;
+        });
+        console.log("[loadData] Fetched Orders (Processed):", processedData);
+        setAllOrders(processedData);
+      } else {
+        console.error('Error loading orders:', ordersResult.reason);
+        toast.error('Failed to load orders');
+        setAllOrders([]);
+      }
+
+      if (packsResult.status === 'fulfilled') {
+        const { data, error } = packsResult.value;
+        if (error) {
+          console.error('Error fetching order pack lists:', error);
+          toast.error('Failed to load order pack lists.');
+          setOrderPackLists([]);
+        } else {
+          setOrderPackLists(data || []);
         }
-        // Otherwise, return the original order
-        return order;
-      });
+      } else {
+        console.error('Error loading order pack lists:', packsResult.reason);
+        toast.error('Failed to load order pack lists.');
+        setOrderPackLists([]);
+      }
 
-      console.log("[loadOrders] Fetched Data (Processed):", processedData);
-      setAllOrders(processedData);
     } catch (error) {
-      console.error('Error loading orders:', error);
-      toast.error('Failed to load orders');
+      console.error('Error loading page data:', error);
+      toast.error(`Failed to load page data: ${error.message}`);
       setAllOrders([]);
+      setOrderPackLists([]);
     } finally {
       setLoading(false);
+      setLoadingPacks(false);
     }
   };
 
@@ -101,6 +129,8 @@ export default function ReturnsPage() {
     if (decodedQuery) {
       const lowercaseQuery = decodedQuery.toLowerCase();
       filtered = allOrders.filter(order => {
+        const packLabel = orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || '';
+        
         return (
           (order.id && order.id.toLowerCase().includes(lowercaseQuery)) ||
           (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
@@ -110,7 +140,7 @@ export default function ReturnsPage() {
           (order.shipping_address_city && order.shipping_address_city.toLowerCase().includes(lowercaseQuery)) ||
           (order.shipping_address_postal_code && order.shipping_address_postal_code.toLowerCase().includes(lowercaseQuery)) ||
           (order.shipping_address_country && order.shipping_address_country.toLowerCase().includes(lowercaseQuery)) ||
-          (order.order_pack && order.order_pack.toLowerCase().includes(lowercaseQuery)) ||
+          (packLabel && packLabel.toLowerCase().includes(lowercaseQuery)) ||
           (order.tracking_number && order.tracking_number.toLowerCase().includes(lowercaseQuery)) ||
           (order.sendcloud_return_id && order.sendcloud_return_id.toString().includes(lowercaseQuery)) ||
           (order.sendcloud_return_parcel_id && order.sendcloud_return_parcel_id.toString().includes(lowercaseQuery))
@@ -127,10 +157,10 @@ export default function ReturnsPage() {
   );
   const returnedOrders = filteredOrders.filter(o => 
     (o.sendcloud_return_id || o.sendcloud_return_parcel_id) &&
-    !o.upgrade_shipping_id // Exclude upgraded orders from this tab for now (can adjust if needed)
+    !o.upgrade_shipping_id
   );
   const upgradedOrders = filteredOrders.filter(o => 
-    o.upgrade_shipping_id // Filter for orders with an upgrade shipping ID
+    o.upgrade_shipping_id
   );
 
   const handleOpenOrder = (orderId) => {
@@ -156,29 +186,27 @@ export default function ReturnsPage() {
           returnReason
         }),
       });
-      const data = await response.json(); // Contains labelUrl now
+      const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to create return label');
 
-      // Update local state including the new label URL AND reason
       setAllOrders(prevOrders => prevOrders.map(order =>
           order.id === orderId
           ? {
               ...order,
               sendcloud_return_id: data.sendcloud_return_id,
               sendcloud_return_parcel_id: data.sendcloud_return_parcel_id,
-              sendcloud_return_label_url: data.sendcloud_return_label_url, // Store the label URL
-              sendcloud_return_reason: returnReason, // Store the reason
+              sendcloud_return_label_url: data.sendcloud_return_label_url,
+              sendcloud_return_reason: returnReason,
               updated_at: new Date().toISOString()
              }
           : order
       ));
 
-      // Optionally include link in success toast if URL exists
       const successMessage = data.sendcloud_return_label_url
         ? <>Return initiated successfully! <a href={data.sendcloud_return_label_url} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:text-blue-700">View Label</a></>
-        : (data.message || 'Return initiated successfully'); // Fallback message
+        : (data.message || 'Return initiated successfully');
 
-      toast.success(successMessage, { id: toastId, duration: 6000 }); // Keep toast longer if link is present
+      toast.success(successMessage, { id: toastId, duration: 6000 });
       handleCloseReturnModal();
 
     } catch (error) {
@@ -229,7 +257,7 @@ export default function ReturnsPage() {
 
   const handleCreateReturnLabelForUpgrade = async (orderId, customerAddress, returnToAddress, returnWeight) => {
     console.log("Requesting return label for upgrade:", orderId, customerAddress, returnToAddress, returnWeight);
-    setUpgradingOrderId(orderId); // Assuming this state manages loading for upgrades
+    setUpgradingOrderId(orderId);
     const toastId = toast.loading('Creating return label for original item...');
     try {
         const response = await fetch('/api/returns/create-label', {
@@ -243,13 +271,12 @@ export default function ReturnsPage() {
             }),
         });
 
-        const data = await response.json(); // Contains labelUrl now
+        const data = await response.json();
 
         if (!response.ok) {
             throw new Error(data.error || 'Failed to create return label');
         }
 
-        // Update local state including the new label URL
         setAllOrders(prevOrders =>
             prevOrders.map(order =>
             order.id === orderId
@@ -257,113 +284,128 @@ export default function ReturnsPage() {
                     ...order,
                     sendcloud_return_id: data.sendcloud_return_id,
                     sendcloud_return_parcel_id: data.sendcloud_return_parcel_id,
-                    sendcloud_return_label_url: data.sendcloud_return_label_url, // Store the label URL
+                    sendcloud_return_label_url: data.sendcloud_return_label_url,
                     updated_at: new Date().toISOString()
                   }
                 : order
             )
         );
 
-        // Optionally include link in success toast if URL exists
         const successMessage = data.sendcloud_return_label_url
           ? <>Return label created! <a href={data.sendcloud_return_label_url} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:text-blue-700">View Label</a></>
-          : (data.message || 'Return label for original item created!'); // Fallback message
+          : (data.message || 'Return label for original item created!');
 
         toast.success(successMessage, { id: toastId, duration: 6000 });
-
-        // Close relevant modals or update UI as needed for the upgrade flow
-        // handleCloseUpgradeModal(); // Example if you have an upgrade modal
 
     } catch (error) {
         console.error('Error creating return label during upgrade:', error);
         toast.error(`Failed to create return label: ${error.message || 'Unknown error'}`, { id: toastId });
     } finally {
-        setUpgradingOrderId(null); // Reset loading state for upgrades
+        setUpgradingOrderId(null);
     }
   };
 
   const handleCreateNewLabelForUpgrade = async (orderId, newLabelDetails) => {
     console.log(`Requesting new label for upgraded order ${orderId} with details:`, newLabelDetails);
     setUpgradingOrderId(orderId);
-    // Keep track of the main toast for overall process
     const mainToastId = toast.loading('Starting upgrade process...'); 
 
     try {
-       // 1. Update Order Pack Details (Existing API Call)
+       // 1. Update Order Pack Details directly using Supabase client
        toast.loading('Updating order pack details...', { id: mainToastId });
-       const updateResponse = await fetch(`/api/orders/${orderId}/update-pack`, {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({
-               orderPackId: newLabelDetails.order_pack_list_id,
-               orderPack: newLabelDetails.order_pack,
-               orderPackLabel: newLabelDetails.order_pack_label,
-               weight: newLabelDetails.weight,
-               order_pack_quantity: newLabelDetails.quantity,
-           }),
-       });
-       const updateData = await updateResponse.json();
-       if (!updateResponse.ok) {
-           throw new Error(updateData.error || 'Failed to update order details');
+       const packUpdatePayload = {
+           order_pack_list_id: newLabelDetails.order_pack_list_id,
+           order_pack_quantity: newLabelDetails.quantity,
+           weight: newLabelDetails.weight,
+           updated_at: new Date().toISOString(),
+       };
+       console.log("[Upgrade] Payload for Pack DB Update:", packUpdatePayload);
+
+       const { data: packUpdateData, error: packUpdateError } = await supabase
+         .from('orders')
+         .update(packUpdatePayload)
+         .eq('id', orderId)
+         .select('id') // Only select necessary fields if needed later
+         .single();
+
+       if (packUpdateError) {
+           console.error("Database update error for pack details:", packUpdateError);
+           throw new Error(packUpdateError.message || 'Failed to update order pack details');
        }
+       console.log("[Upgrade] Pack details DB Update Result:", packUpdateData); // Log success
 
        // 2. Create New Shipping Label (Existing API Call)
        toast.loading('Order pack updated. Creating new shipping label...', { id: mainToastId });
        const labelResponse = await fetch('/api/orders/create-shipping-label', {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ orderId }), // Uses the same order ID
+           body: JSON.stringify({ orderId }),
        });
        const labelData = await labelResponse.json();
        if (!labelResponse.ok) {
            console.error("Label creation failed after order update:", labelData.error);
            // Don't necessarily throw, allow saving pack update, but report error
            toast.error(`Order pack updated, but failed to create new shipping label: ${labelData.error || 'Unknown error'}. Please create label manually.`, { id: mainToastId, duration: 6000 });
-           // Update local state with just the pack changes
+           // Update local state with just the pack changes from the payload
            setAllOrders(prevOrders => prevOrders.map(order =>
-               order.id === orderId ? { ...order, ...updateData.updatedFields } : order // Assuming update-pack returns updated fields
+               order.id === orderId ? { ...order, ...packUpdatePayload } : order
            ));
            handleCloseUpgradeModal();
            return; // Stop processing if label creation failed
        }
 
-       // 3. Prepare data for database update (including new upgrade_ fields)
+       // 3. Prepare data for final database update (including new upgrade_ fields)
        toast.loading('New label created. Saving upgrade details...', { id: mainToastId });
-       const upgradeUpdatePayload = {
-           // Include the pack update results if needed (assuming API returns them)
-           ...updateData.updatedFields, 
-           // Map label data to NEW upgrade fields
+       // Combine the pack update payload (which already has updated_at) with label data
+       const finalUpdatePayload = {
+           ...packUpdatePayload, 
            upgrade_shipping_id: labelData.shipping_id,
            upgrade_tracking_number: labelData.tracking_number,
            upgrade_tracking_link: labelData.tracking_link,
            upgrade_status: labelData.status || 'Label Created',
-           updated_at: new Date().toISOString(),
+           // Overwrite updated_at just in case label creation took time
+           updated_at: new Date().toISOString(), 
        };
-       console.log("[Upgrade] Payload for DB Update:", upgradeUpdatePayload); // Log payload
+       console.log("[Upgrade] Payload for Final DB Update:", finalUpdatePayload); // Log payload
 
        // 4. Update Database with Upgrade Fields using Supabase client
-       const { data: dbUpdateResult, error: dbUpdateError } = await supabase // Renamed data to dbUpdateResult
+       // Note: We update again to add the upgrade_ fields. Alternatively, 
+       // create-shipping-label API could be modified to accept and update these.
+       const { data: finalDbUpdateResult, error: finalDbUpdateError } = await supabase
          .from('orders')
-         .update(upgradeUpdatePayload)
+         .update(finalUpdatePayload)
          .eq('id', orderId)
-         .select('id') // Select only id to confirm update, not relying on full row return
+         .select('id') // Select only id to confirm update
          .single();
 
-       if (dbUpdateError) {
-           console.error("Database update error during upgrade:", dbUpdateError);
-           toast.error(`New label created, but failed to save upgrade details to DB: ${dbUpdateError.message}. Please check order manually.`, { id: mainToastId, duration: 6000 });
-           // Update local state optimistically ONLY if needed - might cause confusion
+       if (finalDbUpdateError) {
+           console.error("Database update error during final upgrade save:", finalDbUpdateError);
+           toast.error(`New label created, but failed to save final upgrade details to DB: ${finalDbUpdateError.message}. Please check order manually.`, { id: mainToastId, duration: 6000 });
+           // Update local state optimistically with what we have (pack + label info)
+           setAllOrders(prevOrders => prevOrders.map(order => {
+             if (order.id === orderId) {
+               return { 
+                 ...order, 
+                 ...packUpdatePayload, // Include pack changes
+                 upgrade_shipping_id: labelData.shipping_id, // Still show label info
+                 upgrade_tracking_number: labelData.tracking_number,
+                 upgrade_tracking_link: labelData.tracking_link,
+                 upgrade_status: labelData.status || 'Label Created (DB Save Failed)'
+               };
+             }
+             return order;
+           }));
            handleCloseUpgradeModal();
            return; 
        }
-       console.log("[Upgrade] DB Update Result (Confirmation):"); // Log confirmation
+       console.log("[Upgrade] Final DB Update Result (Confirmation):"); // Log confirmation
 
-       // 5. Success: Manually merge the update payload into the local state
+       // 5. Success: Manually merge the final update payload into the local state
        setAllOrders(prevOrders =>
          prevOrders.map(order => {
            if (order.id === orderId) {
              // Merge the existing order with the payload we sent to the DB
-             const updatedOrder = { ...order, ...upgradeUpdatePayload };
+             const updatedOrder = { ...order, ...finalUpdatePayload };
              console.log("[Upgrade] Updated Order for State:", updatedOrder); // Log the final state object
              return updatedOrder;
            }
@@ -390,37 +432,30 @@ export default function ReturnsPage() {
     }
   };
 
-  // Function to fetch status for a single return
   const fetchSingleReturnStatus = useCallback(async (returnId) => {
     if (!returnId) return;
     console.log(`Fetching status for return ID: ${returnId}`);
     setLoadingStatuses(prev => ({ ...prev, [returnId]: true }));
-    setFetchingReturnStatusId(returnId); // Indicate which specific ID is fetching
+    setFetchingReturnStatusId(returnId);
     try {
       const response = await fetch(`/api/returns/get-status?returnId=${returnId}`);
       const data = await response.json();
       if (!response.ok) {
-        // Use the error message from API if available, otherwise generic
         throw new Error(data.error || 'Failed to fetch status'); 
       }
       setReturnStatuses(prev => ({ ...prev, [returnId]: data.status }));
-      // Optionally update the main order state if status needs persistence beyond session
-      // setAllOrders(prev => prev.map(o => o.sendcloud_return_id === returnId ? { ...o, sendcloud_return_status: data.status } : o));
       toast.success(`Status updated for return ${returnId}: ${data.status}`);
     } catch (error) {
       console.error(`Error fetching return status for ${returnId}:`, error);
       toast.error(`Could not fetch status for return ${returnId}: ${error.message}`);
-      // Keep existing status or set to an error state if needed
-      // setReturnStatuses(prev => ({ ...prev, [returnId]: 'Error' }));
     } finally {
       setLoadingStatuses(prev => ({ ...prev, [returnId]: false }));
-      setFetchingReturnStatusId(null); // Clear the fetching indicator
+      setFetchingReturnStatusId(null);
     }
-  }, []); // Dependencies: useCallback needs an empty dependency array if it doesn't rely on component state/props that change
+  }, []);
 
-  // Function to fetch statuses for all visible returned orders ONCE
   const fetchAllVisibleReturnStatuses = useCallback(async () => {
-    if (fetchingAllStatuses) return; // Prevent concurrent fetches
+    if (fetchingAllStatuses) return;
     console.log("Attempting to fetch all visible return statuses...");
     const ordersToFetch = returnedOrders.filter(o => o.sendcloud_return_id && !returnStatuses[o.sendcloud_return_id]);
     
@@ -433,26 +468,21 @@ export default function ReturnsPage() {
     const promises = ordersToFetch.map(order => fetchSingleReturnStatus(order.sendcloud_return_id));
     
     try {
-      await Promise.allSettled(promises); // Wait for all fetches to complete (settled)
+      await Promise.allSettled(promises);
       toast.success('Finished checking return statuses.');
     } catch (error) {
-      // This catch might not be strictly necessary with Promise.allSettled 
-      // as individual errors are handled in fetchSingleReturnStatus
       console.error("Error during batch status fetch:", error); 
       toast.error('An error occurred while fetching some statuses.');
     } finally {
        setFetchingAllStatuses(false);
     }
-  }, [returnedOrders, returnStatuses, fetchSingleReturnStatus, fetchingAllStatuses]); // Dependencies for useCallback
+  }, [returnedOrders, returnStatuses, fetchSingleReturnStatus, fetchingAllStatuses]);
 
-  // Effect to fetch statuses when the 'returnedOrders' tab becomes active and data is loaded
   useEffect(() => {
     if (activeTab === 'returnedOrders' && returnedOrders.length > 0 && !loading) {
-      // Fetch statuses only if the tab is active
       fetchAllVisibleReturnStatuses();
     }
-    // No cleanup needed here as fetchAllVisibleReturnStatuses has its own guards
-  }, [activeTab, returnedOrders, loading, fetchAllVisibleReturnStatuses]); // Dependencies for the effect
+  }, [activeTab, returnedOrders, loading, fetchAllVisibleReturnStatuses]);
 
   const fetchUpgradeStatus = useCallback(async (order) => {
     const orderId = order.id;
@@ -460,14 +490,13 @@ export default function ReturnsPage() {
     const trackingNumber = order.upgrade_tracking_number;
 
     if (!orderId || (!shippingId && !trackingNumber) || loadingUpgradeStatuses[orderId]) {
-      return; // Skip if no identifiers or already loading
+      return;
     }
 
     setLoadingUpgradeStatuses(prev => ({ ...prev, [orderId]: true }));
     try {
-      // Construct query params
       const queryParams = new URLSearchParams({
-          orderId: orderId, // Pass orderId for DB update
+          orderId: orderId,
       });
       if (shippingId) queryParams.set('shippingId', shippingId);
       if (trackingNumber) queryParams.set('trackingNumber', trackingNumber);
@@ -479,9 +508,7 @@ export default function ReturnsPage() {
       }
       const data = await response.json();
       
-      // Update local state directly (API handles DB update)
       setUpgradeStatuses(prev => ({ ...prev, [orderId]: data.status }));
-      // Update the main orders state as well
       setAllOrders(prevOrders => prevOrders.map(o => 
           o.id === orderId ? { ...o, upgrade_status: data.status } : o
       ));
@@ -489,7 +516,6 @@ export default function ReturnsPage() {
     } catch (error) {
       console.error(`Error fetching upgrade status for ${orderId}:`, error);
       toast.error(`Failed to fetch upgrade status for order ${orderId}.`);
-      // Optionally set error state: setUpgradeStatuses(prev => ({ ...prev, [orderId]: 'Error' }));
     } finally {
       setLoadingUpgradeStatuses(prev => ({ ...prev, [orderId]: false }));
     }
@@ -502,8 +528,8 @@ export default function ReturnsPage() {
 
     const promises = upgradedOrders
       .filter(order => 
-          (order.upgrade_shipping_id || order.upgrade_tracking_number) && // Check if identifiers exist
-          !loadingUpgradeStatuses[order.id] // Ensure not already loading
+          (order.upgrade_shipping_id || order.upgrade_tracking_number) &&
+          !loadingUpgradeStatuses[order.id]
       )
       .map(order => fetchUpgradeStatus(order));
 
@@ -531,27 +557,28 @@ export default function ReturnsPage() {
     }
   }, [upgradedOrders, activeTab, upgradeStatuses, loadingUpgradeStatuses, fetchAllUpgradeOrderStatuses]);
 
-  // Function to fetch or view the label URL via proxy
   const fetchAndViewLabel = useCallback(async (orderId) => {
     const order = allOrders.find(o => o.id === orderId);
-    console.log('Table button: Found order in allOrders:', order); // Log found order
+    console.log('Table button: Found order in allOrders:', order);
     if (!order) {
-      toast.error("Order not found in current table data."); // Clarify error
+      toast.error("Order not found in current table data.");
       return;
     }
 
-    // We only need the parcel ID to use the download proxy
-    console.log('Table button: Parcel ID found:', order.sendcloud_return_parcel_id); // Log parcel ID
+    console.log('Table button: Parcel ID found:', order.sendcloud_return_parcel_id);
     if (order.sendcloud_return_parcel_id) {
       const parcelId = order.sendcloud_return_parcel_id;
       const proxyUrl = `/api/returns/download-label/${parcelId}`;
       console.log(`Opening label via proxy URL from table button: ${proxyUrl}`);
       window.open(proxyUrl, '_blank'); 
     } else {
-      // If no Parcel ID, we can't fetch the label
-      toast.error('Cannot view/get label: Missing Sendcloud Parcel ID in table data.'); // Clarify error
+      toast.error('Cannot view/get label: Missing Sendcloud Parcel ID in table data.');
     }
   }, [allOrders]);
+
+  const getOrderPackLabel = useCallback((order) => {
+    return orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || 'N/A';
+  }, [orderPackLists]);
 
   const createReturnColumns = [
     {
@@ -604,7 +631,13 @@ export default function ReturnsPage() {
       } 
     },
     { id: 'shipping_address', label: 'Shipping Address', className: 'w-[250px] max-w-[250px] whitespace-nowrap', type: 'custom', render: (order) => formatAddressForTable(order, isMounted) },
-    { id: 'order_pack', label: 'Pack', className: 'w-[120px] whitespace-nowrap truncate'},
+    { 
+      id: 'order_pack_list_id',
+      label: 'Pack', 
+      className: 'w-[120px] whitespace-nowrap truncate',
+      type: 'custom',
+      render: getOrderPackLabel
+    },
     { id: 'tracking_number', label: 'Tracking', className: 'w-[180px] whitespace-nowrap truncate'},
     { id: 'created_at', label: 'Created', type: 'date', className: 'w-[120px] whitespace-nowrap' },
   ];
@@ -675,11 +708,16 @@ export default function ReturnsPage() {
       }
     },
     { id: 'sendcloud_return_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap truncate'},
-    { id: 'order_pack', label: 'Pack', className: 'w-[120px] whitespace-nowrap truncate'},
+    { 
+      id: 'order_pack_list_id', 
+      label: 'Original Pack', 
+      className: 'w-[100px] max-w-[100px] whitespace-nowrap truncate',
+      type: 'custom',
+      render: getOrderPackLabel
+    },
     { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap' },
   ];
 
-  // Define columns for the "Upgraded Orders" table
   const upgradedOrdersColumns = [
     {
       id: 'actions',
@@ -737,20 +775,24 @@ export default function ReturnsPage() {
           return <span className="text-gray-400">N/A</span>;
       }
     },
+    { 
+      id: 'order_pack_list_id', 
+      label: 'New Pack', 
+      className: 'w-[120px] max-w-[120px] whitespace-nowrap truncate',
+      type: 'custom',
+      render: getOrderPackLabel
+    },
     { id: 'updated_at', label: 'Last Updated', type: 'date', className: 'w-[120px] whitespace-nowrap' },
   ];
 
-  // Add console logs for debugging
   console.log("[ReturnsPage Render] All Orders Fetched:", allOrders);
   console.log("[ReturnsPage Render] Filtered Delivered (Create Return Tab):", ordersForCreateReturn);
   console.log("[ReturnsPage Render] Filtered Returned (Returned Orders Tab):", returnedOrders);
   console.log("[ReturnsPage Render] isUpgradeModalOpen:", isUpgradeModalOpen, "orderForUpgrade:", !!orderForUpgrade);
 
   const handleOrderCreated = async (newOrder) => {
-    // Close the modal first
     setIsNewOrderModalOpen(false);
 
-    // Check if an order was selected/viewed previously (context)
     if (selectedOrder && selectedOrder.id) {
       const originalOrderId = selectedOrder.id;
       console.log(`New order created contextually. Attempting to mark original order ${originalOrderId} as manually delivered.`);
@@ -767,7 +809,6 @@ export default function ReturnsPage() {
           throw new Error(result.error || 'API error marking order as delivered');
         }
         toast.success(`Original order ${originalOrderId} marked as delivered.`, { id: toastId });
-        // No need for local state update here, loadOrders will fetch the change
       } catch (error) {
         console.error(`Failed to mark original order ${originalOrderId} as delivered:`, error);
         toast.error(`Failed to update original order status: ${error.message}`, { id: toastId });
@@ -776,12 +817,8 @@ export default function ReturnsPage() {
        console.log('New order created without specific return context (no selectedOrder).');
     }
 
-    // Refresh the orders list to include the new order and reflect any status changes
     console.log("Refreshing orders list after new order creation...");
-    await loadOrders();
-
-    // Reset selectedOrder after handling if needed
-    // setSelectedOrder(null); 
+    await loadData();
   };
 
   return (

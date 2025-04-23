@@ -240,16 +240,16 @@ export default async function OrderDetail({ params }) {
                   }
                 }}
                 className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
-                  order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack && order.name && order.email && order.phone
+                  order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone
                     ? 'bg-green-500 text-white hover:bg-green-600'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
-                disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || !order.name || !order.email || !order.phone}
+                disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone}
               >
                 Create Shipping Label
               </button>
 
-              {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack || !order.name || !order.email || !order.phone) && (
+              {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone) && (
                 <div className="mt-2 text-sm space-y-1">
                   <p className="text-gray-600 font-medium mb-2">Required fields (*)</p>
                   {!order.name && <p className="text-red-500">❌ Name* is required</p>}
@@ -259,7 +259,7 @@ export default async function OrderDetail({ params }) {
                   {!order.shipping_address_city && <p className="text-red-500">❌ City* is required</p>}
                   {!order.shipping_address_postal_code && <p className="text-red-500">❌ Postal Code* is required</p>}
                   {!order.shipping_address_country && <p className="text-red-500">❌ Country Code* is required</p>}
-                  {!order.order_pack && <p className="text-red-500">❌ Order Pack* is required</p>}
+                  {!order.order_pack_list_id && <p className="text-red-500">❌ Order Pack* is required</p>}
                   {!order.ok_to_ship && <p className="text-red-500">❌ Order must be marked as OK TO SHIP</p>}
                   {!order.paid && <p className="text-red-500">❌ Payment is required</p>}
                   {order.name && order.name.length > 35 && (

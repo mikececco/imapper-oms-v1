@@ -30,8 +30,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     shipping_address_city: order.shipping_address_city || '',
     shipping_address_postal_code: order.shipping_address_postal_code || '',
     shipping_address_country: order.shipping_address_country || '',
-    order_pack: order.order_pack || '',
-    order_pack_label: order.order_pack_label || '',
+    order_pack: '',
     order_pack_quantity: order.order_pack_quantity || 1,
     order_notes: order.order_notes || '',
     weight: order.weight || '1.000',
@@ -70,8 +69,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       shipping_address_city: order.shipping_address_city || '',
       shipping_address_postal_code: order.shipping_address_postal_code || '',
       shipping_address_country: order.shipping_address_country || '',
-      order_pack: order.order_pack || '',
-      order_pack_label: order.order_pack_label || '',
+      order_pack: '',
       order_pack_quantity: order.order_pack_quantity || 1,
       order_notes: order.order_notes || '',
       weight: order.weight || '1.000',
@@ -227,7 +225,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
               ...prev,
               order_pack_list_id: selectedPack.id,
               order_pack: selectedPack.value,
-              order_pack_label: selectedPack.label,
               weight: totalWeight
             }));
           }
@@ -290,7 +287,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           ...prev,
           order_pack_list_id: selectedPack.id,
           order_pack: selectedPack.value,
-          order_pack_label: selectedPack.label,
           weight: totalWeight
         }));
       } else {
@@ -299,7 +295,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           ...prev,
           order_pack_list_id: '',
           order_pack: '',
-          order_pack_label: '',
           weight: '1.000'
         }));
       }
@@ -390,26 +385,32 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     ];
 
     // Identify changes, especially for address
-    const updatedFields = {};
-    const addressChanges = {};
-    let hasAddressChanged = false;
+    const updatedFields = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      shipping_address_line1: formData.shipping_address_line1.trim(),
+      shipping_address_house_number: formData.shipping_address_house_number.trim(),
+      shipping_address_line2: formData.shipping_address_line2.trim(),
+      shipping_address_city: formData.shipping_address_city.trim(),
+      shipping_address_postal_code: formData.shipping_address_postal_code.trim(),
+      shipping_address_country: normalizeCountryToCode(formData.shipping_address_country),
+      order_pack_list_id: formData.order_pack_list_id,
+      order_pack_quantity: formData.order_pack_quantity,
+      order_notes: formData.order_notes.trim(),
+      weight: formData.weight,
+      shipping_method: formData.shipping_method,
+      serial_number: formData.serial_number.trim(),
+      updated_at: new Date().toISOString(),
+    };
 
-    Object.keys(formData).forEach(key => {
-      if (formData[key] !== originalFormData[key]) {
-        updatedFields[key] = formData[key];
-        // Check if the changed field is an address field
-        if (addressFields.includes(key)) {
-          addressChanges[key] = {
-            old_value: originalFormData[key],
-            new_value: formData[key]
-          };
-          hasAddressChanged = true;
-        }
-      }
-    });
-
-    // Ensure updated_at is always included
-    updatedFields.updated_at = new Date().toISOString();
+    // Add tracking_link and shipping_id only if they exist in formData
+    if (formData.tracking_link) {
+      updatedFields.tracking_link = formData.tracking_link;
+    }
+    if (formData.shipping_id) {
+      updatedFields.shipping_id = formData.shipping_id;
+    }
 
     try {
       const { error } = await supabase
@@ -420,6 +421,19 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       if (error) throw error;
 
       // Log address changes if any occurred
+      const addressChanges = {};
+      let hasAddressChanged = false;
+
+      Object.keys(updatedFields).forEach(key => {
+        if (key !== 'updated_at' && key !== 'shipping_method' && key !== 'order_pack_list_id' && key !== 'order_pack' && key !== 'order_pack_quantity' && key !== 'weight' && key !== 'shipping_address_country') {
+          addressChanges[key] = {
+            old_value: originalFormData[key],
+            new_value: updatedFields[key]
+          };
+          hasAddressChanged = true;
+        }
+      });
+
       if (hasAddressChanged) {
         const { error: activityError } = await supabase
           .from('order_activities')

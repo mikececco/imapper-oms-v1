@@ -77,10 +77,39 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const [isDeleting, setIsDeleting] = useState(false);
   const [isMarkingDelivered, setIsMarkingDelivered] = useState(false);
   const supabase = useSupabase();
+  const [orderPackLists, setOrderPackLists] = useState([]);
+  const [loadingOrderPacks, setLoadingOrderPacks] = useState(true);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 20;
+
+  // Fetch order pack lists
+  useEffect(() => {
+    const fetchOrderPacks = async () => {
+      if (!supabase) {
+        console.log('Supabase client not available for fetching packs');
+        setLoadingOrderPacks(false);
+        return;
+      }
+      setLoadingOrderPacks(true);
+      try {
+        const { data, error } = await supabase
+          .from('order_pack_lists')
+          .select('id, label'); // Select only id and label
+        
+        if (error) throw error;
+        setOrderPackLists(data || []);
+      } catch (error) {
+        console.error('Error fetching order pack lists:', error);
+        toast.error('Failed to load order pack lists.');
+      } finally {
+        setLoadingOrderPacks(false);
+      }
+    };
+
+    fetchOrderPacks();
+  }, [supabase]);
 
   // Update localOrders when orders prop changes
   useEffect(() => {
@@ -101,6 +130,9 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
 
     const lowercaseQuery = decodedQuery.toLowerCase();
     const filtered = localOrders.filter(order => {
+      // Find the order pack label dynamically
+      const packLabel = orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || '';
+      
       // Check various fields for the search term
       const emailMatch = order.email && order.email.toLowerCase().includes(lowercaseQuery);
       
@@ -118,7 +150,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         (order.shipping_address_city && order.shipping_address_city.toLowerCase().includes(lowercaseQuery)) ||
         (order.shipping_address_postal_code && order.shipping_address_postal_code.toLowerCase().includes(lowercaseQuery)) ||
         (order.shipping_address_country && order.shipping_address_country.toLowerCase().includes(lowercaseQuery)) ||
-        (order.order_pack && order.order_pack.toLowerCase().includes(lowercaseQuery)) ||
+        (packLabel && packLabel.toLowerCase().includes(lowercaseQuery)) || // Search by dynamic label
         (order.order_notes && order.order_notes.toLowerCase().includes(lowercaseQuery)) ||
         (order.status && order.status.toLowerCase().includes(lowercaseQuery)) ||
         (order.tracking_number && order.tracking_number.toLowerCase().includes(lowercaseQuery))
@@ -128,7 +160,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     setFilteredOrders(filtered);
     // Reset to first page when search changes
     setCurrentPage(1);
-  }, [localOrders, query]);
+  }, [localOrders, query, orderPackLists]);
 
   // Only run this effect after the component has mounted on the client
   useEffect(() => {
@@ -187,12 +219,11 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   // Create shipping label
   const createShippingLabel = async (orderId) => {
     try {
-      // First check if the order has an order pack
+      // First check if the order has an order pack ID
       const order = localOrders.find(o => o.id === orderId);
-      if (!order.order_pack) {
-        toast.error('Order pack is required before creating a shipping label');
-        
-        return { success: false, error: 'Order pack is required' };
+      if (!order.order_pack_list_id) { // Check for ID instead of pack value
+        toast.error('Order pack must be selected before creating a shipping label');
+        return { success: false, error: 'Order pack ID is required' };
       }
       
       const response = await fetch('/api/orders/create-shipping-label', {
@@ -692,7 +723,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         </TableCell>
                         <TableCell className="w-[400px]">
                           <div className="text-sm">
-                            {order.order_pack || 'N/A'}
+                            {orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || 'N/A'}
                           </div>
                         </TableCell>
                         <TableCell className="w-[80px]">
