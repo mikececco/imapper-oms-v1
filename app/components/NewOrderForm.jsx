@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../utils/supabase';
-import { ORDER_PACK_OPTIONS } from '../utils/constants';
+import { useSupabase } from './Providers';
+import { toast } from 'react-hot-toast';
 
 export default function NewOrderForm() {
   const router = useRouter();
+  const supabase = useSupabase();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderPacks, setOrderPacks] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,9 +20,29 @@ export default function NewOrderForm() {
     shipping_address_postal_code: '',
     shipping_address_country: '',
     instruction: '',
-    order_pack: '',
+    order_pack_list_id: '',
   });
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchOrderPacks = async () => {
+      if (!supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('order_pack_lists')
+          .select('id, name')
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+        setOrderPacks(data || []);
+      } catch (err) {
+        console.error('Error fetching order packs:', err);
+        toast.error('Failed to load order pack options.');
+      }
+    };
+
+    fetchOrderPacks();
+  }, [supabase]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,12 +51,24 @@ export default function NewOrderForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.order_pack_list_id) {
+        setError('Order Pack is required.');
+        toast.error('Please select an Order Pack.');
+        return;
+    }
+
     setIsSubmitting(true);
     setError('');
 
+    if (!supabase) {
+        setError('Database connection not available.');
+        setIsSubmitting(false);
+        return;
+    }
+
     try {
-      // Insert the order into Supabase
-      const { data, error } = await supabase.from('orders').insert({
+      const { data, error: insertError } = await supabase.from('orders').insert({
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -44,20 +78,24 @@ export default function NewOrderForm() {
         shipping_address_postal_code: formData.shipping_address_postal_code,
         shipping_address_country: formData.shipping_address_country,
         instruction: formData.instruction,
-        order_pack: formData.order_pack,
+        order_pack_list_id: formData.order_pack_list_id,
         status: 'pending',
         paid: false,
         ok_to_ship: false
       }).select().single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      // Redirect to the orders page
+      toast.success('Order created successfully!');
       router.push('/orders');
       router.refresh();
     } catch (err) {
       console.error('Error creating order:', err);
-      setError('Failed to create order. Please try again.');
+      const errorMessage = err.message?.includes('violates foreign key constraint') 
+        ? 'Invalid Order Pack selected.' 
+        : 'Failed to create order. Please check details and try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -66,8 +104,8 @@ export default function NewOrderForm() {
   return (
     <form onSubmit={handleSubmit}>
       {error && (
-        <div className="error-message" style={{ color: 'var(--danger)', marginBottom: '1rem' }}>
-          {error}
+        <div className="error-message" style={{ color: 'red', marginBottom: '1rem', padding: '0.5rem', border: '1px solid red', borderRadius: '4px' }}>
+          ❌ {error}
         </div>
       )}
 
@@ -184,35 +222,36 @@ export default function NewOrderForm() {
       </div>
 
       <div className="form-group">
-        <label htmlFor="order_pack">Order Pack List</label>
+        <label htmlFor="order_pack_list_id">Order Pack</label>
         <select
-          id="order_pack"
-          name="order_pack"
-          value={formData.order_pack}
+          id="order_pack_list_id"
+          name="order_pack_list_id"
+          value={formData.order_pack_list_id}
           onChange={handleChange}
           className="form-control"
+          required
         >
-          <option value="">Select an order pack</option>
-          {ORDER_PACK_OPTIONS.map((option, index) => (
-            <option key={index} value={option.value}>{option.label}</option>
+          <option value="">Select an order pack...</option>
+          {orderPacks.map((pack) => (
+            <option key={pack.id} value={pack.id}>{pack.name}</option>
           ))}
         </select>
       </div>
 
       <div className="form-group">
-        <label htmlFor="instruction">Order Instructions</label>
+        <label htmlFor="instruction">Instructions</label>
         <textarea
           id="instruction"
           name="instruction"
           className="form-control"
-          rows={3}
-          placeholder="Enter any additional instructions"
+          placeholder="Enter any special instructions"
           value={formData.instruction}
           onChange={handleChange}
-        ></textarea>
+          rows="3"
+        />
       </div>
 
-      <button type="submit" className="btn" disabled={isSubmitting}>
+      <button type="submit" disabled={isSubmitting} className="btn btn-primary">
         {isSubmitting ? 'Creating Order...' : 'Create Order'}
       </button>
     </form>

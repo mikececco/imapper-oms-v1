@@ -6,8 +6,6 @@ import { toast } from 'react-hot-toast';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import { formatDate } from '../utils/date-utils';
-import PaymentBadge from './OrderActions/PaymentBadge';
-import ShippingToggle from './OrderActions/ShippingToggle';
 
 export default function LateralOrderModal({ order, isOpen, onClose }) {
   const supabase = useSupabase();
@@ -19,22 +17,46 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
     if (isOpen && order) {
       loadOrderDetails();
     }
+    if (!isOpen) {
+        setOrderDetails(null);
+        setLoading(true);
+        setError(null);
+    }
   }, [isOpen, order]);
 
   const loadOrderDetails = async () => {
+    if (!supabase || !order?.id) return;
     try {
       setLoading(true);
       setError(null);
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('orders')
-        .select('*')
+        .select(`
+          id,
+          created_at,
+          name,
+          email,
+          phone,
+          shipping_address_line1,
+          shipping_address_line2,
+          shipping_address_city,
+          shipping_address_postal_code,
+          shipping_address_country,
+          status,
+          tracking_number,
+          tracking_link,
+          sendcloud_return_id,
+          sendcloud_return_parcel_id,
+          sendcloud_return_label_url,
+          order_pack_lists ( name ) 
+        `)
         .eq('id', order.id)
         .single();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       setOrderDetails(data);
-    } catch (error) {
-      console.error('Error loading order details:', error);
+    } catch (err) {
+      console.error('Error loading order details:', err);
       setError('Failed to load order details');
       toast.error('Failed to load order details');
     } finally {
@@ -44,39 +66,45 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const orderPackName = orderDetails?.order_pack_lists?.name || 'N/A';
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
+        aria-hidden="true"
       />
 
-      {/* Side Panel */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-xl transform transition-transform duration-300 ease-in-out">
+      <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-xl transform transition-transform duration-300 ease-in-out" 
+           role="dialog"
+           aria-modal="true"
+           aria-labelledby="order-details-title">
         <div className="h-full flex flex-col">
-          {/* Header */}
           <div className="px-6 py-4 border-b flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Order Details</h2>
+            <h2 id="order-details-title" className="text-xl font-semibold">Order Details</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700"
+              aria-label="Close order details"
             >
               <X size={24} />
             </button>
           </div>
 
-          {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
             {loading ? (
-              <div className="flex justify-center items-center h-full">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+              <div className="flex justify-center items-center h-full" aria-live="polite">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" role="status">
+                    <span className="sr-only">Loading...</span>
+                </div>
               </div>
             ) : error ? (
-              <div className="text-red-500 text-center">{error}</div>
+              <div className="text-red-600 bg-red-100 border border-red-400 rounded p-4 text-center" role="alert">
+                {error}
+              </div>
             ) : orderDetails ? (
               <div className="space-y-6">
-                {/* Order Status */}
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-medium">Order #{orderDetails.id}</h3>
@@ -84,45 +112,38 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                       Created: {formatDate(orderDetails.created_at)}
                     </p>
                   </div>
-                  {/* <div className="flex items-center gap-4">
-                    <PaymentBadge isPaid={orderDetails.is_paid} orderId={orderDetails.id} />
-                    <ShippingToggle okToShip={orderDetails.ok_to_ship} orderId={orderDetails.id} />
-                  </div> */}
                 </div>
 
-                {/* Customer Information */}
                 <div>
-                  <h4 className="font-medium mb-2">Customer Information</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2 text-gray-700">Customer Information</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <p><strong>Name:</strong> {orderDetails.name || 'N/A'}</p>
                     <p><strong>Email:</strong> {orderDetails.email || 'N/A'}</p>
                     <p><strong>Phone:</strong> {orderDetails.phone || 'N/A'}</p>
                   </div>
                 </div>
 
-                {/* Shipping Address */}
                 <div>
-                  <h4 className="font-medium mb-2">Shipping Address</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2 text-gray-700">Shipping Address</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <p><strong>Address Line 1:</strong> {orderDetails.shipping_address_line1 || 'N/A'}</p>
-                    <p><strong>Address Line 2:</strong> {orderDetails.shipping_address_line2 || ' '}</p>
-                    <p><strong>Postal Code:</strong> {orderDetails.shipping_postal_code || ' '}</p>
+                    <p><strong>Address Line 2:</strong> {orderDetails.shipping_address_line2 || '-'}</p>
+                    <p><strong>Postal Code:</strong> {orderDetails.shipping_address_postal_code || '-'}</p>
                     <p><strong>City:</strong> {orderDetails.shipping_address_city || 'N/A'}</p>
                     <p><strong>Country:</strong> {orderDetails.shipping_address_country || 'N/A'}</p>
                   </div>
                 </div>
 
-                {/* Order Details */}
                 <div>
-                  <h4 className="font-medium mb-2">Order Details</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p><strong>Order Pack:</strong> {orderDetails.order_pack || 'N/A'}</p>
+                  <h4 className="font-medium mb-2 text-gray-700">Order Details</h4>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <p><strong>Order Pack:</strong> {orderPackName}</p>
                     <p><strong>Status:</strong> {orderDetails.status || 'N/A'}</p>
                     {orderDetails.tracking_number && (
                       <p>
                         <strong>Tracking Number:</strong>{' '}
                         <a
-                          href={orderDetails.tracking_link}
+                          href={orderDetails.tracking_link || '#'}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline"
@@ -134,22 +155,18 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* Return Information */}
                 {orderDetails.sendcloud_return_id && (
                   <div>
-                    <h4 className="font-medium mb-2">Return Information</h4>
-                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                      {/* Display Return ID */}
+                    <h4 className="font-medium mb-2 text-gray-700">Return Information</h4>
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-2">
                       <p>
                         <strong>Sendcloud Return ID:</strong> {orderDetails.sendcloud_return_id}
                       </p>
-                      {/* Display Parcel ID if exists */}
                       {orderDetails.sendcloud_return_parcel_id && (
                         <p>
                           <strong>Sendcloud Parcel ID:</strong> {orderDetails.sendcloud_return_parcel_id}
                         </p>
                       )}
-                      {/* Display Return Label Button if URL exists */}
                       {orderDetails.sendcloud_return_label_url && (
                         <div>
                           <Button
@@ -157,13 +174,10 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                             size="sm"
                             onClick={() => {
                               const parcelId = orderDetails.sendcloud_return_parcel_id;
-
                               if (parcelId) {
                                 const proxyUrl = `/api/returns/download-label/${parcelId}`;
-                                console.log(`Opening label via proxy URL: ${proxyUrl}`);
                                 window.open(proxyUrl, '_blank');
                               } else {
-                                 console.error('Cannot open label: Missing Sendcloud Parcel ID.');
                                  toast.error('Missing Parcel ID to download label.');
                               }
                             }}
@@ -172,29 +186,16 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                           </Button>
                         </div>
                       )}
-                       {/* Placeholder for Tracking Link if needed later */}
-                       {/* {orderDetails.sendcloud_return_tracking_url && (
-                         <p>
-                           <strong>Return Tracking:</strong>{' '}
-                           <a
-                             href={orderDetails.sendcloud_return_tracking_url}
-                             target="_blank"
-                             rel="noopener noreferrer"
-                             className="text-blue-600 hover:underline"
-                           >
-                             Track Return Shipment
-                           </a>
-                         </p>
-                       )} */}
                     </div>
                   </div>
                 )}
               </div>
-            ) : null}
+            ) : (
+                !loading && <p className="text-gray-500 text-center">No order details found.</p>
+            )}
           </div>
 
-          {/* Footer */}
-          <div className="px-6 py-4 border-t">
+          <div className="px-6 py-4 border-t bg-gray-50">
             <Button onClick={onClose} variant="outline" className="w-full">
               Close
             </Button>

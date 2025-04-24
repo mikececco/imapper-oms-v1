@@ -93,14 +93,20 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const [updatingInstructionId, setUpdatingInstructionId] = useState(null);
   const [isMarkingNoAction, setIsMarkingNoAction] = useState(false);
   const supabase = useSupabase();
+  const [orderPackLists, setOrderPackLists] = useState([]);
+  const [loadingOrderPacks, setLoadingOrderPacks] = useState(true);
   
   // --- TanStack Table State ---
   const [rowSelection, setRowSelection] = useState({});
   const [pagination, setPagination] = useState({
-    pageIndex: 0, // Initial page index (0-based)
+    pageIndex: 0,
     pageSize: 20, // Default page size
   });
   // --- End TanStack Table State ---
+
+  // Pagination state (Now managed by TanStack pagination state)
+  // const [currentPage, setCurrentPage] = useState(1); // Remove this if fully using TanStack pagination
+  // const ordersPerPage = 20; // Remove this, use pagination.pageSize
 
   // Update localOrders when orders prop changes
   useEffect(() => {
@@ -113,6 +119,11 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
 
   // Filter orders based on search query (Keep existing logic)
   useEffect(() => {
+    // TODO: Fetch orderPackLists data to enable filtering by packLabel
+    // setLoadingOrderPacks(true);
+    // Fetch orderPackLists from Supabase or context here...
+    // setLoadingOrderPacks(false);
+
     const decodedQuery = query ? decodeURIComponent(query) : '';
     if (!decodedQuery || decodedQuery.trim() === '') {
       setFilteredOrders(localOrders);
@@ -120,7 +131,11 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     }
     const lowercaseQuery = decodedQuery.toLowerCase();
     const filtered = localOrders.filter(order => {
-      // ... (keep existing filter checks) ...
+      // Check various fields for the search term
+      const emailMatch = order.email && order.email.toLowerCase().includes(lowercaseQuery);
+      // const packLabel = orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || ''; // Requires orderPackLists to be populated
+      
+      return (
         (order.id && order.id.toString().includes(lowercaseQuery)) ||
         (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
         (order.email && order.email.toLowerCase().includes(lowercaseQuery)) ||
@@ -132,15 +147,22 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         (order.shipping_address_city && order.shipping_address_city.toLowerCase().includes(lowercaseQuery)) ||
         (order.shipping_address_postal_code && order.shipping_address_postal_code.toLowerCase().includes(lowercaseQuery)) ||
         (order.shipping_address_country && order.shipping_address_country.toLowerCase().includes(lowercaseQuery)) ||
-        (order.order_pack && order.order_pack.toLowerCase().includes(lowercaseQuery)) ||
+        // (packLabel && packLabel.toLowerCase().includes(lowercaseQuery)) || // TODO: Enable this line when orderPackLists is populated
         (order.order_notes && order.order_notes.toLowerCase().includes(lowercaseQuery)) ||
         (order.status && order.status.toLowerCase().includes(lowercaseQuery)) ||
         (order.tracking_number && order.tracking_number.toLowerCase().includes(lowercaseQuery))
+    ); // Ensure parenthesis closes the return statement correctly
     });
     setFilteredOrders(filtered);
-    setPagination(prev => ({ ...prev, pageIndex: 0 })); // Reset to first page on search
-    setRowSelection({}); // Clear selection on search
-  }, [localOrders, query]);
+    // Reset to first page when search changes - TanStack does this automatically if manualPagination is false
+    // setCurrentPage(1); // Remove this line
+     table.setPageIndex(0); // Reset page index via TanStack table instance
+  }, [localOrders, query, orderPackLists]); // Add orderPackLists dependency
+
+  // Only run this effect after the component has mounted on the client
+  useEffect(() => {
+    hasMounted.current = true;
+  }, []);
 
   useEffect(() => {
     setIsMounted(true);
@@ -185,29 +207,163 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     }
   };
 
-  const openOrderDetail = (orderId) => {
-    openModal(orderId);
-  };
-  
-  // --- Bulk Action Handlers --- (Need to be adapted slightly to use TanStack selection)
-  const handleBulkMarkNoActionRequired = async () => {
-    setIsMarkingNoAction(true);
-    // Get selected row IDs from TanStack state
-    const selectedRowOriginals = table.getSelectedRowModel().rows.map(row => row.original);
-    const orderIds = selectedRowOriginals.map(order => order.id);
-    // ... (rest of existing implementation using orderIds) ...
-    // Reset selection using table instance
-    table.resetRowSelection();
-    setIsMarkingNoAction(false);
+  // Create shipping label
+  const createShippingLabel = async (orderId) => {
+    try {
+      // First check if the order has an order pack
+      const order = localOrders.find(o => o.id === orderId);
+      if (!order.order_pack) {
+        toast.error('Order pack is required before creating a shipping label');
+        
+        return { success: false, error: 'Order pack is required' };
+      }
+      
+      const response = await fetch('/api/orders/create-shipping-label', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create shipping label');
+      }
+      
+      // Current timestamp for updates
+      const currentTimestamp = new Date().toISOString();
+      
+      // Check if there's a warning but the label was still created
+      if (data.warning) {
+        console.warn('Warning from shipping label API:', data.message);
+        
+        // If we have tracking info, update the order locally
+        if (data.tracking_number || data.tracking_link || data.label_url) {
+          const updatedOrder = {
+            id: orderId,
+            shipping_id: data.shipping_id || '',
+            tracking_number: data.tracking_number || '',
+            tracking_link: data.tracking_link || '',
+            label_url: data.label_url || '',
+            status: 'Ready to send',
+            last_delivery_status_check: currentTimestamp,
+            updated_at: currentTimestamp
+          };
+          
+          // Update local state
+          setLocalOrders(prevOrders => 
+            prevOrders.map(order => 
+              order.id === orderId 
+                ? { ...order, ...updatedOrder } 
+                : order
+            )
+          );
+          
+          // Show warning message
+          toast.error(`Shipping label created but there was an issue updating the order: ${data.message}`);
+        } else {
+          // No tracking info available
+          toast.error(`Warning: ${data.message}`);
+        }
+      } else {
+        // Success case - update local state with the returned data
+        const updatedOrder = {
+          id: orderId,
+          shipping_id: data.shipping_id || '',
+          tracking_number: data.tracking_number || '',
+          tracking_link: data.tracking_link || '',
+          label_url: data.label_url || '',
+          status: 'Ready to send',
+          last_delivery_status_check: currentTimestamp,
+          updated_at: currentTimestamp
+        };
+        
+        // Update local state
+        setLocalOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.id === orderId 
+              ? { ...order, ...updatedOrder } 
+              : order
+          )
+        );
+        
+        // Show success message
+        toast.success(`Shipping label created successfully! SendCloud Parcel ID: ${data.shipping_id || 'N/A'}`);
+      }
+      
+      // Refresh orders to show updated tracking info
+      if (onRefresh) onRefresh();
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error creating shipping label:', error);
+      
+      toast.error(`Error: ${error.message}`);
+      
+      return { success: false, error };
+    }
   };
 
-  const handleBulkMarkAsDelivered = async () => {
-    setIsMarkingDelivered(true);
-    const selectedRowOriginals = table.getSelectedRowModel().rows.map(row => row.original);
-    const orderIds = selectedRowOriginals.map(order => order.id);
-    // ... (rest of existing implementation using orderIds) ...
-    table.resetRowSelection();
-    setIsMarkingDelivered(false);
+  // Update delivery status
+  const updateDeliveryStatus = async (orderId) => {
+    try {
+      const response = await fetch(`/api/orders/update-delivery-status?orderId=${orderId}`, {
+        method: 'GET',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update delivery status');
+      }
+      
+      const data = await response.json();
+      
+      // If we have updated order data, update the local state
+      if (data.success && data.order) {
+        // Update local state with the returned data
+        setLocalOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.id === orderId 
+              ? { ...order, ...data.order } 
+              : order
+          )
+        );
+        
+        // Show success message
+        toast.success(`Delivery status updated to: ${data.deliveryStatus || 'Unknown'}`);
+      }
+      
+      // Refresh orders to show updated status
+      if (onRefresh) onRefresh();
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating delivery status:', error);
+      toast.error(`Error: ${error.message}`);
+      return { success: false, error };
+    }
+  };
+
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedOrders.size === localOrders.length) {
+      setSelectedOrders(new Set());
+    } else {
+      setSelectedOrders(new Set(localOrders.map(order => order.id)));
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -257,7 +413,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
             <Button
               variant="outline"
               size="sm"
-              onClick={() => openOrderDetail(row.original.id)}
+              onClick={() => openModal(row.original.id)}
             >
               View
             </Button>
@@ -559,8 +715,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                               className={stickyCellClasses}
                              > 
                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                           )
+                             </TableCell>
+                           );
                         })}
                       </TableRow>
                     )

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link";
-import { fetchOrders, fetchOrderStats, fetchRecentActivity } from "../utils/supabase-client";
+import { fetchOrders, fetchOrderStats, fetchRecentActivity, supabase } from "../utils/supabase-client";
 import DeliveryStats from "../components/DeliveryStats";
 import TrackedOrdersTable from "../components/TrackedOrdersTable";
 import TestOrderModal from "../components/TestOrderModal";
@@ -12,26 +12,44 @@ export default function Dashboard() {
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, shipped: 0, delivered: 0 });
   const [activities, setActivities] = useState([]);
+  const [orderPackLists, setOrderPackLists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPacks, setLoadingPacks] = useState(true);
 
   useEffect(() => {
     async function loadData() {
+      setLoading(true);
+      setLoadingPacks(true);
       try {
-        // Fetch data in parallel for better performance
-        const [ordersData, statsData, activitiesData] = await Promise.all([
+        const [ordersData, statsData, activitiesData, packsDataResult] = await Promise.allSettled([
           fetchOrders(),
           fetchOrderStats(),
-          fetchRecentActivity()
+          fetchRecentActivity(),
+          supabase.from('order_pack_lists').select('id, label')
         ]);
         
-        setOrders(ordersData || []);
-        setStats(statsData || { total: 0, pending: 0, shipped: 0, delivered: 0 });
-        setActivities(activitiesData || []);
+        setOrders(ordersData.status === 'fulfilled' ? ordersData.value || [] : []);
+        setStats(statsData.status === 'fulfilled' ? statsData.value || { total: 0, pending: 0, shipped: 0, delivered: 0 } : { total: 0, pending: 0, shipped: 0, delivered: 0 });
+        setActivities(activitiesData.status === 'fulfilled' ? activitiesData.value || [] : []);
+        
+        if (packsDataResult.status === 'fulfilled') {
+          const { data: packsData, error: packsError } = packsDataResult.value;
+          if (packsError) {
+            console.error("Error fetching order pack lists:", packsError);
+            setOrderPackLists([]);
+          } else {
+            setOrderPackLists(packsData || []);
+          }
+        } else {
+          console.error("Failed to fetch order pack lists promise:", packsDataResult.reason);
+          setOrderPackLists([]);
+        }
+
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        // Continue with default values
+        console.error("Error in dashboard data loading orchestration:", error);
       } finally {
         setLoading(false);
+        setLoadingPacks(false);
       }
     }
 
@@ -121,7 +139,10 @@ export default function Dashboard() {
                       <tr key={order.id}>
                         <td>{order.id}</td>
                         <td>{order.name || 'N/A'}</td>
-                        <td>{order.order_pack || 'N/A'}</td>
+                        <td>{
+                          loadingPacks ? '...' : 
+                          orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || 'N/A'
+                        }</td>
                         <td>
                           <span className={`status-badge status-${order.status || 'pending'}`}>
                             {order.status || 'Pending'}

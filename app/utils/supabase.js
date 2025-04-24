@@ -671,7 +671,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_postal_code: shippingAddressPostalCode,
       shipping_address_country: shippingAddressCountry,
       shipping_address_for_display: shippingAddressForDisplay,
-      order_pack: '', // Empty by default, to be filled by admin
       order_notes: orderNotes,
       stripe_customer_id: stripeCustomerId,
       stripe_invoice_id: stripeInvoiceId,
@@ -680,6 +679,10 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       line_items: lineItemsJson ? `${lineItemsJson.substring(0, 50)}...` : null
     });
     
+    // Extract house number from line1
+    const houseNumber = extractHouseNumber(shippingAddressLine1);
+    console.log(`Attempted house number extraction: ${houseNumber}`);
+
     // Create the order in Supabase with dynamic fields
     const insertData = {
       id: orderId,
@@ -691,7 +694,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_city: shippingAddressCity,
       shipping_address_postal_code: shippingAddressPostalCode,
       shipping_address_country: shippingAddressCountry,
-      order_pack: '', // Empty by default, to be filled by admin
+      shipping_address_house_number: houseNumber,
       order_notes: orderNotes,
       status: 'pending',
       stripe_customer_id: stripeCustomerId,
@@ -743,6 +746,40 @@ function formatShippingAddress(address) {
   ].filter(Boolean);
   
   return parts.join(', ');
+}
+
+// Helper function to extract house number from address line 1
+function extractHouseNumber(line1) {
+  if (!line1) return null;
+
+  // Trim whitespace
+  const trimmedLine1 = line1.trim();
+
+  // Pattern 1: Number at the beginning (e.g., "123 Main St", "45a High Road")
+  // Allows for letters immediately after digits (e.g., 123a)
+  const matchStart = trimmedLine1.match(/^(\\d+[a-zA-Z]*)(\\s+.*|$)/);
+  if (matchStart && matchStart[1]) {
+    console.log(`Extracted house number (start): ${matchStart[1]} from "${trimmedLine1}"`);
+    return matchStart[1];
+  }
+
+  // Pattern 2: Number at the end (e.g., "Main St 123", "High Road 45a")
+  // Requires a space or comma before the number
+  const matchEnd = trimmedLine1.match(/(?:\\s+|,\\s*|\\s+-\\s*)(\\d+[a-zA-Z]*)$/);
+   if (matchEnd && matchEnd[1]) {
+    console.log(`Extracted house number (end): ${matchEnd[1]} from "${trimmedLine1}"`);
+    return matchEnd[1];
+  }
+  
+  // Pattern 3: Number after street name, potentially complex (e.g., "Route d'Arlon 1") - Less common but covers some edge cases
+  const matchMiddle = trimmedLine1.match(/^(?:[a-zA-Z\\s\\'-]+)(\\d+[a-zA-Z]*)(\\s+.*|$)/);
+  if (matchMiddle && matchMiddle[1]) {
+    console.log(`Extracted house number (middle): ${matchMiddle[1]} from "${trimmedLine1}"`);
+    return matchMiddle[1];
+  }
+
+  console.log(`Could not extract house number from "${trimmedLine1}"`);
+  return null;
 }
 
 // Helper function to verify that a Stripe event is stored in the database

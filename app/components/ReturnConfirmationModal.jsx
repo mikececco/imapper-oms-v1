@@ -12,6 +12,7 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { useSupabase } from "./Providers"; // Import useSupabase
 // import {
 //   Select,
 //   SelectContent,
@@ -73,6 +74,10 @@ export default function ReturnConfirmationModal({
   onConfirm,
   isLoading,
 }) {
+  const supabase = useSupabase(); // Get Supabase client
+  const [orderPackLists, setOrderPackLists] = useState([]);
+  const [loadingOrderPacks, setLoadingOrderPacks] = useState(true);
+  
   // State for the editable customer return address
   const [returnFromAddress, setReturnFromAddress] = useState({
     name: '',
@@ -100,6 +105,32 @@ export default function ReturnConfirmationModal({
   // ADDED: Refs for Edit buttons
   const editCustomerAddressButtonRef = useRef(null);
   const editWarehouseAddressButtonRef = useRef(null);
+
+  // Fetch order pack lists when modal is open
+  useEffect(() => {
+    const fetchOrderPacks = async () => {
+      if (!supabase || !isOpen) {
+        setLoadingOrderPacks(false);
+        return;
+      }
+      setLoadingOrderPacks(true);
+      try {
+        const { data, error } = await supabase
+          .from('order_pack_lists')
+          .select('id, label'); // Select only id and label
+        
+        if (error) throw error;
+        setOrderPackLists(data || []);
+      } catch (error) {
+        console.error('Error fetching order pack lists:', error);
+        // Don't show toast here, as it might be annoying in a modal
+      } finally {
+        setLoadingOrderPacks(false);
+      }
+    };
+
+    fetchOrderPacks();
+  }, [isOpen, supabase]);
 
   // Effect to initialize/reset address state when order changes
   useEffect(() => {
@@ -274,7 +305,10 @@ export default function ReturnConfirmationModal({
           </div>
           <div className="grid grid-cols-[120px_1fr] items-center gap-4 mb-6">
             <span className="text-right font-medium">Order Pack:</span>
-            <span>{order.order_pack || 'N/A'}</span>
+            <span>{
+              loadingOrderPacks ? 'Loading...' : 
+              orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || 'N/A'
+            }</span>
           </div>
           <div className="grid grid-cols-2 gap-x-8">
             <div className="border-t pt-4">

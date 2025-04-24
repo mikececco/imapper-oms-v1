@@ -381,7 +381,9 @@ export default function UpgradeOrderModal({
           <DialogTitle>Upgrade Order: {order.id}</DialogTitle>
           <DialogDescription>
             Confirm addresses for return label and new details for the upgraded order.
-            Current Pack: <span className="font-medium">{order.order_pack_label || order.order_pack || 'N/A'}</span>
+            Current Pack: <span className="font-medium">{
+              orderPacks.find(pack => pack.id === order.order_pack_list_id)?.label || 'N/A'
+            }</span>
           </DialogDescription>
         </DialogHeader>
 
