@@ -70,6 +70,19 @@
   color: #9a3412;
 }
 
+/* Style overrides for shipping instruction spans within table cells */
+table td .shipping-instruction {
+  display: inline-block !important;
+  padding: 0 0.2rem !important;    /* Minimal padding */
+  font-size: 0.65rem !important;   /* Extremely small font */
+  line-height: 1.0 !important;    /* Minimal line height */
+  height: auto !important;       /* Let height be determined by content */
+  min-height: 0 !important;      /* Remove minimum height constraints */
+  vertical-align: middle !important;
+  border-radius: 0.2rem !important; /* Smaller border radius */
+  /* Background/color will be determined by the dynamic class added in JSX */
+}
+
 /* ===== Enhanced Table Styles ===== */
 
 /* Main table container */

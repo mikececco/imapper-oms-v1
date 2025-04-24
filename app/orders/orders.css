@@ -115,4 +115,44 @@
 
 .tab.active .error-badge {
   background-color: #f87171;
-} 
+}
+
+/* --- Google Sheet Style Table Overrides --- */
+
+/* Apply border collapse */
+table {
+  border-collapse: collapse;
+  width: 100%; /* Ensure table takes full width */
+}
+
+/* Table Header Cells (th) */
+/* Using more specific selector */
+.orders-table tbody tr th, /* Target th inside specific table if applicable, or just table th */
+table th {
+  padding: 0.1rem 0.4rem; /* Reduced padding */
+  font-size: 0.75rem; /* Smaller font */
+  line-height: 1.1;   /* Tighter line height */
+  height: 20px;       /* Further reduced explicit height */
+  text-align: left;
+  border: 1px solid #e0e0e0; /* Light gray border */
+  background-color: #f9fafb; /* Light background for header */
+  font-weight: 500; /* Medium weight */
+  white-space: nowrap; /* Prevent header text wrapping */
+}
+
+/* Table Data Cells (td) */
+/* Using more specific selector */
+.orders-table tbody tr td, /* Target td inside specific table if applicable, or just table td */
+table td {
+  padding: 0.05rem 0.4rem; /* Minimal vertical padding */
+  font-size: 0.75rem; /* Smaller font */
+  line-height: 1.0;   /* Absolute minimal line height */
+  height: 18px;       /* Even further reduced explicit height for td */
+  border: 1px solid #e0e0e0; /* Light gray border */
+  vertical-align: middle; /* Align content vertically */
+  white-space: normal; /* Allow content wrapping */
+}
+
+/* Style for specific columns if needed */
+/* Example: Make ID column narrower */
+/* table td:nth-child(COLUMN_INDEX), table th:nth-child(COLUMN_INDEX) { ... } */ 

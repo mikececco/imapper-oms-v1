@@ -212,7 +212,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     try {
       // First check if the order has an order pack
       const order = localOrders.find(o => o.id === orderId);
-      if (!order.order_pack) {
+      if (!order.order_pack_list_id) {
         toast.error('Order pack is required before creating a shipping label');
         
         return { success: false, error: 'Order pack is required' };
@@ -566,8 +566,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     }),
     columnHelper.accessor('order_pack', { 
         header: 'Order Pack', 
-        cell: info => <div className="text-sm w-[400px] truncate">{info.getValue() || 'N/A'}</div>, 
-        size: 400,
+        cell: info => <div className="text-sm w-[200px] truncate">{info.getValue() || 'N/A'}</div>, 
+        size: 200,
     }),
     columnHelper.accessor('order_pack_quantity', { 
         header: 'Quantity', 

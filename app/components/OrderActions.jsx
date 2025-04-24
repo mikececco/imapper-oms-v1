@@ -533,7 +533,7 @@ export function ImportantFlag({ isImportant, orderId, onUpdate }) {
 export function PaymentStatus({ isPaid }) {
   return (
     <span 
-      className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${
+      className={`inline-flex items-center px-1.5 py-0 rounded text-xs font-medium ${
         isPaid 
           ? 'bg-green-500'
           : 'bg-red-500'
