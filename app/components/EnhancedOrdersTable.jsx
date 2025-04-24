@@ -29,7 +29,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { formatDate } from '../utils/date-utils';
+import { formatDate, calculateDaysSince } from '../utils/date-utils';
 import { formatAddressForTable } from '../utils/formatters';
 
 // Parse shipping address for display
@@ -603,6 +603,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                   <TableHead className="text-black w-[90px] sticky left-[130px]">
                     Important
                   </TableHead>
+                  <TableHead className="text-black w-[80px]">Age</TableHead>
+                  <TableHead className="text-black w-[100px]">Time To Ship</TableHead>
                   <TableHead className="text-black w-[150px] first-non-sticky-column">
                     INSTRUCTION
                   </TableHead>
@@ -644,6 +646,13 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                     };
                     
                     const bgColorClass = getBgColorClass(calculatedInstruction);
+                    
+                    // Calculate days
+                    const daysCreated = calculateDaysSince(order.created_at);
+                    let daysSinceToShip = null;
+                    if (calculatedInstruction === 'TO SHIP') {
+                        daysSinceToShip = calculateDaysSince(order.updated_at); 
+                    }
                     
                     return (
                       <TableRow 
@@ -699,6 +708,14 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                             orderId={order.id}
                             onUpdate={handleOrderUpdate}
                           />
+                        </TableCell>
+                        <TableCell className="w-[80px]">
+                          {daysCreated !== null ? `${daysCreated}d` : '-'}
+                        </TableCell>
+                        <TableCell 
+                          className={`w-[100px] ${daysSinceToShip !== null && daysSinceToShip > 2 ? 'text-red-600 font-bold' : ''}`}
+                        >
+                          {daysSinceToShip !== null ? `${daysSinceToShip}d` : '-'}
                         </TableCell>
                         <TableCell className="enhanced-table-cell-truncate w-[150px] first-non-sticky-column">
                           <span className={`shipping-instruction ${calculatedInstruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
@@ -807,7 +824,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={18} className="text-center py-8">
+                    <TableCell colSpan={20} className="text-center py-8">
                       No orders found.
                     </TableCell>
                   </TableRow>

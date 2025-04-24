@@ -1,3 +1,5 @@
+import { format, parseISO, differenceInDays } from 'date-fns';
+
 /**
  * Format a date string into a human-readable format
  * @param {string} dateString - ISO date string
@@ -18,5 +20,19 @@ export function formatDate(dateString) {
   } catch (error) {
     console.error('Error formatting date:', error);
     return 'Invalid Date';
+  }
+}
+
+// New helper function to calculate days since a date
+export function calculateDaysSince(dateString) {
+  if (!dateString) return null; // Return null if no date provided
+  try {
+    const date = parseISO(dateString);
+    const today = new Date();
+    // Calculate the difference in calendar days
+    return differenceInDays(today, date);
+  } catch (error) {
+    console.error('Error calculating days since:', error);
+    return null; // Return null on error
   }
 } 
