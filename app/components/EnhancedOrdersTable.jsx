@@ -548,17 +548,6 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
             >
               View
             </Button>
-            {instruction === 'PASTE BACK TRACKING LINK' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleMarkNoActionRequired(row.original.id)}
-                disabled={updatingInstructionId === row.original.id}
-                className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800"
-              >
-                {updatingInstructionId === row.original.id ? 'Updating...' : 'Mark No Action'}
-              </Button>
-            )}
           </div>
         )
       },
