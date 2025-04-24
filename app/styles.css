@@ -853,7 +853,6 @@ input:checked + .toggle-slider:before {
 .filters-grid {
   display: grid;
   gap: 0.75rem;
-  margin-top: 1rem;
 }
 
 @media (min-width: 768px) {

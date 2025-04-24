@@ -57,7 +57,7 @@ export default function OrderSearch() {
   };
 
   return (
-    <div className="search-container mb-6">
+    <div className="search-container">
       <form onSubmit={handleSearch} className="flex items-center gap-2">
         <input
           type="text"
@@ -85,7 +85,7 @@ export default function OrderSearch() {
           </button>
         )}
       </form>
-      <p className="text-sm text-gray-500 mt-1">
+      <p className="text-sm text-gray-500">
         Search across all fields: name, email, address, order pack, status, etc.
       </p>
     </div>

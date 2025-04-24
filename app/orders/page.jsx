@@ -399,7 +399,7 @@ export default function Orders() {
       </header>
 
       <OrderSearch />
-      <OrderFilters onFilterChange={handleFilterChange} />
+      <OrderFilters onFilterChange={handleFilterChange} className="mt-[-1rem]" />
 
       <div className="orders-content mt-4">
         <CountryTabs
