@@ -168,6 +168,40 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     setIsMounted(true);
   }, []);
 
+  // --- Fetch Order Pack Lists on Mount ---
+  useEffect(() => {
+    const fetchOrderPacks = async () => {
+      if (!supabase) {
+        console.log("Supabase client not ready, skipping order pack fetch.");
+        setLoadingOrderPacks(false);
+        return;
+      }
+      console.log("Fetching order pack lists...");
+      try {
+        setLoadingOrderPacks(true);
+        const { data, error } = await supabase
+          .from('order_pack_lists')
+          .select('id, label, value, weight') // Select necessary fields
+          .order('label');
+        
+        if (error) {
+          console.error('Error fetching order packs:', error);
+          toast.error('Failed to load order pack options.');
+          throw error;
+        }
+        
+        console.log(`Fetched ${data?.length || 0} order packs.`);
+        setOrderPackLists(data || []);
+      } catch (error) {
+        // Error handled above
+      } finally {
+        setLoadingOrderPacks(false);
+      }
+    };
+
+    fetchOrderPacks();
+  }, [supabase]); // Dependency on supabase client
+
   // --- Keep Existing Handlers (copyOrderId, handleUpdateDeliveryStatus, handleMarkNoActionRequired, handleBulkMarkNoActionRequired, handleBulkMarkAsDelivered, handleBulkDelete, confirmBulkDelete, openOrderDetail, handleOrderUpdate) --- 
   const copyOrderId = (orderId) => {
     // ... (existing implementation) ...
@@ -564,9 +598,17 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         ),
         size: 200,
     }),
-    columnHelper.accessor('order_pack', { 
+    columnHelper.accessor('order_pack_list_id', {
         header: 'Order Pack', 
-        cell: info => <div className="text-sm w-[200px] truncate">{info.getValue() || 'N/A'}</div>, 
+        cell: info => {
+            const packId = info.getValue();
+            if (!packId) return <div className="text-sm w-[200px] text-gray-400">N/A</div>;
+            
+            const pack = orderPackLists.find(p => p.id === packId);
+            const packLabel = pack ? pack.label : `Unknown (ID: ${packId})`;
+            
+            return <div className="text-sm w-[200px] truncate" title={packLabel}>{packLabel}</div>;
+        }, 
         size: 200,
     }),
     columnHelper.accessor('order_pack_quantity', { 
