@@ -861,7 +861,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         case 'SHIPPED':
                           return 'bg-blue-100 hover:bg-blue-200'; // Light blue for in progress
                         case 'DELIVERED':
-                          return 'bg-green-200 hover:bg-green-300'; // Same as NO ACTION REQUIRED or slightly different green?
+                          return 'bg-green-200 hover:bg-green-300'; // Slightly darker green for completed
                         case 'DO NOT SHIP':
                             return 'bg-gray-300 hover:bg-gray-400'; // Gray for held orders
                         default:
