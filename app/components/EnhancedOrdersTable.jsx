@@ -834,13 +834,41 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map(row => {
                     const instruction = isMounted ? calculateOrderInstruction(row.original) : (row.original.instruction || 'ACTION REQUIRED');
+                    
+                    // Expanded function to cover more instruction states
                     const getBgColorClass = (instruction) => {
-                      if (instruction === 'NO ACTION REQUIRED') return 'bg-green-200 hover:bg-green-300';
-                      if (instruction === 'ACTION REQUIRED') return 'bg-red-100 hover:bg-red-200';
-                      if (instruction === 'TO BE SHIPPED BUT NO STICKER') return 'bg-orange-400/20 hover:bg-orange-400/30';
-                      if (instruction === 'PASTE BACK TRACKING LINK') return 'bg-orange-600/20 hover:bg-orange-500/30';
-                      return '';
+                      switch (instruction) {
+                        case 'ACTION REQUIRED':
+                          return 'bg-red-100 hover:bg-red-200'; // Keep light red for high alert
+                        case 'TO SHIP':
+                           // Find orders where became_to_ship_at is older than 24 hours
+                           const becameToShipAt = row.original.became_to_ship_at;
+                           let isStagnant = false;
+                           if (becameToShipAt) {
+                             const becameToShipDate = new Date(becameToShipAt);
+                             const twentyFourHoursAgo = new Date();
+                             twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+                             isStagnant = becameToShipDate < twentyFourHoursAgo;
+                           }
+                           // If stagnant, use a stronger warning color, otherwise a lighter one
+                           return isStagnant ? 'bg-yellow-300 hover:bg-yellow-400' : 'bg-yellow-100 hover:bg-yellow-200';
+                        case 'TO BE SHIPPED BUT NO STICKER':
+                          return 'bg-orange-200 hover:bg-orange-300'; // Use orange for this specific state
+                        case 'PASTE BACK TRACKING LINK':
+                          return 'bg-orange-300/50 hover:bg-orange-400/50'; // Match badge color more closely (orange-300)
+                        case 'NO ACTION REQUIRED':
+                          return 'bg-green-100 hover:bg-green-200'; // Lighter green for resolved
+                        case 'SHIPPED':
+                          return 'bg-blue-100 hover:bg-blue-200'; // Light blue for in progress
+                        case 'DELIVERED':
+                          return 'bg-green-200 hover:bg-green-300'; // Same as NO ACTION REQUIRED or slightly different green?
+                        case 'DO NOT SHIP':
+                            return 'bg-gray-300 hover:bg-gray-400'; // Gray for held orders
+                        default:
+                          return ''; // Default no background
+                      }
                     };
+                    
                     const bgColorClass = getBgColorClass(instruction);
                     const importantClass = row.original.important ? 'important-row border-2 border-red-500' : '';
                     
