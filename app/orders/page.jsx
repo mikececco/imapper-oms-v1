@@ -313,7 +313,7 @@ export default function Orders() {
   };
 
   return (
-    <div className="container">
+    <div className="">
       <header className="orders-header flex justify-between items-center">
         <div>
           <h2 className="text-black">
@@ -399,33 +399,26 @@ export default function Orders() {
       </header>
 
       <OrderSearch />
+      <OrderFilters onFilterChange={handleFilterChange} />
 
-      <div className="orders-layout">
-        <div className="sidebar-container">
-          <div className="filters-sidebar open">
-            <OrderFilters onFilterChange={handleFilterChange} />
-          </div>
-        </div>
-        
-        <div className="orders-content">
-          <CountryTabs 
-            orders={orders} 
-            activeTab={activeCountry}
-            setActiveTab={handleCountryChange} 
-          />
-          <EnhancedOrdersTable 
-            orders={filteredOrders} 
-            loading={loading} 
-            onRefresh={loadOrders}
-            onOrderUpdate={handleOrderUpdate}
-          />
-        </div>
+      <div className="orders-content mt-4">
+        <CountryTabs
+          orders={orders}
+          activeTab={activeCountry}
+          setActiveTab={handleCountryChange}
+        />
+        <EnhancedOrdersTable
+          orders={filteredOrders}
+          loading={loading}
+          onRefresh={loadOrders}
+          onOrderUpdate={handleOrderUpdate}
+        />
       </div>
 
-      <OverdueOrdersPopup 
-        isOpen={isOverduePopupOpen} 
-        onClose={handleCloseOverduePopup} 
-        orders={overdueOrdersForPopup} 
+      <OverdueOrdersPopup
+        isOpen={isOverduePopupOpen}
+        onClose={handleCloseOverduePopup}
+        orders={overdueOrdersForPopup}
       />
 
       <NewOrderModal

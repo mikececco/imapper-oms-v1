@@ -35,10 +35,6 @@ export default function OrderFilters({ onFilterChange }) {
 
   return (
     <div className="order-filters">
-      <div className="filter-header">
-        <h3>Filters</h3>
-      </div>
-      
       <div className="filter-content">
         <div className="filters-grid">
           {/* Important Filter */}
@@ -104,47 +100,45 @@ export default function OrderFilters({ onFilterChange }) {
             </select>
           </div>
 
-          {/* Date Range Filters - Vertical layout */}
-          <div className="filter-group date-range">
-            <label>Order Date</label>
-            <div className="date-inputs-vertical">
-              <div className="date-input-group">
-                <label htmlFor="start-date" className="text-xs text-gray-600">Start Date</label>
-                <input
-                  type="date"
-                  id="start-date"
-                  placeholder="Start"
-                  className="w-full border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                  }}
-                />
-              </div>
-              <div className="date-input-group">
-                <label htmlFor="end-date" className="text-xs text-gray-600">End Date</label>
-                <input
-                  type="date"
-                  id="end-date"
-                  placeholder="End"
-                  className="w-full border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
-                  }}
-                />
-              </div>
-            </div>
+          {/* Date Start Filter - Now a separate group */}
+          <div className="filter-group">
+            <label htmlFor="start-date" className="text-xs text-gray-600">Start Date</label>
+            <input
+              type="date"
+              id="start-date"
+              placeholder="Start"
+              className="w-full border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+              }}
+            />
           </div>
-        </div>
+          
+          {/* Date End Filter - Now a separate group */}
+          <div className="filter-group">
+            <label htmlFor="end-date" className="text-xs text-gray-600">End Date</label>
+            <input
+              type="date"
+              id="end-date"
+              placeholder="End"
+              className="w-full border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+              }}
+            />
+          </div>
 
-        <div className="filter-actions">
-          <button
-            onClick={clearFilters}
-            className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 w-full text-sm"
-          >
-            Clear Filters
-          </button>
+          {/* Clear Filters Button - Moved to be a direct child of grid */}
+          <div className="filter-actions">
+            <button
+              onClick={clearFilters}
+              className="px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 w-full text-sm"
+            >
+              Clear Filters
+            </button>
+          </div>
         </div>
       </div>
     </div>

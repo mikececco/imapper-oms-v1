@@ -1,97 +1,58 @@
-/* Orders Layout with Sidebar */
-.orders-layout {
+/* NEW: Styles for Horizontal Filters */
+.order-filters {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem; /* rounded-md */
+  background-color: var(--muted-background);
+  margin-bottom: 1rem; /* Add space below filters */
+}
+
+.order-filters .filter-header {
+  display: none; /* Hide the 'Filters' header */
+}
+
+.order-filters .filter-content {
+  padding: 0; /* Remove padding from content area */
+}
+
+.order-filters .filters-grid {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 0.25rem;
+  gap: 1rem; /* Space between filter groups */
+  align-items: flex-end; /* Align items to the bottom */
 }
 
-/* Filters sidebar styles for mobile and desktop */
-.filters-sidebar {
-  font-size: 0.875rem;
-  overflow: hidden;
+.order-filters .filter-group {
+  display: flex;
+  flex-direction: column; /* Stack label and input */
+  margin-bottom: 0; /* Remove bottom margin */
+  flex: 1; /* Allow filters to grow */
+  min-width: 150px; /* Minimum width for each filter */
 }
 
-.filters-sidebar .order-filters {
-  margin-bottom: 0;
-  transform: scale(0.95);
-  transform-origin: top left;
-}
-
-.filters-sidebar .filter-header {
-  padding: 0.5rem;
-}
-
-.filters-sidebar .filter-content {
-  padding: 0.5rem;
-}
-
-.filters-sidebar .filter-group {
+.order-filters label {
+  font-size: 0.75rem; /* text-xs */
+  color: var(--muted-foreground);
   margin-bottom: 0.25rem;
 }
 
-.filters-sidebar .filter-group label {
-  font-size: 0.75rem;
-  margin-bottom: 0.125rem;
+.order-filters select,
+.order-filters input {
+  padding: 0.5rem; /* Consistent padding */
+  font-size: 0.875rem; /* text-sm */
 }
 
-.filters-sidebar select,
-.filters-sidebar input {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+.order-filters .filter-actions {
+  margin-left: auto; /* Push clear button to the right */
+  padding-bottom: 0; /* Align button baseline */
 }
 
-.filters-sidebar .filter-actions {
-  margin-top: 0.5rem;
+.order-filters .filter-actions button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem; /* text-sm */
+  white-space: nowrap;
 }
 
-.filters-sidebar .filter-actions button {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-}
-
-@media (min-width: 1024px) {
-  .orders-layout {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-  
-  .filters-sidebar {
-    width: 220px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 1rem;
-  }
-  
-  .orders-content {
-    flex-grow: 1;
-    min-width: 0;
-    overflow: hidden; /* Prevent double scrollbars */
-  }
-}
-
-/* Update Order Filters for Sidebar */
-.filters-sidebar .order-filters {
-  margin-bottom: 0;
-}
-
-.filters-sidebar .filters-grid {
-  grid-template-columns: 1fr;
-  gap: 0.5rem;
-}
-
-/* Mobile view adjustments */
-@media (max-width: 1023px) {
-  .filters-sidebar {
-    margin-bottom: 1rem;
-  }
-  
-  .orders-content {
-    overflow: hidden; /* Prevent double scrollbars on mobile too */
-  }
-}
-
-/* Add these styles for the country tabs */
+/* Country Tabs */
 .country-tabs {
   margin-bottom: 1rem;
   overflow-x: auto;
