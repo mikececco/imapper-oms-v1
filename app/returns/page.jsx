@@ -77,7 +77,7 @@ export default function ReturnsPage() {
       
       // Process fetched data to update status based on manual_instruction
       const processedData = (data || []).map(order => {
-        if (order.manual_instruction?.toLowerCase() === 'delivered' && order.status?.toLowerCase() !== 'delivered') {
+        if (order.manual_instruction?.toLowerCase() === 'delivered' || order.manual_instruction?.toLowerCase() === 'no action required') {
           // Return a new object with updated status if condition met
           return { ...order, status: 'Delivered' }; 
         }

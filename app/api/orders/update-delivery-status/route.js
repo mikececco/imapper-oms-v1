@@ -102,6 +102,15 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     
+    // Skip check if manual_instruction is 'NO ACTION REQUIRED'
+    if (order.manual_instruction === 'NO ACTION REQUIRED') {
+      return NextResponse.json({ 
+        success: true,
+        message: 'Status check skipped: Order marked as NO ACTION REQUIRED.',
+        status: 'NO_ACTION_REQUIRED' // Provide a specific status code
+      });
+    }
+    
     // Check if the order has a tracking number
     if (!order.tracking_number) {
       return NextResponse.json({ 

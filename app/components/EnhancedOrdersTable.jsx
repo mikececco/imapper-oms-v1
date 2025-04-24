@@ -16,6 +16,7 @@ import { StatusBadge, PaymentStatus, ShippingStatus, OrderPackDropdown, StatusSe
 import ShippingMethodDropdown from "./ShippingMethodDropdown";
 import { useOrderDetailModal } from "./OrderDetailModal";
 import { calculateOrderInstruction } from "../utils/order-instructions";
+import { updateOrderInstruction } from "../utils/supabase-client";
 import "./order-status.css";
 import { normalizeCountryToCode, getCountryDisplayName } from '../utils/country-utils';
 import { useSupabase } from "./Providers";
@@ -76,6 +77,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isMarkingDelivered, setIsMarkingDelivered] = useState(false);
+  const [updatingInstructionId, setUpdatingInstructionId] = useState(null);
+  const [isMarkingNoAction, setIsMarkingNoAction] = useState(false);
   const supabase = useSupabase();
   
   // Pagination state
@@ -477,6 +480,97 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     }
   };
 
+  // Handler for the new "MARK NO ACTION Required" button
+  const handleMarkNoActionRequired = async (orderId) => {
+    if (updatingInstructionId) return; // Prevent double clicks
+
+    setUpdatingInstructionId(orderId);
+    toast.loading(`Updating instruction for ${orderId}...`, { id: 'instruction-update' });
+
+    try {
+      const { success, data, error } = await updateOrderInstruction(orderId, "NO ACTION REQUIRED");
+
+      if (success && data) {
+        toast.success(`Instruction updated for ${orderId}`, { id: 'instruction-update' });
+        // Use existing handler to update local state/refresh
+        handleOrderUpdate({ id: orderId, instruction: data.instruction, updated_at: new Date().toISOString() });
+      } else {
+        throw error || new Error('Failed to update instruction');
+      }
+    } catch (error) {
+      console.error("Error marking no action required:", error);
+      toast.error(`Failed to update instruction: ${error.message}`, { id: 'instruction-update' });
+    } finally {
+      setUpdatingInstructionId(null);
+    }
+  };
+
+  // Handler for bulk marking as NO ACTION REQUIRED
+  const handleBulkMarkNoActionRequired = async () => {
+    setIsMarkingNoAction(true); // Set loading state
+    const orderIds = Array.from(selectedOrders);
+    const instruction = "NO ACTION REQUIRED";
+
+    try {
+      // Use the same API endpoint as 'Mark as Delivered', but set manual_instruction
+      const promises = orderIds.map(orderId => { 
+        console.log(`Making API call for orderId: ${orderId}`); // Debug log
+        return fetch(`/api/orders/${orderId}/set-instruction`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ manual_instruction: instruction }),
+        });
+      });
+
+      const results = await Promise.all(promises);
+      const failedUpdates = results.filter(res => !res.ok);
+
+      if (failedUpdates.length > 0) {
+        // Try to get error messages if available
+        const errorMessages = await Promise.all(failedUpdates.map(async res => {
+          try {
+            const data = await res.json();
+            // Extract orderId from URL for better error reporting
+            const urlParts = res.url.split('/');
+            const failedOrderId = urlParts[urlParts.length - 2]; // Assumes format /api/orders/{id}/set-instruction
+            return data.error || `Order ${failedOrderId}: Failed with status ${res.status}`;
+          } catch {
+            const urlParts = res.url.split('/');
+            const failedOrderId = urlParts[urlParts.length - 2];
+            return `Order ${failedOrderId}: Failed with status ${res.status}`;
+          }
+        }));
+        throw new Error(`Failed to update some orders: ${errorMessages.join(', ')}`);
+      }
+      
+      // Optimistic update: Update local state
+      const updatedIdsSet = new Set(orderIds);
+      const updatedOrders = localOrders.map(order => 
+        updatedIdsSet.has(order.id) 
+          ? { ...order, manual_instruction: instruction, instruction: calculateOrderInstruction({ ...order, manual_instruction: instruction }) } 
+          : order
+      );
+      setLocalOrders(updatedOrders);
+      setFilteredOrders(prev => prev.map(order => // Update filtered orders too
+        updatedIdsSet.has(order.id) 
+          ? { ...order, manual_instruction: instruction, instruction: calculateOrderInstruction({ ...order, manual_instruction: instruction }) } 
+          : order
+      ));
+      
+      setSelectedOrders(new Set()); // Clear selection
+      toast.success(`${orderIds.length} orders marked as 'No Action Required'.`);
+      
+      // Refresh data if needed or call parent handler
+      if (onRefresh) onRefresh();
+      
+    } catch (error) {
+      console.error('Error marking orders as No Action Required:', error);
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setIsMarkingNoAction(false); // Clear loading state
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -583,23 +677,13 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                                 ? 'bg-orange-400/20'
                                 : 'bg-white'
                         }`}>
-                          <button 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => openOrderDetail(order.id)}
-                            className="open-btn"
-                            onMouseEnter={() => setHoveredButtonId(order.id)}
-                            onMouseLeave={() => setHoveredButtonId(null)}
-                            style={{
-                              backgroundColor: hoveredButtonId === order.id ? '#333333' : '#000000',
-                              color: '#ffffff',
-                              border: 'none',
-                              padding: '0.25rem 0.5rem',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
                           >
-                            Update
-                          </button>
+                            View
+                          </Button>
                         </TableCell>
                         <TableCell className={`w-[90px] sticky left-[130px] ${
                           calculatedInstruction === 'NO ACTION REQUIRED'
@@ -748,6 +832,14 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                 className="text-sm"
               >
                 Cancel
+              </Button>
+              <Button
+                onClick={handleBulkMarkNoActionRequired}
+                variant="default"
+                className="text-sm bg-yellow-500 hover:bg-yellow-600 text-white"
+                disabled={isMarkingNoAction}
+              >
+                {isMarkingNoAction ? 'Marking...' : 'Mark No Action Required'}
               </Button>
               <Button
                 onClick={handleBulkMarkAsDelivered}

@@ -6,7 +6,7 @@ import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY } from '../../../../utils
 const supabase = createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY);
 
 export async function POST(request, { params }) {
-  const { orderId } = params;
+  const { id: orderId } = params;
   const { manual_instruction } = await request.json();
 
   if (!orderId) {

@@ -369,6 +369,38 @@ export async function filterOrders(filters) {
   }
 }
 
+// Update order instruction
+export async function updateOrderInstruction(orderId, newInstruction) {
+  if (!orderId || !newInstruction) {
+    console.error('Missing orderId or newInstruction for update');
+    return { success: false, error: 'Missing orderId or newInstruction' };
+  }
+  
+  try {
+    console.log(`Updating instruction for order ${orderId} to "${newInstruction}"`);
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        instruction: newInstruction,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
+      .select('id, instruction') // Select the updated fields
+      .single(); // Expect only one row back
+      
+    if (error) {
+      console.error('Error updating order instruction:', error);
+      return { success: false, error };
+    }
+    
+    console.log(`Successfully updated instruction for order ${orderId}:`, data);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Exception updating order instruction:', error);
+    return { success: false, error };
+  }
+}
+
 // Fetch order statistics
 export async function fetchOrderStats() {
   try {
