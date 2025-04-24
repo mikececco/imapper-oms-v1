@@ -70,7 +70,7 @@ export default function ReturnsPage() {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .or('status.in.(\"delivered\",\"Delivered\"),sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal')
+        .or('status.in.("delivered","Delivered"),manual_instruction.eq.NO ACTION REQUIRED,sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -121,7 +121,7 @@ export default function ReturnsPage() {
   };
 
   const ordersForCreateReturn = filteredOrders.filter(o => 
-    (o.status?.toLowerCase() === 'delivered' || o.created_via === 'returns_portal') &&
+    (o.status?.toLowerCase() === 'delivered' || o.manual_instruction === 'NO ACTION REQUIRED' || o.created_via === 'returns_portal') &&
     !o.sendcloud_return_id && !o.sendcloud_return_parcel_id &&
     !o.upgrade_shipping_id
   );
@@ -647,6 +647,20 @@ export default function ReturnsPage() {
       ]
     },
     { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' },
+    {
+      id: 'return_type',
+      label: 'Type',
+      className: 'w-[130px] whitespace-nowrap',
+      type: 'custom',
+      render: (order) => {
+        const isReturnOnly = order.created_via === 'returns_portal';
+        return (
+          <Badge variant={isReturnOnly ? 'secondary' : 'outline'}>
+            {isReturnOnly ? 'Return Only' : 'Original Order'}
+          </Badge>
+        );
+      }
+    },
     { id: 'name', label: 'Customer', className: 'w-[80px] max-w-[80px] whitespace-nowrap truncate' },
     {
       id: 'return_status',

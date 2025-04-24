@@ -290,7 +290,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
         weight: parseFloat(formData.weight).toFixed(3) || 1.000,
         order_notes: formData.order_notes || null,
         created_via: isReturnsContext ? 'returns_portal' : 'manual',
-        ...(formData.manual_instruction && { manual_instruction: formData.manual_instruction }), 
+        ...(formData.manual_instruction && { manual_instruction: formData.manual_instruction }),
         paid: true,
         ok_to_ship: true
       };
