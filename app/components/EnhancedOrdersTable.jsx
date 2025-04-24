@@ -96,9 +96,17 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   const [orderPackLists, setOrderPackLists] = useState([]);
   const [loadingOrderPacks, setLoadingOrderPacks] = useState(true);
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const ordersPerPage = 20;
+  // --- TanStack Table State ---
+  const [rowSelection, setRowSelection] = useState({});
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 20, // Default page size
+  });
+  // --- End TanStack Table State ---
+
+  // Pagination state (Now managed by TanStack pagination state)
+  // const [currentPage, setCurrentPage] = useState(1); // Remove this if fully using TanStack pagination
+  // const ordersPerPage = 20; // Remove this, use pagination.pageSize
 
   // Update localOrders when orders prop changes
   useEffect(() => {
@@ -111,6 +119,11 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
 
   // Filter orders based on search query (Keep existing logic)
   useEffect(() => {
+    // TODO: Fetch orderPackLists data to enable filtering by packLabel
+    // setLoadingOrderPacks(true);
+    // Fetch orderPackLists from Supabase or context here...
+    // setLoadingOrderPacks(false);
+
     const decodedQuery = query ? decodeURIComponent(query) : '';
     if (!decodedQuery || decodedQuery.trim() === '') {
       setFilteredOrders(localOrders);
@@ -120,6 +133,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     const filtered = localOrders.filter(order => {
       // Check various fields for the search term
       const emailMatch = order.email && order.email.toLowerCase().includes(lowercaseQuery);
+      // const packLabel = orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || ''; // Requires orderPackLists to be populated
       
       return (
         (order.id && order.id.toString().includes(lowercaseQuery)) ||
@@ -133,15 +147,17 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         (order.shipping_address_city && order.shipping_address_city.toLowerCase().includes(lowercaseQuery)) ||
         (order.shipping_address_postal_code && order.shipping_address_postal_code.toLowerCase().includes(lowercaseQuery)) ||
         (order.shipping_address_country && order.shipping_address_country.toLowerCase().includes(lowercaseQuery)) ||
-        (packLabel && packLabel.toLowerCase().includes(lowercaseQuery)) || // Search by dynamic label
+        // (packLabel && packLabel.toLowerCase().includes(lowercaseQuery)) || // TODO: Enable this line when orderPackLists is populated
         (order.order_notes && order.order_notes.toLowerCase().includes(lowercaseQuery)) ||
         (order.status && order.status.toLowerCase().includes(lowercaseQuery)) ||
         (order.tracking_number && order.tracking_number.toLowerCase().includes(lowercaseQuery))
+    ); // Ensure parenthesis closes the return statement correctly
     });
     setFilteredOrders(filtered);
-    // Reset to first page when search changes
-    setCurrentPage(1);
-  }, [localOrders, query]);
+    // Reset to first page when search changes - TanStack does this automatically if manualPagination is false
+    // setCurrentPage(1); // Remove this line
+     table.setPageIndex(0); // Reset page index via TanStack table instance
+  }, [localOrders, query, orderPackLists]); // Add orderPackLists dependency
 
   // Only run this effect after the component has mounted on the client
   useEffect(() => {
@@ -397,7 +413,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
             <Button
               variant="outline"
               size="sm"
-              onClick={() => openOrderDetail(row.original.id)}
+              onClick={() => openModal(row.original.id)}
             >
               View
             </Button>
@@ -699,124 +715,9 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                               className={stickyCellClasses}
                              > 
                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                        <TableCell className={`w-[90px] sticky left-[130px] ${
-                          calculatedInstruction === 'NO ACTION REQUIRED'
-                            ? 'bg-green-200'
-                            : calculatedInstruction === 'ACTION REQUIRED'
-                              ? 'bg-red-100'
-                              : calculatedInstruction === 'TO BE SHIPPED BUT NO STICKER'
-                                ? 'bg-orange-400/20'
-                                : 'bg-white'
-                        }`}>
-                          <ImportantFlag
-                            isImportant={order.important}
-                            orderId={order.id}
-                            onUpdate={handleOrderUpdate}
-                          />
-                        </TableCell>
-                        <TableCell className="enhanced-table-cell-truncate w-[150px] first-non-sticky-column">
-                          <span className={`shipping-instruction ${calculatedInstruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
-                            {calculatedInstruction}
-                          </span>
-                        </TableCell>
-                        <TableCell className="w-[60px]">
-                          <div 
-                            className="cursor-pointer flex items-center"
-                            onClick={() => copyOrderId(order.id)}
-                            onMouseEnter={() => setHoveredOrderId(order.id)}
-                            onMouseLeave={() => setHoveredOrderId(null)}
-                            style={{
-                              position: 'relative',
-                              textDecoration: hoveredOrderId === order.id ? 'underline' : 'none',
-                              color: hoveredOrderId === order.id ? '#2563eb' : 'inherit'
-                            }}
-                          >
-                            {order.id}
-                            {hoveredOrderId === order.id && (
-                              <span style={{
-                                position: 'absolute',
-                                top: '-20px',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                backgroundColor: '#333',
-                                color: 'white',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '10px',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                Click to copy
-                              </span>
-                            )}
-                            {copiedOrderId === order.id && (
-                              <span style={{
-                                position: 'absolute',
-                                top: '-20px',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                backgroundColor: '#10b981',
-                                color: 'white',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '10px',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                Copied!
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="enhanced-table-cell-truncate w-[150px]">
-                          {order.customer_id ? (
-                            <Link 
-                              href={`/customers/${order.customer_id}`}
-                              className="text-blue-600 hover:underline hover:text-blue-800"
-                            >
-                              {order.name || 'N/A'}
-                            </Link>
-                          ) : (
-                            order.name || 'N/A'
-                          )}
-                        </TableCell>
-                        <TableCell className="enhanced-table-cell-truncate w-[180px]">{order.email || 'N/A'}</TableCell>
-                        <TableCell className="w-[120px]">{order.phone || 'N/A'}</TableCell>
-                        <TableCell className="address-container w-[200px]">
-                          <span className="address-text">
-                            {truncateText(formatAddressForTable(order, isMounted), 25)}
-                          </span>
-                          <div className="address-tooltip">
-                            {formatAddressForTable(order, isMounted)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="w-[400px]">
-                          <div className="text-sm">
-                            {order.order_pack || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="w-[80px]">
-                          <div className="text-sm">
-                            {order.order_pack_quantity || 1}
-                          </div>
-                        </TableCell>
-                        <TableCell className="enhanced-table-cell-truncate w-[150px]">{order.order_notes || 'N/A'}</TableCell>
-                        <TableCell className="w-[80px]">
-                          <div className="text-sm">
-                            {order.weight || '1.000'} kg
-                          </div>
-                        </TableCell>
-                        <TableCell className="w-[80px]">
-                          <PaymentStatus 
-                            isPaid={order.paid} 
-                          />
-                        </TableCell>
-                        <TableCell className="w-[100px]">
-                          <ShippingStatus 
-                            okToShip={order.ok_to_ship} 
-                          />
-                        </TableCell>
-                        <TableCell className="w-[180px]">{formatDate(order.created_at)}</TableCell>
-                        <TableCell className="w-[180px]">{formatDate(order.updated_at)}</TableCell>
+                             </TableCell>
+                           );
+                        })}
                       </TableRow>
                     )
                   })
