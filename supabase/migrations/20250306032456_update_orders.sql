@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS orders (
 -- Add weight column if it doesn't exist
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS weight TEXT DEFAULT '1.000';
 
--- Create index on customer_name for faster searches
-CREATE INDEX IF NOT EXISTS idx_orders_customer_name ON orders(customer_name);
+-- Create index on the correct customer name column (assuming it's 'name')
+CREATE INDEX IF NOT EXISTS idx_orders_name ON orders(name);
 
 -- Create index on status for faster filtering
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);

@@ -1,11 +1,25 @@
--- Add line_items column to orders table
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS line_items JSONB;
+-- Migration to add line_items column (intended as JSONB) and index it
 
--- Add comment to explain the purpose of the column
-COMMENT ON COLUMN orders.line_items IS 'JSON array of line items from Stripe invoice';
+-- Add line_items column if it doesn't exist
+ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS line_items TEXT; -- Add as TEXT initially if it might exist as such
 
--- Create an index on the line_items column for better performance when querying
-CREATE INDEX IF NOT EXISTS idx_orders_line_items ON orders USING GIN (line_items);
+-- Ensure the column type is JSONB before creating the GIN index
+ALTER TABLE public.orders
+ALTER COLUMN line_items TYPE JSONB USING line_items::text::jsonb;
+-- Note: Assumes existing text data is valid JSON or NULL.
+
+-- Add a comment to the column
+COMMENT ON COLUMN public.orders.line_items IS 'Stores line item details extracted from Stripe Invoice, as JSONB';
+
+-- Create an index on the line_items column for better performance when querying JSONB data
+CREATE INDEX IF NOT EXISTS idx_orders_line_items ON public.orders USING GIN (line_items);
+
+-- Function to backfill line_items (example, adjust as needed)
+-- ... (Keep CREATE FUNCTION IF EXISTS backfill_line_items_from_invoice) ...
+
+-- Call the function to backfill data
+-- ... (Keep SELECT backfill_line_items_from_invoice()) ...
 
 -- Function to update existing orders with line items from Stripe
 CREATE OR REPLACE FUNCTION update_line_items_from_stripe()

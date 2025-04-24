@@ -78,7 +78,7 @@ export async function updateOrderDeliveryStatus(orderId) {
     // Get order details from Supabase
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, shipping_id, tracking_number, status, last_delivery_status_check')
+      .select('id, shipping_id, tracking_number, status, last_delivery_status_check, manual_instruction')
       .eq('id', orderId)
       .single();
 
@@ -92,11 +92,12 @@ export async function updateOrderDeliveryStatus(orderId) {
       return { success: false, error: 'Order not found' };
     }
 
-    // If no shipping ID or tracking number, nothing to check
-    if (!order.shipping_id && !order.tracking_number && !order.tracking_link) { // Also check tracking_link
-      console.log(`[updateOrderDeliveryStatus] Order ${orderId} has no shipping_id, tracking_number, or tracking_link.`);
-      await supabase.from('orders').update({ last_delivery_status_check: new Date().toISOString() }).eq('id', orderId);
-      return { success: false, error: 'No shipping ID, tracking number, or tracking link available' };
+    // Skip check if manual_instruction is 'NO ACTION REQUIRED'
+    if (order.manual_instruction === 'NO ACTION REQUIRED') {
+      console.log(`[updateOrderDeliveryStatus] Order ${orderId} skipped: Manual instruction is NO ACTION REQUIRED.`);
+      // Optionally update last_delivery_status_check here if desired, even when skipped
+      // await supabase.from('orders').update({ last_delivery_status_check: new Date().toISOString() }).eq('id', orderId);
+      return { success: true, message: 'Status check skipped: Manual instruction is NO ACTION REQUIRED' };
     }
 
     let shippingDetails = null;
@@ -209,6 +210,7 @@ export async function batchUpdateDeliveryStatus(limit = 50) {
       .select('id, tracking_link, status, shipping_id, tracking_number, last_delivery_status_check') // Select last_delivery_status_check
       .not('tracking_link', 'is', null)
       .not('status', 'eq', 'delivered')
+      .neq('manual_instruction', 'NO ACTION REQUIRED') // Exclude orders marked as NO ACTION REQUIRED
       // Filter for orders not checked recently or never checked
       .or(`last_delivery_status_check.is.null,last_delivery_status_check.lt.${checkThreshold}`) 
       .order('last_delivery_status_check', { ascending: true, nullsFirst: true }) // Process oldest first

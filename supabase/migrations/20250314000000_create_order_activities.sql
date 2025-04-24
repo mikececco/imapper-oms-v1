@@ -1,16 +1,22 @@
--- Create enum for activity types
-CREATE TYPE order_activity_type AS ENUM (
-    'created',
-    'updated',
-    'shipping_label_created',
-    'payment_status_changed',
-    'delivery_status_changed',
-    'order_pack_changed',
-    'note_added',
-    'stripe_payment_received',
-    'payment_marked_paid',
-    'payment_marked_unpaid'
-);
+-- Create enum for activity types (Wrapped in IF NOT EXISTS)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_activity_type') THEN
+        CREATE TYPE order_activity_type AS ENUM (
+            'created',
+            'updated',
+            'shipping_label_created',
+            'payment_status_changed',
+            'delivery_status_changed',
+            'order_pack_changed',
+            'note_added',
+            'stripe_payment_received',
+            'payment_marked_paid',
+            'payment_marked_unpaid'
+            -- Note: 'order_update' was added conditionally in a later migration (20240320...)
+        );
+    END IF;
+END $$;
 
 -- Create order activities table
 CREATE TABLE order_activities (

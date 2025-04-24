@@ -2,15 +2,24 @@
 
 -- Add shipping_id column if it doesn't exist
 ALTER TABLE orders 
-ADD COLUMN IF NOT EXISTS shipping_id TEXT;
+ADD COLUMN IF NOT EXISTS shipping_id BIGINT;
+
+-- Ensure the existing column is of type BIGINT before creating functions that use it
+ALTER TABLE public.orders 
+ALTER COLUMN shipping_id TYPE BIGINT USING shipping_id::text::bigint;
+-- Note: Using ::text::bigint assumes existing text values are valid integers or NULL/empty.
 
 -- Add last_delivery_status_check column if it doesn't exist
 ALTER TABLE orders 
-ADD COLUMN IF NOT EXISTS last_delivery_status_check TIMESTAMP WITH TIME ZONE;
+ADD COLUMN IF NOT EXISTS last_delivery_status_check TIMESTAMPTZ;
 
 -- Add sendcloud_data column if it doesn't exist
 ALTER TABLE orders 
 ADD COLUMN IF NOT EXISTS sendcloud_data JSONB;
+
+-- Ensure the existing column is of type JSONB before creating functions that use it
+ALTER TABLE public.orders 
+ALTER COLUMN sendcloud_data TYPE JSONB USING sendcloud_data::text::jsonb;
 
 -- Add comments to the columns
 COMMENT ON COLUMN orders.shipping_id IS 'SendCloud parcel ID';
@@ -38,11 +47,11 @@ BEGIN
   IF column_exists THEN
     -- Update shipping_id from sendcloud_data for orders that have it
     UPDATE orders
-    SET shipping_id = (sendcloud_data->>'id')::TEXT
+    SET shipping_id = (sendcloud_data->>'id')::BIGINT
     WHERE 
       sendcloud_data IS NOT NULL 
       AND sendcloud_data->>'id' IS NOT NULL
-      AND (shipping_id IS NULL OR shipping_id = '');
+      AND (shipping_id IS NULL OR shipping_id = 0);
     
     GET DIAGNOSTICS updated_count = ROW_COUNT;
   ELSE

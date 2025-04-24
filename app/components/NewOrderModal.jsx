@@ -23,7 +23,8 @@ const initialFormData = {
   shipping_address_country: '',
   order_pack_list_id: '',
   weight: '',
-  order_notes: ''
+  order_notes: '',
+  manual_instruction: ''
 };
 
 const initialNewPackData = {
@@ -137,7 +138,8 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
     
     if (selectedCustomer) {
       setFormData(prev => ({
-        ...prev,
+        ...initialFormData,
+        manual_instruction: '',
         customer_id: customerId,
         name: selectedCustomer.name,
         email: selectedCustomer.email,
@@ -148,6 +150,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
         shipping_address_city: selectedCustomer.address_city,
         shipping_address_postal_code: selectedCustomer.address_postal_code,
         shipping_address_country: selectedCustomer.address_country,
+        stripe_customer_id: selectedCustomer.stripe_customer_id
       }));
     }
   };
@@ -268,50 +271,47 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!supabase) return;
+    
+    const toastId = toast.loading('Creating order...');
 
     try {
-      // Prepare the data payload for insertion
-      const insertPayload = {
-          customer_id: formData.customer_id || null,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          shipping_address_line1: formData.shipping_address_line1,
-          shipping_address_house_number: formData.shipping_address_house_number,
-          shipping_address_line2: formData.shipping_address_line2,
-          shipping_address_city: formData.shipping_address_city,
-          shipping_address_postal_code: formData.shipping_address_postal_code,
-          shipping_address_country: formData.shipping_address_country,
-          order_pack_list_id: formData.order_pack_list_id,
-          weight: formData.weight,
-          order_notes: formData.order_notes,
-          paid: false,
-          ok_to_ship: false,
-          status: 'pending',
-          // Set created_via based on context
-          created_via: isReturnsContext ? 'returns_portal' : 'standard', 
-          // Set manual_instruction if created in returns context
-          manual_instruction: isReturnsContext ? 'delivered' : null 
+      const newOrderData = {
+        customer_id: formData.customer_id || null,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        shipping_address_line1: formData.shipping_address_line1,
+        shipping_address_house_number: formData.shipping_address_house_number || null,
+        shipping_address_line2: formData.shipping_address_line2 || null,
+        shipping_address_city: formData.shipping_address_city,
+        shipping_address_postal_code: formData.shipping_address_postal_code,
+        shipping_address_country: normalizeCountryToCode(formData.shipping_address_country),
+        order_pack_list_id: formData.order_pack_list_id || null,
+        weight: parseFloat(formData.weight).toFixed(3) || 1.000,
+        order_notes: formData.order_notes || null,
+        created_via: isReturnsContext ? 'returns_portal' : 'manual',
+        ...(formData.manual_instruction && { manual_instruction: formData.manual_instruction }),
+        paid: true,
+        ok_to_ship: true
       };
       
-      console.log("Creating order with payload:", insertPayload); // Log payload
+      if (!newOrderData.name || !newOrderData.shipping_address_line1 || !newOrderData.shipping_address_city || !newOrderData.shipping_address_postal_code || !newOrderData.shipping_address_country || !newOrderData.order_pack_list_id) {
+        throw new Error('Please fill in all required fields (Name, Address, Pack).');
+      }
 
-      const { data: newOrder, error } = await supabase
+      const { data: createdOrder, error } = await supabase
         .from('orders')
-        .insert([insertPayload]) // Use the prepared payload
+        .insert([newOrderData])
         .select()
         .single();
 
       if (error) throw error;
-
-      toast.success('Order created successfully!');
-      onOrderCreated(newOrder); // Pass the created order data back
-      resetForm(); // Reset form fields
-      onClose(); // Close the modal
-
+      
+      toast.success('Order created successfully!', { id: toastId });
+      onOrderCreated(createdOrder);
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error(error.message || 'Failed to create order');
+      toast.error(error.message || 'Failed to create order', { id: toastId });
     }
   };
 
@@ -492,14 +492,30 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
 
               <section>
                 <h3 className="text-lg font-medium mb-2">Order Notes</h3>
-                <Textarea 
-                  id="order_notes" 
-                  name="order_notes" 
-                  value={formData.order_notes} 
-                  onChange={handleInputChange} 
-                  rows={3} 
-                  placeholder="Internal notes about the order..."
-                />
+                <div className="grid grid-cols-1 gap-4">
+                  <Textarea
+                    name="order_notes"
+                    value={formData.order_notes}
+                    onChange={handleInputChange}
+                    placeholder="Order Notes"
+                  />
+                  <div>
+                    <h3 className="text-lg font-medium mb-2">
+                      Manual Instruction (Optional)
+                    </h3>
+                    <select
+                      id="manual_instruction"
+                      name="manual_instruction"
+                      value={formData.manual_instruction}
+                      onChange={handleInputChange}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="">-- Select --</option>
+                      <option value="DELIVERED">DELIVERED</option>
+                      <option value="NO ACTION REQUIRED">NO ACTION REQUIRED</option>
+                    </select>
+                  </div>
+                </div>
               </section>
 
               <div className="pt-4 border-t">
