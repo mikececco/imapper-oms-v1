@@ -413,7 +413,104 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       setIsDeleting(false);
     setIsConfirmingDelete(false);
   };
-  // --- End Bulk Action Handlers ---
+
+  // --- Define Bulk Action Functions ---
+  const handleBulkMarkNoActionRequired = async () => {
+    const selectedRowOriginals = table.getSelectedRowModel().rows.map(row => row.original);
+    if (selectedRowOriginals.length === 0) return;
+    
+    setIsMarkingNoAction(true);
+    const orderIds = selectedRowOriginals.map(order => order.id);
+    console.log('Marking orders as No Action Required:', orderIds);
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    // Process updates in parallel
+    const updatePromises = orderIds.map(async (orderId) => {
+      try {
+        // Re-use single update logic (Consider a bulk API endpoint later)
+        const result = await updateOrderInstruction(orderId, 'NO ACTION REQUIRED');
+        if (result.success) {
+          successCount++;
+        } else {
+          errorCount++;
+          console.error(`Failed to mark order ${orderId} as No Action Required:`, result.error);
+        }
+      } catch (err) {
+        errorCount++;
+        console.error(`Error marking order ${orderId} as No Action Required:`, err);
+      }
+    });
+
+    await Promise.all(updatePromises);
+
+    if (successCount > 0) {
+      toast.success(`${successCount} order(s) marked as 'No Action Required'.`);
+    }
+    if (errorCount > 0) {
+      toast.error(`Failed to update ${errorCount} order(s). Check console for details.`);
+    }
+
+    // Refresh data and clear selection
+    if (onRefresh) onRefresh(); 
+    table.resetRowSelection();
+    setIsMarkingNoAction(false);
+  };
+
+  const handleBulkMarkAsDelivered = async () => {
+    const selectedRowOriginals = table.getSelectedRowModel().rows.map(row => row.original);
+    if (selectedRowOriginals.length === 0) return;
+
+    setIsMarkingDelivered(true);
+    const orderIds = selectedRowOriginals.map(order => order.id);
+    console.log('Marking orders as Delivered:', orderIds);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    const updatePromises = orderIds.map(async (orderId) => {
+      try {
+        // Assumes updateOrderStatus exists and works like updateOrderInstruction
+        // TODO: Potentially needs a dedicated bulk update API or refined single update function
+        const { data, error } = await supabase
+          .from('orders')
+          .update({ status: 'delivered', updated_at: new Date().toISOString() })
+          .eq('id', orderId)
+          .select() // Select to confirm update
+          .single(); // Assuming update affects single row
+
+        if (error) {
+          throw error;
+        }
+        
+        if (data) { // Check if update returned data (success)
+           successCount++;
+        } else {
+          // This case might indicate an issue even without an explicit error
+          console.warn(`Order ${orderId} might not have been marked as Delivered.`);
+          errorCount++; // Count as error for feedback
+        }
+      } catch (err) {
+        errorCount++;
+        console.error(`Error marking order ${orderId} as Delivered:`, err);
+      }
+    });
+
+    await Promise.all(updatePromises);
+
+    if (successCount > 0) {
+      toast.success(`${successCount} order(s) marked as 'Delivered'.`);
+    }
+    if (errorCount > 0) {
+      toast.error(`Failed to mark ${errorCount} order(s) as Delivered. Check console.`);
+    }
+
+    // Refresh data and clear selection
+    if (onRefresh) onRefresh();
+    table.resetRowSelection();
+    setIsMarkingDelivered(false);
+  };
 
   // --- Define Columns Inside Component to access scope ---
   const columns = [
