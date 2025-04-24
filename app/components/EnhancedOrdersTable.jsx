@@ -586,7 +586,17 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       ),
       cell: info => {
           const daysCreated = calculateDaysSince(info.getValue());
-          return <div className="w-[80px]">{daysCreated !== null ? `${daysCreated}d` : '-'}</div>;
+          // Calculate instruction for this row to check condition
+          const instruction = isMounted ? calculateOrderInstruction(info.row.original) : (info.row.original.instruction || 'ACTION REQUIRED');
+          
+          const needsHighlight = daysCreated !== null && daysCreated > 2 && instruction === 'ACTION REQUIRED';
+          const cellContent = daysCreated !== null ? `${daysCreated}d` : '-';
+          
+          return (
+              <div className={`w-[80px] ${needsHighlight ? 'pumping-warning-bg' : ''}`}>
+                  {cellContent}
+              </div>
+          );
       },
       size: 80,
     }),
@@ -605,9 +615,11 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
             daysSinceToShip = calculateDaysSince(row.original.updated_at);
         }
         const isOverdue = daysSinceToShip !== null && daysSinceToShip > 2;
+        const cellContent = daysSinceToShip !== null ? `${daysSinceToShip}d` : '-';
+        
         return (
-          <span className={`w-[100px] ${isOverdue ? 'text-red-600 font-bold' : ''}`}>
-            {daysSinceToShip !== null ? `${daysSinceToShip}d` : '-'}
+          <span className={`w-[100px] ${isOverdue ? 'pumping-warning-bg' : ''}`}>
+            {cellContent}
           </span>
         );
       },

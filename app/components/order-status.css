@@ -409,4 +409,19 @@ table td .shipping-instruction {
 
 .address-container:hover .address-tooltip {
   display: block;
+}
+
+/* --- Pumping Animation for Warnings --- */
+@keyframes pumping-effect {
+  0% { background-color: #fee2e2; transform: scale(1); }
+  50% { background-color: #fecaca; transform: scale(1.03); }
+  100% { background-color: #fee2e2; transform: scale(1); }
+}
+
+.pumping-warning-bg {
+  animation: pumping-effect 2s infinite ease-in-out;
+  border-radius: 0.25rem; /* Optional: makes background rounded */
+  display: inline-block; /* Needed for animation/padding */
+  padding: 0 0.2rem; /* Minimal horizontal padding */
+  margin: -0.05rem -0.4rem; /* Counteract cell padding to fill space */ 
 } 
