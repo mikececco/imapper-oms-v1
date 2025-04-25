@@ -544,7 +544,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
             <Button
               size="sm"
               onClick={() => openModal(row.original.id)}
-              className="bg-white text-black border border-gray-300 hover:bg-gray-100"
+              className="bg-white !text-black border border-gray-300 hover:bg-gray-100"
             >
               View
             </Button>
