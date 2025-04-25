@@ -205,7 +205,7 @@ export default function OrderDetailModal({ children }) {
     // Optionally trigger a full refresh or notify parent component
     // router.refresh(); // Uncomment if a full refresh is needed
     // Close the modal after successful update
-    setIsOpen(false);
+    // setIsOpen(false); // REMOVED: Keep modal open after update
   };
 
   // Function to create a shipping label
