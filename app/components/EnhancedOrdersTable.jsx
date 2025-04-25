@@ -521,7 +521,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
           checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
-          className="translate-y-[2px]"
+          className="translate-y-[2px] bg-white data-[state=checked]:bg-white data-[state=checked]:text-black border-gray-400"
         />
       ),
       cell: ({ row }) => (
@@ -529,7 +529,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
-          className="translate-y-[2px]"
+          className="translate-y-[2px] bg-white data-[state=checked]:bg-white data-[state=checked]:text-black border-gray-400"
         />
       ),
       size: 50,
@@ -542,9 +542,9 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         return (
           <div className="flex items-center gap-1">
             <Button
-              variant="outline"
               size="sm"
               onClick={() => openModal(row.original.id)}
+              className="bg-white text-black border border-gray-300 hover:bg-gray-100"
             >
               View
             </Button>
@@ -578,7 +578,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
           // Calculate instruction for this row to check condition
           const instruction = isMounted ? calculateOrderInstruction(info.row.original) : (info.row.original.instruction || 'ACTION REQUIRED');
           
-          const needsHighlight = daysCreated !== null && daysCreated > 2 && instruction === 'ACTION REQUIRED';
+          const needsHighlight = daysCreated !== null && daysCreated >= 2 && instruction === 'ACTION REQUIRED';
           const cellContent = daysCreated !== null ? `${daysCreated}d` : '-';
           
           return (
