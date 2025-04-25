@@ -198,18 +198,14 @@ export default function OrderDetailModal({ children }) {
   };
 
   // Handle order updates from child components
-  const handleOrderUpdate = (updatedOrderData) => {
-    if (!order) return;
-    
-    // Update the local order state with the new data
-    setOrder(prevOrder => ({
-      ...prevOrder,
-      ...updatedOrderData,
-      updated_at: new Date().toISOString()
-    }));
-    
-    // Update the router cache without navigating
-    router.refresh();
+  const handleOrderUpdate = (updatedFields) => {
+    console.log('Order updated in form, updating modal state:', updatedFields);
+    // Optimistically update the local order state
+    setOrder(prevOrder => ({ ...prevOrder, ...updatedFields }));
+    // Optionally trigger a full refresh or notify parent component
+    // router.refresh(); // Uncomment if a full refresh is needed
+    // Close the modal after successful update
+    setIsOpen(false);
   };
 
   // Function to create a shipping label
