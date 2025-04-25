@@ -41,7 +41,7 @@ export async function fetchDeliveryStatus(trackingNumber) {
     // Basic auth for SendCloud API
     const auth = Buffer.from(`${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`).toString('base64');
     
-    const response = await fetch(`https://panel.sendcloud.sc/api/v3/tracking/${trackingNumber}`, {
+    const response = await fetch(`https://panel.sendcloud.sc/api/v2/tracking/${trackingNumber}`, {
       method: 'GET',
       headers: {
         'Authorization': `Basic ${auth}`,
@@ -272,7 +272,7 @@ export async function fetchShippingDetails(shippingId) {
     // Basic auth for SendCloud API
     const auth = Buffer.from(`${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`).toString('base64');
     
-    const response = await fetch(`https://panel.sendcloud.sc/api/v3/parcels/${shippingId}`, {
+    const response = await fetch(`https://panel.sendcloud.sc/api/v2/parcels/${shippingId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Basic ${auth}`,
@@ -317,7 +317,7 @@ export async function fetchSendCloudParcelTrackingUrl(parcelId) {
     const data = encoder.encode(credentials);
     const base64Credentials = btoa(String.fromCharCode(...new Uint8Array(data)));
 
-    const response = await fetch(`https://panel.sendcloud.sc/api/v3/parcels/${parcelId}`, {
+    const response = await fetch(`https://panel.sendcloud.sc/api/v2/parcels/${parcelId}`, {
       headers: {
         'Authorization': `Basic ${base64Credentials}`,
         'Content-Type': 'application/json'
@@ -401,7 +401,7 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
 
     console.log("Sending Corrected Payload to SendCloud Returns API:", JSON.stringify(returnPayload, null, 2));
 
-    const response = await fetch('https://panel.sendcloud.sc/api/v3/returns', {
+    const response = await fetch('https://panel.sendcloud.sc/api/v2/returns', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

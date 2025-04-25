@@ -11,7 +11,7 @@ async function fetchSendcloudReturnStatus(returnId) {
     throw new Error('Sendcloud API credentials missing');
   }
 
-  const url = `https://panel.sendcloud.sc/api/v3/returns/${returnId}`;
+  const url = `https://panel.sendcloud.sc/api/v2/returns/${returnId}`;
   const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
 
   try {

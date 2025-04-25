@@ -178,7 +178,7 @@ async function fetchSendCloudParcelStatus(trackingNumber) {
     const auth = Buffer.from(`${sendCloudApiKey}:${sendCloudApiSecret}`).toString('base64');
     
     // Use the SendCloud tracking API endpoint instead of parcels endpoint
-    const response = await fetch(`https://panel.sendcloud.sc/api/v3/tracking/${trackingNumber}`, {
+    const response = await fetch(`https://panel.sendcloud.sc/api/v2/tracking/${trackingNumber}`, {
       method: 'GET',
       headers: {
         'Authorization': `Basic ${auth}`,
