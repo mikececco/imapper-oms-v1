@@ -136,7 +136,7 @@ export function checkTrackingLinkMatchesCountry(trackingLink, addressCountry) {
  */
 export function calculateOrderInstruction(order) {
   // Helper function to check if a string is empty or only whitespace
-  const isEmpty = (str) => !str || str.trim().length === 0;
+  const isEmpty = (str) => typeof str !== 'string' || !str || str.trim().length === 0;
   
   // **Priority Check: Manual Instruction**
   // If a manual instruction exists, return it immediately.
@@ -243,7 +243,7 @@ export function calculateOrderInstruction(order) {
  */
 export function calculateOrderStatus(order) {
   // Helper function to check if a string is empty or only whitespace
-  const isEmpty = (str) => !str || str.trim().length === 0;
+  const isEmpty = (str) => typeof str !== 'string' || !str || str.trim().length === 0;
   
   // Extract values from order
   const {

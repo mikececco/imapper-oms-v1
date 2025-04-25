@@ -626,6 +626,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         size: 90,
     }),
     columnHelper.accessor('created_at', {
+      id: 'age',
       header: () => (
         <div className="flex items-center justify-center" title="Age (Days)">
           <CalendarDays className="h-4 w-4" />
