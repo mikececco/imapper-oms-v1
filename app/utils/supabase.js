@@ -361,7 +361,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressPostalCode = address.postal_code || '';
         shippingAddressCountry = address.country || '';
         // Assign default placeholder for house number
-        shippingAddressHouseNumber = 'N/A'; // TODO: Implement proper parsing if needed
+        // shippingAddressHouseNumber = 'N/A'; // REMOVED - Will be extracted later
         
         // Format shipping address for display purposes
         shippingAddressForDisplay = formatShippingAddress(address);
@@ -460,7 +460,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressPostalCode = address.postal_code || '';
         shippingAddressCountry = address.country || '';
         // Assign default placeholder for house number
-        shippingAddressHouseNumber = 'N/A'; // TODO: Implement proper parsing if needed
+        // shippingAddressHouseNumber = 'N/A'; // REMOVED - Will be extracted later
         
         // Format shipping address for the orders table
         shippingAddressForDisplay = formatShippingAddress(address);
@@ -474,7 +474,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
         shippingAddressPostalCode = address.postal_code || '';
         shippingAddressCountry = address.country || '';
         // Assign default placeholder for house number
-        shippingAddressHouseNumber = 'N/A'; // TODO: Implement proper parsing if needed
+        // shippingAddressHouseNumber = 'N/A'; // REMOVED - Will be extracted later
         
         // Format shipping address for the orders table
         shippingAddressForDisplay = formatShippingAddress(address);
@@ -538,7 +538,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
           shippingAddressPostalCode = address.postal_code || '';
           shippingAddressCountry = address.country || '';
           // Assign default placeholder for house number
-          shippingAddressHouseNumber = 'N/A'; // TODO: Implement proper parsing if needed
+          // shippingAddressHouseNumber = 'N/A'; // REMOVED - Will be extracted later
         } 
         // Then check billing address if shipping is not available
         else if (customer.address) {
@@ -551,7 +551,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
           shippingAddressPostalCode = address.postal_code || '';
           shippingAddressCountry = address.country || '';
           // Assign default placeholder for house number
-          shippingAddressHouseNumber = 'N/A'; // TODO: Implement proper parsing if needed
+          // shippingAddressHouseNumber = 'N/A'; // REMOVED - Will be extracted later
         }
       }
       
@@ -570,7 +570,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
           shippingAddressPostalCode = address.postal_code || '';
           shippingAddressCountry = address.country || '';
           // Assign default placeholder for house number
-          shippingAddressHouseNumber = 'N/A'; // TODO: Implement proper parsing if needed
+          // shippingAddressHouseNumber = 'N/A'; // REMOVED - Will be extracted later
         } 
         // Then check customer address if shipping is not available
         else if (invoice.customer_address) {
@@ -583,7 +583,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
           shippingAddressPostalCode = address.postal_code || '';
           shippingAddressCountry = address.country || '';
           // Assign default placeholder for house number
-          shippingAddressHouseNumber = 'N/A'; // TODO: Implement proper parsing if needed
+          // shippingAddressHouseNumber = 'N/A'; // REMOVED - Will be extracted later
         }
       }
     }
@@ -710,7 +710,8 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_city: shippingAddressCity,
       shipping_address_postal_code: shippingAddressPostalCode,
       shipping_address_country: shippingAddressCountry,
-      shipping_address_house_number: shippingAddressHouseNumber,
+      // Use the result of extraction, default to empty string if null
+      shipping_address_house_number: houseNumber || '', 
       order_notes: orderNotes,
       status: 'pending',
       stripe_customer_id: stripeCustomerId,
