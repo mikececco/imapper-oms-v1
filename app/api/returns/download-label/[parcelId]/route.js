@@ -16,7 +16,7 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
 
-  const sendcloudLabelUrl = `https://panel.sendcloud.sc/api/v2/labels/normal_printer/${parcelId}`;
+  const sendcloudLabelUrl = `https://panel.sendcloud.sc/api/v3/labels/normal_printer/${parcelId}`;
   const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
 
   console.log(`Proxying label request for Parcel ID: ${parcelId} to URL: ${sendcloudLabelUrl}`);

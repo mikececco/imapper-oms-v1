@@ -38,7 +38,7 @@ async function fetchSendCloudShippingMethods() {
     const auth = Buffer.from(`${sendCloudApiKey}:${sendCloudApiSecret}`).toString('base64');
     
     // Fetch shipping methods from SendCloud
-    const response = await fetch('https://panel.sendcloud.sc/api/v2/shipping_methods', {
+    const response = await fetch('https://panel.sendcloud.sc/api/v3/shipping_methods', {
       headers: {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/json'

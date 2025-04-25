@@ -17,9 +17,9 @@ async function fetchSendcloudShipmentStatus(shippingId, trackingNumber) {
   // *** Adjust URL based on Sendcloud documentation for tracking outbound parcels ***
   let apiUrl;
   if (shippingId) {
-    apiUrl = `https://panel.sendcloud.sc/api/v2/parcels/${shippingId}`; // Example URL for parcel by ID
+    apiUrl = `https://panel.sendcloud.sc/api/v3/parcels/${shippingId}`; // Example URL for parcel by ID
   } else if (trackingNumber) {
-    apiUrl = `https://panel.sendcloud.sc/api/v2/parcels?tracking_number=${trackingNumber}`; // Example URL for parcel by tracking
+    apiUrl = `https://panel.sendcloud.sc/api/v3/parcels?tracking_number=${trackingNumber}`; // Example URL for parcel by tracking
   } else {
     throw new Error('Either shippingId or trackingNumber is required');
   }

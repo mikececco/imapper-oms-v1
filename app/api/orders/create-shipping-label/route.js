@@ -231,7 +231,7 @@ async function createSendCloudParcel(order, orderPackValue) {
     console.log('Sending parcel data to SendCloud:', JSON.stringify(parcelData, null, 2));
     
     // Send the request to SendCloud API
-    const response = await fetch('https://panel.sendcloud.sc/api/v2/parcels', {
+    const response = await fetch('https://panel.sendcloud.sc/api/v3/parcels', {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${auth}`,
