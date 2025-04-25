@@ -35,6 +35,7 @@ export default function Orders() {
   const [isOverduePopupOpen, setIsOverduePopupOpen] = useState(false);
   const [overdueOrdersForPopup, setOverdueOrdersForPopup] = useState([]);
   const [isLoadingOverdue, setIsLoadingOverdue] = useState(false);
+  const [justOpenedStagnantModal, setJustOpenedStagnantModal] = useState(false);
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -144,12 +145,20 @@ export default function Orders() {
   };
 
   const loadOrders = async () => {
+    // Check and reset the flag
+    let skipUrlFilterCheck = false;
+    if (justOpenedStagnantModal) {
+      console.log("[loadOrders] Skipping URL filter check because stagnant modal was just opened.");
+      setJustOpenedStagnantModal(false);
+      skipUrlFilterCheck = true;
+    }
+
     try {
       setLoading(true);
       let data;
 
-      // Prioritize the URL filter if it's set
-      if (activeUrlFilter === 'stagnant-shipment') {
+      // Prioritize the URL filter ONLY IF the flag is not set
+      if (!skipUrlFilterCheck && activeUrlFilter === 'stagnant-shipment') { 
         console.log("[loadOrders] Fetching stagnant orders based on URL filter.");
         data = await fetchOverdueOrders();
       } else if (activeFilters) {
@@ -308,6 +317,7 @@ export default function Orders() {
       console.log('[handleNotificationClick] fetchOverdueOrders returned:', overdueData);
       setOverdueOrdersForPopup(overdueData || []);
       console.log('[handleNotificationClick] Setting isOverduePopupOpen to true...');
+      setJustOpenedStagnantModal(true); // Set flag BEFORE opening modal
       setIsOverduePopupOpen(true); // Open the popup
     } catch (error) {
       // Error is handled within fetchOverdueOrders with a toast
