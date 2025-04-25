@@ -145,7 +145,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         (order.shipping_address_house_number && order.shipping_address_house_number.toLowerCase().includes(lowercaseQuery)) ||
         (order.shipping_address_line2 && order.shipping_address_line2.toLowerCase().includes(lowercaseQuery)) ||
         (order.shipping_address_city && order.shipping_address_city.toLowerCase().includes(lowercaseQuery)) ||
-        (order.shipping_address_postal_code && order.shipping_address_postal_code.toLowerCase().includes(lowercaseQuery)) ||
+        (order.shipping_address_postal_code && (typeof order.shipping_address_postal_code === 'string' ? order.shipping_address_postal_code.toLowerCase() : order.shipping_address_postal_code.toString().toLowerCase()).includes(lowercaseQuery)) ||
         (order.shipping_address_country && order.shipping_address_country.toLowerCase().includes(lowercaseQuery)) ||
         // (packLabel && packLabel.toLowerCase().includes(lowercaseQuery)) || // TODO: Enable this line when orderPackLists is populated
         (order.order_notes && order.order_notes.toLowerCase().includes(lowercaseQuery)) ||

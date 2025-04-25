@@ -154,12 +154,12 @@ export async function searchOrders(query) {
       return await fetchOrders();
     }
     
-    // Clean the query to prevent SQL injection issues with .or()
-    const cleanQuery = query.replace(/[%_]/g, '\\$&');
-    const lowercaseQuery = cleanQuery.toLowerCase();
+    // Clean the query
+    const cleanQuery = query.replace(/[%_]/g, '\\$&'); 
+    const lowercaseQuery = cleanQuery.toLowerCase(); // Keep for pack label filtering
     console.log(`Searching for orders with cleaned query: "${cleanQuery}"`);
 
-    // 1. Fetch order pack lists first (we need labels for filtering)
+    // 1. Fetch order pack lists first (still needed for label filtering)
     let orderPackLists = [];
     try {
       const { data: packData, error: packError } = await supabase
@@ -167,7 +167,6 @@ export async function searchOrders(query) {
         .select('id, label');
       if (packError) {
         console.error('Error fetching order pack lists during search:', packError);
-        // Continue without pack label filtering if this fails
       } else {
         orderPackLists = packData || [];
       }
@@ -175,30 +174,33 @@ export async function searchOrders(query) {
         console.error('Exception fetching order pack lists during search:', e);
     }
     
-    // 2. Fetch orders based on other fields
-    const { data: initialData, error: searchError } = await supabase
+    // 2. Fetch orders using a comprehensive ILIKE search
+    const orFilter = [
+      `id::text.ilike.%${cleanQuery}%`, // Cast id to text for ilike
+      `name.ilike.%${cleanQuery}%`,
+      `email.ilike.%${cleanQuery}%`,
+      `phone.ilike.%${cleanQuery}%`,
+      `shipping_address_line1.ilike.%${cleanQuery}%`,
+      `shipping_address_house_number.ilike.%${cleanQuery}%`,
+      `shipping_address_line2.ilike.%${cleanQuery}%`,
+      `shipping_address_city.ilike.%${cleanQuery}%`,
+      `shipping_address_postal_code.ilike.%${cleanQuery}%`,
+      `shipping_address_country.ilike.%${cleanQuery}%`,
+      `order_notes.ilike.%${cleanQuery}%`,
+      `status.ilike.%${cleanQuery}%`,
+      `instruction.ilike.%${cleanQuery}%`,
+      `tracking_number.ilike.%${cleanQuery}%`,
+      `shipping_id.ilike.%${cleanQuery}%`,
+      `stripe_customer_id.ilike.%${cleanQuery}%`,
+      `stripe_invoice_id.ilike.%${cleanQuery}%`,
+      // Add any other relevant text fields here
+    ].join(',');
+
+    const { data: dbData, error: searchError } = await supabase
       .from('orders')
       .select('*')
-      .eq('created_via', 'standard')
-      .or(
-        `id.ilike.%${cleanQuery}%,` +
-        `name.ilike.%${cleanQuery}%,` +
-        `email.ilike.%${cleanQuery}%,` +
-        `phone.ilike.%${cleanQuery}%,` +
-        `shipping_address_line1.ilike.%${cleanQuery}%,` +
-        `shipping_address_line2.ilike.%${cleanQuery}%,` +
-        `shipping_address_city.ilike.%${cleanQuery}%,` +
-        `shipping_address_postal_code.ilike.%${cleanQuery}%,` +
-        `shipping_address_country.ilike.%${cleanQuery}%,` +
-        // `order_pack.ilike.%${cleanQuery}%,` + // Removed direct search on order_pack
-        `order_notes.ilike.%${cleanQuery}%,` +
-        `status.ilike.%${cleanQuery}%,` +
-        `instruction.ilike.%${cleanQuery}%,` +
-        `tracking_number.ilike.%${cleanQuery}%,` +
-        `stripe_customer_id.ilike.%${cleanQuery}%,` +
-        `stripe_invoice_id.ilike.%${cleanQuery}%`
-        // Note: Cannot directly search order_pack_list_id with ilike easily here
-      )
+      .eq('created_via', 'standard') // Keep this if you only want standard orders
+      .or(orFilter)
       .order('created_at', { ascending: false });
 
     if (searchError) {
@@ -206,37 +208,10 @@ export async function searchOrders(query) {
       return [];
     }
 
-    // 3. Perform secondary filtering based on order pack label (if lists were fetched)
-    const finalData = (initialData || []).filter(order => {
-        // Check if the order matches based on non-pack fields (already done by DB query)
-        const matchesOtherFields = (
-            (order.id && order.id.toString().toLowerCase().includes(lowercaseQuery)) ||
-            (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
-            (order.email && order.email.toLowerCase().includes(lowercaseQuery)) ||
-            (order.phone && order.phone.toLowerCase().includes(lowercaseQuery)) ||
-            (order.shipping_address_line1 && order.shipping_address_line1.toLowerCase().includes(lowercaseQuery)) ||
-            (order.shipping_address_line2 && order.shipping_address_line2.toLowerCase().includes(lowercaseQuery)) ||
-            (order.shipping_address_city && order.shipping_address_city.toLowerCase().includes(lowercaseQuery)) ||
-            (order.shipping_address_postal_code && order.shipping_address_postal_code.toLowerCase().includes(lowercaseQuery)) ||
-            (order.shipping_address_country && order.shipping_address_country.toLowerCase().includes(lowercaseQuery)) ||
-            (order.order_notes && order.order_notes.toLowerCase().includes(lowercaseQuery)) ||
-            (order.status && order.status.toLowerCase().includes(lowercaseQuery)) ||
-            (order.instruction && order.instruction.toLowerCase().includes(lowercaseQuery)) ||
-            (order.tracking_number && order.tracking_number.toLowerCase().includes(lowercaseQuery)) ||
-            (order.stripe_customer_id && order.stripe_customer_id.toLowerCase().includes(lowercaseQuery)) ||
-            (order.stripe_invoice_id && order.stripe_invoice_id.toLowerCase().includes(lowercaseQuery))
-        );
+    // 3. Return DB results directly (Secondary client-side filter removed)
+    console.log(`Search returned ${dbData.length} results from database.`);
+    return dbData || [];
 
-        // Check if the order matches based on the pack label
-        const packLabel = orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || '';
-        const matchesPackLabel = packLabel && packLabel.toLowerCase().includes(lowercaseQuery);
-
-        // Include the order if it matches EITHER other fields OR the pack label
-        return matchesOtherFields || matchesPackLabel;
-    });
-
-    console.log(`Search returned ${finalData.length} results after secondary filtering`);
-    return finalData || []; // Return the doubly filtered data
   } catch (error) {
     console.error('Exception in searchOrders:', error);
     return [];
