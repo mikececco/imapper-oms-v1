@@ -309,6 +309,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
       
       toast.success('Order created successfully!', { id: toastId });
       onOrderCreated(createdOrder);
+      onClose();
     } catch (error) {
       console.error('Error creating order:', error);
       toast.error(error.message || 'Failed to create order', { id: toastId });
