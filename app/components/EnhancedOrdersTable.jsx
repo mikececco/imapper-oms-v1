@@ -582,7 +582,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
           const cellContent = daysCreated !== null ? `${daysCreated}d` : '-';
           
           return (
-              <div className={`w-[80px] ${needsHighlight ? 'pumping-warning-bg' : ''}`}>
+              <div className={`w-[80px] text-center ${needsHighlight ? 'strong-warning-border' : ''}`}>
                   {cellContent}
               </div>
           );
@@ -607,7 +607,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         const cellContent = daysSinceToShip !== null ? `${daysSinceToShip}d` : '-';
         
         return (
-          <span className={`w-[100px] ${isOverdue ? 'pumping-warning-bg' : ''}`}>
+          <span className={`w-[100px] text-center ${isOverdue ? 'strong-warning-border' : ''}`}>
             {cellContent}
           </span>
         );

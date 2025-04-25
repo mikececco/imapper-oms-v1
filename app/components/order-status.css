@@ -411,17 +411,13 @@ table td .shipping-instruction {
   display: block;
 }
 
-/* --- Pumping Animation for Warnings --- */
-@keyframes pumping-effect {
-  0% { background-color: #fee2e2; transform: scale(1); } /* red-100 */
-  50% { background-color: #fca5a5; transform: scale(1.05); } /* Brighter red (red-400) and larger scale */
-  100% { background-color: #fee2e2; transform: scale(1); } /* red-100 */
-}
-
-.pumping-warning-bg {
-  animation: pumping-effect 2s infinite ease-in-out;
-  border-radius: 0.25rem; /* Optional: makes background rounded */
-  display: inline-block; /* Needed for animation/padding */
-  padding: 0 0.2rem; /* Minimal horizontal padding */
-  margin: -0.05rem -0.4rem; /* Counteract cell padding to fill space */ 
+/* --- Strong Red Border for Warnings --- */
+.strong-warning-border {
+  border: 2px solid #dc2626; /* Strong red border (Tailwind red-600) */
+  border-radius: 0.25rem; /* Slightly rounded corners */
+  padding: 0.05rem 0.3rem; /* Small padding inside border */
+  background-color: #fee2e2; /* Optional: light red background (red-100) */
+  color: #b91c1c; /* Optional: Darker red text (red-700) */
+  font-weight: bold; /* Make text bold */
+  display: inline-block; /* Fit content */
 } 
