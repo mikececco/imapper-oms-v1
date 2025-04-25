@@ -201,7 +201,7 @@ export default function Navigation() {
           <Link 
             href="/returns" 
             className={`sidebar-link ${pathname.startsWith('/returns') ? 'active' : ''}`}
-            title="Returns (NOT LIVE)"
+            title="Returns"
           >
             <svg className="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
@@ -209,9 +209,6 @@ export default function Navigation() {
             {(!isSidebarCollapsed || isMobileView) && (
               <span className="flex items-center">
                 <span>Returns</span>
-                <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
-                  NOT LIVE
-                </span>
               </span>
             )}
           </Link>

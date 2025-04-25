@@ -601,13 +601,23 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         const instruction = isMounted ? calculateOrderInstruction(row.original) : (row.original.instruction || 'ACTION REQUIRED');
         let daysSinceToShip = null;
         if (instruction === 'TO SHIP') {
-            daysSinceToShip = calculateDaysSince(row.original.updated_at);
+            // Calculate days only if the instruction is TO SHIP
+            daysSinceToShip = calculateDaysSince(row.original.became_to_ship_at || row.original.updated_at); // Use became_to_ship_at if available, fallback to updated_at
         }
-        const isOverdue = daysSinceToShip !== null && daysSinceToShip > 2;
+        
+        // New condition check
+        const status = row.original.status?.toLowerCase();
+        const needsHighlightSinceLabel = 
+            instruction === 'TO SHIP' && 
+            daysSinceToShip !== null && 
+            daysSinceToShip >= 1 &&
+            (status === 'pending' || status === 'ready to send');
+            
         const cellContent = daysSinceToShip !== null ? `${daysSinceToShip}d` : '-';
         
         return (
-          <span className={`w-[100px] text-center ${isOverdue ? 'strong-warning-border' : ''}`}>
+          // Apply warning border based on the new condition
+          <span className={`w-[100px] text-center ${needsHighlightSinceLabel ? 'strong-warning-border' : ''}`}>
             {cellContent}
           </span>
         );
