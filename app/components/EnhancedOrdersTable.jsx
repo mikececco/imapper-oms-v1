@@ -594,7 +594,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       header: () => (
         <div className="flex items-center gap-1">
           <Clock className="h-4 w-4" />
-          Time To Ship (Days)
+          Since Label (Days)
         </div>
       ),
       cell: ({ row }) => {
@@ -830,17 +830,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         case 'ACTION REQUIRED':
                           return 'bg-red-100 hover:bg-red-200'; // Keep light red for high alert
                         case 'TO SHIP':
-                           // Find orders where became_to_ship_at is older than 24 hours
-                           const becameToShipAt = row.original.became_to_ship_at;
-                           let isStagnant = false;
-                           if (becameToShipAt) {
-                             const becameToShipDate = new Date(becameToShipAt);
-                             const twentyFourHoursAgo = new Date();
-                             twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
-                             isStagnant = becameToShipDate < twentyFourHoursAgo;
-                           }
-                           // If stagnant, use a stronger warning color, otherwise a lighter one
-                           return isStagnant ? 'bg-yellow-300 hover:bg-yellow-400' : 'bg-yellow-100 hover:bg-yellow-200';
+                           // Removed stagnant check, always light blue now
+                           return 'bg-blue-100 hover:bg-blue-200'; // Light blue for TO SHIP
                         case 'TO BE SHIPPED BUT NO STICKER':
                           return 'bg-orange-200 hover:bg-orange-300'; // Use orange for this specific state
                         case 'PASTE BACK TRACKING LINK':
@@ -848,7 +839,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         case 'NO ACTION REQUIRED':
                           return 'bg-green-100 hover:bg-green-200'; // Lighter green for resolved
                         case 'SHIPPED':
-                          return 'bg-blue-100 hover:bg-blue-200'; // Light blue for in progress
+                          return 'bg-green-100 hover:bg-green-200'; // Changed to light green for SHIPPED
                         case 'DELIVERED':
                           return 'bg-green-200 hover:bg-green-300'; // Slightly darker green for completed
                         case 'DO NOT SHIP':

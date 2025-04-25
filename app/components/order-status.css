@@ -413,9 +413,9 @@ table td .shipping-instruction {
 
 /* --- Pumping Animation for Warnings --- */
 @keyframes pumping-effect {
-  0% { background-color: #fee2e2; transform: scale(1); }
-  50% { background-color: #fecaca; transform: scale(1.03); }
-  100% { background-color: #fee2e2; transform: scale(1); }
+  0% { background-color: #fee2e2; transform: scale(1); } /* red-100 */
+  50% { background-color: #fca5a5; transform: scale(1.05); } /* Brighter red (red-400) and larger scale */
+  100% { background-color: #fee2e2; transform: scale(1); } /* red-100 */
 }
 
 .pumping-warning-bg {
