@@ -413,11 +413,13 @@ table td .shipping-instruction {
 
 /* --- Strong Red Border for Warnings --- */
 .strong-warning-border {
-  border: 2px solid #dc2626; /* Strong red border (Tailwind red-600) */
-  border-radius: 0.25rem; /* Slightly rounded corners */
-  padding: 0.05rem 0.3rem; /* Small padding inside border */
-  background-color: #fee2e2; /* Optional: light red background (red-100) */
-  color: #b91c1c; /* Optional: Darker red text (red-700) */
-  font-weight: bold; /* Make text bold */
+  border: 1px solid #dc2626; /* Thinner red border */
+  border-radius: 0.15rem; /* Smaller radius */
+  padding: 0 0.2rem; /* Minimal padding */
+  background-color: #fee2e2; /* Light red background */
+  color: #b91c1c; /* Darker red text */
+  font-weight: normal; /* Normal weight */
+  font-size: 0.65rem; /* Smaller font */
+  line-height: 1; /* Minimal line height */
   display: inline-block; /* Fit content */
 } 

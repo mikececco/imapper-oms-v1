@@ -40,7 +40,7 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table'
 import { Checkbox } from "./ui/checkbox";
-import { Clock, CalendarDays } from "lucide-react"; // Import icons
+import { Clock, CalendarDays, Flag, CircleDollarSign, CheckCircle2, XCircle } from "lucide-react"; // Import icons
 // --- End TanStack Table Imports ---
 
 // Parse shipping address for display
@@ -554,7 +554,11 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       size: 140,
     }),
     columnHelper.accessor('important', {
-        header: 'Important',
+        header: () => (
+          <div className="flex items-center justify-center" title="Important">
+             <Flag className="h-4 w-4" />
+          </div>
+        ),
         cell: ({ row }) => (
             <div className="flex items-center justify-center">
                 <ImportantFlag
@@ -568,9 +572,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     }),
     columnHelper.accessor('created_at', {
       header: () => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center" title="Age (Days)">
           <CalendarDays className="h-4 w-4" />
-          Age (Days)
         </div>
       ),
       cell: info => {
@@ -592,9 +595,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     columnHelper.display({
       id: 'timeToShip',
       header: () => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center" title="Since Label (Days)">
           <Clock className="h-4 w-4" />
-          Since Label (Days)
         </div>
       ),
       cell: ({ row }) => {
@@ -735,13 +737,22 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         size: 80,
     }),
     columnHelper.accessor('paid', { 
-        header: 'Paid?', 
-        cell: info => <div className="w-[80px]"><PaymentStatus isPaid={info.getValue()} /></div>, // Add width
+        header: () => (
+          <div className="flex items-center justify-center" title="Paid?">
+            <CircleDollarSign className="h-4 w-4" />
+          </div>
+        ),
+        cell: info => <div className="w-[80px] text-center"><PaymentStatus isPaid={info.getValue()} /></div>, // Added text-center
         size: 80,
     }),
     columnHelper.accessor('ok_to_ship', { 
-        header: 'OK TO SHIP', 
-        cell: info => <div className="w-[100px]"><ShippingStatus okToShip={info.getValue()} /></div>, // Add width
+        header: () => (
+          <div className="flex items-center justify-center" title="OK TO SHIP">
+            {/* Consider CheckCircle2 / XCircle or similar */} 
+            <CheckCircle2 className="h-4 w-4 text-gray-500" /> 
+          </div>
+        ), 
+        cell: info => <div className="w-[100px] text-center"><ShippingStatus okToShip={info.getValue()} /></div>, // Added text-center
         size: 100,
     }),
     columnHelper.accessor('created_at', { 
@@ -866,7 +877,8 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                       <TableRow 
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
-                        className={`text-black ${bgColorClass} ${importantClass}`}
+                        className={`text-black ${bgColorClass} ${importantClass} cursor-pointer`}
+                        onClick={() => openModal(row.original.id)}
                       >
                         {row.getVisibleCells().map(cell => {
                           let stickyCellClasses = '';
