@@ -395,11 +395,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       shipping_address_city: formData.shipping_address_city.trim(),
       shipping_address_postal_code: formData.shipping_address_postal_code.trim(),
       shipping_address_country: normalizeCountryToCode(formData.shipping_address_country),
-      order_pack_list_id: formData.order_pack_list_id,
+      order_pack_list_id: formData.order_pack_list_id || null,
       order_pack_quantity: formData.order_pack_quantity,
       order_notes: formData.order_notes.trim(),
       weight: formData.weight,
-      shipping_method: formData.shipping_method,
+      shipping_method: formData.shipping_method.trim(),
       serial_number: formData.serial_number.trim(),
       updated_at: new Date().toISOString(),
     };
@@ -441,6 +441,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
             order_id: order.id,
             action_type: 'order_update', // Use the valid enum value
             changes: addressChanges, // Log the specific address changes
+            performed_by: null, // Explicitly set performed_by to null
             created_at: new Date().toISOString()
           });
                 
@@ -779,6 +780,27 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           </div>
         </div>
       </div>
+
+      {/* Conditionally display Shipping Method Input */}
+      {(formData.shipping_address_country?.toUpperCase() === 'GB' || formData.shipping_address_country?.toUpperCase() === 'CH') && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <h3 className="font-medium text-black mb-2">Shipping Method (Required for {formData.shipping_address_country.toUpperCase()})</h3>
+          <div>
+            <label htmlFor="shipping_method" className="text-sm font-medium block">
+              Shipping Method <span className='text-xs text-gray-500'>(e.g., standard, express)</span>
+            </label>
+            <input
+              id="shipping_method"
+              name="shipping_method"
+              type="text"
+              placeholder="Enter shipping method"
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_method')}`}
+              value={formData.shipping_method}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Shipping & Tracking Information Section */}
       <div className="mt-8 pt-6 border-t border-gray-200">
