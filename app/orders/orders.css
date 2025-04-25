@@ -44,7 +44,7 @@
 .order-filters .filter-actions {
   margin-left: auto; /* Push clear button to the right */
   padding-bottom: 0; /* Align button baseline */
-}
+  }
 
 .order-filters .filter-actions button {
   padding: 0.5rem 1rem;
@@ -115,7 +115,7 @@
 
 .tab.active .error-badge {
   background-color: #f87171;
-}
+} 
 
 /* --- Google Sheet Style Table Overrides --- */
 

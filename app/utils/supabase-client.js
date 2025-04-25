@@ -417,34 +417,61 @@ export async function filterOrders(filters) {
   }
 }
 
-// Update order instruction
-export async function updateOrderInstruction(orderId, newInstruction) {
-  if (!orderId || !newInstruction) {
-    console.error('Missing orderId or newInstruction for update');
-    return { success: false, error: 'Missing orderId or newInstruction' };
+// Update order instruction (Now updates manual_instruction)
+export async function updateOrderInstruction(orderId, manualInstructionText) {
+  if (!orderId || !manualInstructionText) {
+    console.error('Missing orderId or manualInstructionText for update');
+    return { success: false, error: 'Missing orderId or manualInstructionText' };
   }
   
   try {
-    console.log(`Updating instruction for order ${orderId} to "${newInstruction}"`);
+    console.log(`Setting manual instruction for order ${orderId} to "${manualInstructionText}"`);
     const { data, error } = await supabase
       .from('orders')
       .update({
-        instruction: newInstruction,
+        manual_instruction: manualInstructionText, // Update manual_instruction column
         updated_at: new Date().toISOString()
       })
       .eq('id', orderId)
-      .select('id, instruction') // Select the updated fields
+      .select('id, manual_instruction') // Select the updated fields
       .single(); // Expect only one row back
       
     if (error) {
-      console.error('Error updating order instruction:', error);
+      console.error('Error updating manual order instruction:', error);
       return { success: false, error };
     }
     
-    console.log(`Successfully updated instruction for order ${orderId}:`, data);
+    // Log the activity
+    const previousInstruction = 'UNKNOWN'; // Placeholder - ideally fetch previous value if needed
+    try {
+      const { error: logError } = await supabase
+        .from('order_activities') // Corrected table name
+        .insert({
+          order_id: orderId,
+          action_type: 'order_update', // Use a valid enum type, e.g., 'order_update'
+          changes: { // Use the changes JSONB structure
+            manual_instruction: {
+              old_value: previousInstruction, // Provide old value if available, otherwise placeholder/null
+              new_value: manualInstructionText
+            }
+          },
+          created_at: new Date().toISOString() // Ensure timestamp is set
+          // user_id: userId // TODO: Add user ID if available/needed
+        });
+
+      if (logError) {
+        console.error('Error logging manual instruction update:', logError);
+        // Decide if this should make the overall operation fail
+        // For now, we'll just log the error and return success for the main update
+      }
+    } catch (logCatchError) {
+      console.error('Exception logging manual instruction update:', logCatchError);
+    }
+    
+    console.log(`Successfully set manual instruction for order ${orderId}:`, data);
     return { success: true, data };
   } catch (error) {
-    console.error('Exception updating order instruction:', error);
+    console.error('Exception updating manual order instruction:', error);
     return { success: false, error };
   }
 }

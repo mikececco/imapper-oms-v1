@@ -425,14 +425,16 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     
     let successCount = 0;
     let errorCount = 0;
+    const successfulUpdates = []; // To store successful updates for optimistic UI
     
     // Process updates in parallel
     const updatePromises = orderIds.map(async (orderId) => {
       try {
-        // Re-use single update logic (Consider a bulk API endpoint later)
-        const result = await updateOrderInstruction(orderId, 'NO ACTION REQUIRED');
+        // Call updated function to set manual_instruction
+        const result = await updateOrderInstruction(orderId, 'NO ACTION REQUIRED'); 
         if (result.success) {
           successCount++;
+          successfulUpdates.push({ orderId, manual_instruction: 'NO ACTION REQUIRED' }); // Store successful update
         } else {
           errorCount++;
           console.error(`Failed to mark order ${orderId} as No Action Required:`, result.error);
@@ -444,6 +446,18 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     });
 
     await Promise.all(updatePromises);
+    
+    // Optimistic UI Update
+    if (successfulUpdates.length > 0) {
+      setLocalOrders(prevOrders => {
+        const updatedOrdersMap = new Map(successfulUpdates.map(upd => [upd.orderId, upd.manual_instruction]));
+        return prevOrders.map(order => 
+          updatedOrdersMap.has(order.id) 
+            ? { ...order, manual_instruction: updatedOrdersMap.get(order.id) } 
+            : order
+        );
+      });
+    }
 
     if (successCount > 0) {
       toast.success(`${successCount} order(s) marked as 'No Action Required'.`);
@@ -468,27 +482,19 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
 
     let successCount = 0;
     let errorCount = 0;
+    const successfulUpdates = []; // To store successful updates for optimistic UI
 
     const updatePromises = orderIds.map(async (orderId) => {
       try {
-        // Assumes updateOrderStatus exists and works like updateOrderInstruction
-        // TODO: Potentially needs a dedicated bulk update API or refined single update function
-        const { data, error } = await supabase
-          .from('orders')
-          .update({ status: 'delivered', updated_at: new Date().toISOString() })
-          .eq('id', orderId)
-          .select() // Select to confirm update
-          .single(); // Assuming update affects single row
+        // Update manual_instruction instead of status
+        const result = await updateOrderInstruction(orderId, 'DELIVERED');
 
-        if (error) {
-          throw error;
-        }
-        
-        if (data) { // Check if update returned data (success)
-           successCount++;
+        if (result.success) {
+          successCount++;
+          successfulUpdates.push({ orderId, manual_instruction: 'DELIVERED' }); // Store successful update for manual_instruction
         } else {
           // This case might indicate an issue even without an explicit error
-          console.warn(`Order ${orderId} might not have been marked as Delivered.`);
+          console.warn(`Order ${orderId} might not have been marked as Delivered (manual instruction):`, result.error);
           errorCount++; // Count as error for feedback
         }
       } catch (err) {
@@ -498,12 +504,24 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
     });
 
     await Promise.all(updatePromises);
+    
+    // Optimistic UI Update
+    if (successfulUpdates.length > 0) {
+      setLocalOrders(prevOrders => {
+        const updatedOrdersMap = new Map(successfulUpdates.map(upd => [upd.orderId, upd.manual_instruction]));
+        return prevOrders.map(order =>
+          updatedOrdersMap.has(order.id)
+            ? { ...order, manual_instruction: updatedOrdersMap.get(order.id) } // Update manual_instruction locally
+            : order
+        );
+      });
+    }
 
     if (successCount > 0) {
-      toast.success(`${successCount} order(s) marked as 'Delivered'.`);
+      toast.success(`${successCount} order(s) instruction set to 'DELIVERED'.`);
     }
     if (errorCount > 0) {
-      toast.error(`Failed to mark ${errorCount} order(s) as Delivered. Check console.`);
+      toast.error(`Failed to set instruction for ${errorCount} order(s). Check console.`);
     }
 
     // Refresh data and clear selection
@@ -529,6 +547,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
+          onClick={(e) => e.stopPropagation()}
           className="translate-y-[2px] bg-white data-[state=checked]:bg-white data-[state=checked]:text-black border-gray-400"
         />
       ),
@@ -560,7 +579,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
           </div>
         ),
         cell: ({ row }) => (
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()} >
                 <ImportantFlag
                     isImportant={row.original.important}
                     orderId={row.original.id}
@@ -878,7 +897,14 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
                         className={`text-black ${bgColorClass} ${importantClass} cursor-pointer`}
-                        onClick={() => openModal(row.original.id)}
+                        onClick={(e) => { 
+                          // Check if the click was on the checkbox or important flag container or their children
+                          // This is a fallback, primary prevention is in the cell components
+                          if (e.target.closest('[role="checkbox"]') || e.target.closest('.important-flag-container')) {
+                            return; // Do nothing if click was on checkbox/important flag
+                          }
+                          openModal(row.original.id); 
+                        }}
                       >
                         {row.getVisibleCells().map(cell => {
                           let stickyCellClasses = '';
@@ -894,6 +920,16 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
                               key={cell.id} 
                               style={{ width: cell.column.getSize() }} 
                               className={stickyCellClasses}
+                              onClick={(e) => {
+                                // Allow clicks specifically on checkbox/important flag cells to propagate for their own handlers
+                                if (cell.column.id === 'select' || cell.column.id === 'important') {
+                                  // No explicit stopPropagation needed here if handled in child
+                                } else {
+                                  // Prevent cell clicks from triggering row click IF NOT already handled
+                                  // This might be redundant if row onClick handles it, but safer?
+                                  // Let's remove this cell-level stopPropagation for now as it might interfere
+                                }
+                              }}
                              > 
                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
                              </TableCell>

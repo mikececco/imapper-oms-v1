@@ -423,25 +423,25 @@ export default function Orders() {
 
       <OrderSearch />
       <OrderFilters onFilterChange={handleFilterChange} className="mt-[-1rem]" />
-
+        
       <div className="orders-content mt-4">
-        <CountryTabs
-          orders={orders}
-          activeTab={activeCountry}
-          setActiveTab={handleCountryChange}
-        />
-        <EnhancedOrdersTable
-          orders={filteredOrders}
-          loading={loading}
-          onRefresh={loadOrders}
-          onOrderUpdate={handleOrderUpdate}
-        />
+          <CountryTabs 
+            orders={orders} 
+            activeTab={activeCountry}
+            setActiveTab={handleCountryChange} 
+          />
+          <EnhancedOrdersTable 
+            orders={filteredOrders} 
+            loading={loading} 
+            onRefresh={loadOrders}
+            onOrderUpdate={handleOrderUpdate}
+          />
       </div>
 
-      <OverdueOrdersPopup
-        isOpen={isOverduePopupOpen}
-        onClose={handleCloseOverduePopup}
-        orders={overdueOrdersForPopup}
+      <OverdueOrdersPopup 
+        isOpen={isOverduePopupOpen} 
+        onClose={handleCloseOverduePopup} 
+        orders={overdueOrdersForPopup} 
       />
 
       <NewOrderModal

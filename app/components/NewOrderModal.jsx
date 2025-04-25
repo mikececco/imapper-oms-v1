@@ -289,7 +289,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
         order_pack_list_id: formData.order_pack_list_id || null,
         weight: parseFloat(formData.weight).toFixed(3) || 1.000,
         order_notes: formData.order_notes || null,
-        created_via: isReturnsContext ? 'returns_portal' : 'manual',
+        created_via: isReturnsContext ? 'returns_portal' : 'standard',
         ...(formData.manual_instruction && { manual_instruction: formData.manual_instruction }),
         paid: true,
         ok_to_ship: true

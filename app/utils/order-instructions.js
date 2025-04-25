@@ -140,7 +140,7 @@ export function calculateOrderInstruction(order) {
   
   // **Priority Check: Manual Instruction**
   // If a manual instruction exists, return it immediately.
-  if (!isEmpty(order.manual_instruction)) {
+  if (order.manual_instruction && order.manual_instruction.trim().length > 0) {
     return order.manual_instruction;
   }
   
