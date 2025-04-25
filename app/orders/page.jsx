@@ -292,16 +292,17 @@ export default function Orders() {
   const handleNotificationClick = async () => {
     console.log('[handleNotificationClick] Clicked. hasOverdueOrders:', hasOverdueOrders, 'isLoadingOverdue:', isLoadingOverdue);
     
-    // Clear any active URL filter to prevent main table reload with filter
-    if (activeUrlFilter) {
-        console.log('[handleNotificationClick] Clearing activeUrlFilter.');
-        setActiveUrlFilter(''); 
-        // Optionally, also remove the filter from the URL, but this might trigger 
-        // an unwanted page reload depending on router behavior. Let's avoid for now.
-        // const params = new URLSearchParams(searchParams);
-        // params.delete('filter');
-        // router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ''}`, { scroll: false });
+    // --- Force Removal of Filter Parameter --- 
+    const params = new URLSearchParams(searchParams);
+    if (params.has('filter')) {
+      console.log('[handleNotificationClick] Removing filter parameter from URL.');
+      params.delete('filter');
+      // Use router.replace to update URL without full navigation/reload and prevent adding to history
+      router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ''}`, { scroll: false }); 
     }
+    // Clear the state variable as well, although router.replace might make this redundant
+    setActiveUrlFilter(''); 
+    // --- End Force Removal ---
     
     // Only exit if already loading, otherwise always proceed
     if (isLoadingOverdue) {
