@@ -282,6 +282,18 @@ export default function Orders() {
   // NEW: Handler for the notification button click
   const handleNotificationClick = async () => {
     console.log('[handleNotificationClick] Clicked. hasOverdueOrders:', hasOverdueOrders, 'isLoadingOverdue:', isLoadingOverdue);
+    
+    // Clear any active URL filter to prevent main table reload with filter
+    if (activeUrlFilter) {
+        console.log('[handleNotificationClick] Clearing activeUrlFilter.');
+        setActiveUrlFilter(''); 
+        // Optionally, also remove the filter from the URL, but this might trigger 
+        // an unwanted page reload depending on router behavior. Let's avoid for now.
+        // const params = new URLSearchParams(searchParams);
+        // params.delete('filter');
+        // router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ''}`, { scroll: false });
+    }
+    
     // Only exit if already loading, otherwise always proceed
     if (isLoadingOverdue) {
       console.log('[handleNotificationClick] Exiting: Currently loading.');
