@@ -405,13 +405,49 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
   };
 
   const confirmBulkDelete = async () => {
-    setIsDeleting(true);
     const selectedRowOriginals = table.getSelectedRowModel().rows.map(row => row.original);
     const orderIds = selectedRowOriginals.map(order => order.id);
-    // ... (rest of existing implementation using orderIds) ...
-    table.resetRowSelection();
+
+    if (orderIds.length === 0) {
+      toast.error('No orders selected for deletion.');
+      setIsConfirmingDelete(false);
+      return;
+    }
+
+    setIsDeleting(true);
+    const toastId = toast.loading(`Deleting ${orderIds.length} order(s)...`);
+
+    try {
+      const response = await fetch('/api/orders/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderIds }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete orders');
+      }
+
+      toast.success(`${result.deletedCount || orderIds.length} order(s) deleted successfully.`, { id: toastId });
+
+      // Optimistic UI Update: Remove deleted orders from local state
+      setLocalOrders(prevOrders => prevOrders.filter(order => !orderIds.includes(order.id)));
+      
+      // Refresh data from parent if handler provided
+      if (onRefresh) onRefresh(); 
+
+    } catch (error) {
+      console.error('Error deleting orders:', error);
+      toast.error(`Error: ${error.message}`, { id: toastId });
+    } finally {
+      table.resetRowSelection();
       setIsDeleting(false);
-    setIsConfirmingDelete(false);
+      setIsConfirmingDelete(false);
+    }
   };
 
   // --- Define Bulk Action Functions ---
