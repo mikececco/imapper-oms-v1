@@ -50,6 +50,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
   const [syncingShippingMethods, setSyncingShippingMethods] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isCustomPackModalOpen, setIsCustomPackModalOpen] = useState(false);
+  // Add state for manual status fetching
+  const [isFetchingStatus, setIsFetchingStatus] = useState(false);
 
   // Add state to track if form has been modified
   const [isFormModified, setIsFormModified] = useState(false);
@@ -478,6 +480,50 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     }
   };
 
+  // --- Function to manually fetch status update --- 
+  const handleFetchStatus = async () => {
+    if (isFetchingStatus) return; // Prevent multiple clicks
+    
+    setIsFetchingStatus(true);
+    toast.loading('Fetching latest status...', { id: 'fetch-status-toast' });
+    
+    try {
+      const response = await fetch(`/api/orders/update-delivery-status?orderId=${order.id}`);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to fetch status');
+      }
+      
+      // Update local state with the fresh data from the API response
+      if (result.order) {
+        const updatedOrderData = result.order;
+        setFormData(prev => ({
+          ...prev,
+          status: updatedOrderData.status, // Update status if returned
+          expected_delivery_date: updatedOrderData.expected_delivery_date, // Update expected date
+          sendcloud_tracking_history: updatedOrderData.sendcloud_tracking_history // Update history
+          // Note: We might need to update originalFormData too if we want these changes to persist without saving
+        }));
+        // Also update the calculated status if needed
+        setCalculatedStatus(updatedOrderData.status || calculateOrderStatus({ ...order, ...updatedOrderData }));
+        // Optionally update the parent component if needed via onUpdate
+        if (onUpdate) {
+          onUpdate(updatedOrderData);
+        }
+      }
+
+      toast.success(`Status Updated: ${result.deliveryStatus || 'N/A'}`, { id: 'fetch-status-toast' });
+      
+    } catch (error) {
+      console.error('Error fetching order status:', error);
+      toast.error(`Failed to fetch status: ${error.message}`, { id: 'fetch-status-toast' });
+    } finally {
+      setIsFetchingStatus(false);
+    }
+  };
+  // --- End function --- 
+
   // Ensure we always have at least one shipping method
   const displayMethods = shippingMethods.length > 0 ? shippingMethods : DEFAULT_SHIPPING_METHODS;
 
@@ -807,6 +853,32 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         <h3 className="font-medium text-black mb-4">Shipping & Tracking Information</h3>
         
         <div className="space-y-4">
+          {/* Manual Status Fetch Button */}
+          <button 
+            type="button"
+            onClick={handleFetchStatus}
+            disabled={isFetchingStatus || !order.id || (!order.tracking_link && !order.shipping_id)}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium transition-colors ${isFetchingStatus ? 'bg-gray-200 text-gray-500 cursor-wait' : 'bg-white text-gray-700 hover:bg-gray-50'} ${(!order.id || (!order.tracking_link && !order.shipping_id)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={(!order.id || (!order.tracking_link && !order.shipping_id)) ? 'Order needs a tracking link or shipping ID to fetch status' : 'Fetch latest status from Sendcloud'}
+          >
+            {isFetchingStatus ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Fetching Status...
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 00-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Status from Sendcloud
+              </>
+            )}
+          </button>
+
           <div>
             <label htmlFor="status" className="text-sm font-medium block mb-2">
               Order Status

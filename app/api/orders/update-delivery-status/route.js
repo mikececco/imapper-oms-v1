@@ -71,22 +71,27 @@ export async function POST(request) {
  * GET /api/orders/update-delivery-status?orderId=123
  */
 export async function GET(request) {
+  console.log(`--- ENTERING GET /api/orders/update-delivery-status ---`);
   try {
     // Check if Supabase client is initialized
     if (!supabase) {
       console.error('Supabase client not initialized. Missing URL or API key.');
+      console.log(`--- EXITING GET /api/orders/update-delivery-status (Supabase client error) ---`);
       return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
     }
     
     // Get the order ID from the query parameters
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('orderId');
+    console.log(`[update-delivery-status] Received request for orderId: ${orderId}`);
     
     if (!orderId) {
+      console.log(`--- EXITING GET /api/orders/update-delivery-status (Missing orderId) ---`);
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
     
     // Fetch the order from Supabase
+    console.log(`[update-delivery-status] Fetching order ${orderId} from DB...`);
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('*')
@@ -94,68 +99,49 @@ export async function GET(request) {
       .single();
     
     if (orderError) {
-      console.error('Error fetching order:', orderError);
+      console.error(`[update-delivery-status] Error fetching order ${orderId}:`, orderError);
+      console.log(`--- EXITING GET /api/orders/update-delivery-status (DB fetch error) ---`);
       return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
     }
     
     if (!order) {
+      console.log(`--- EXITING GET /api/orders/update-delivery-status (Order not found) ---`);
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     
-    // Skip check if manual_instruction is 'NO ACTION REQUIRED'
-    if (order.manual_instruction === 'NO ACTION REQUIRED') {
+    // --- Use updateOrderDeliveryStatus from sendcloud.js --- 
+    console.log(`[update-delivery-status] Calling updateOrderDeliveryStatus utility for order ${orderId}...`);
+    const result = await updateOrderDeliveryStatus(order);
+    console.log(`[update-delivery-status] Result from updateOrderDeliveryStatus for order ${orderId}:`, result);
+
+    if (!result.success) {
+      console.warn(`[update-delivery-status] updateOrderDeliveryStatus failed for order ${orderId}: ${result.error}`);
+      console.log(`--- EXITING GET /api/orders/update-delivery-status (updateOrderDeliveryStatus failed) ---`);
+      // Return success=false but with a 200 status as it's not necessarily a server fault (e.g., Sendcloud down)
+      // This matches the structure expected by the frontend's error handling.
       return NextResponse.json({ 
-        success: true,
-        message: 'Status check skipped: Order marked as NO ACTION REQUIRED.',
-        status: 'NO_ACTION_REQUIRED' // Provide a specific status code
-      });
+          success: false, 
+          error: result.error || 'Failed to update status' 
+      }, { status: 200 }); // Return 200 OK but indicate failure in response body
     }
-    
-    // Check if the order has a tracking number
-    if (!order.tracking_number) {
-      return NextResponse.json({ 
-        message: 'Order does not have a tracking number',
-        status: 'EMPTY'
-      });
-    }
-    
-    // Fetch the parcel status from SendCloud
-    const status = await fetchSendCloudParcelStatus(order.tracking_number);
-    
-    if (!status) {
-      return NextResponse.json({ 
-        message: 'Failed to fetch parcel status from SendCloud',
-        status: 'UNKNOWN'
-      });
-    }
-    
-    // Update the order with the delivery status
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({
-        delivery_status: status,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderId);
-    
-    if (updateError) {
-      console.error('Error updating order with delivery status:', updateError);
-      return NextResponse.json({ 
-        warning: true,
-        message: 'Delivery status fetched but failed to update order',
-        status
-      }, { status: 200 });
-    }
-    
-    return NextResponse.json({ 
+
+    // --- Return success response --- 
+    console.log(`[update-delivery-status] Successfully processed order ${orderId}. Status: ${result.deliveryStatus}`);
+    console.log(`--- EXITING GET /api/orders/update-delivery-status (Success) ---`);
+    return NextResponse.json({
       success: true,
-      message: 'Delivery status updated successfully',
-      status
+      message: result.message || 'Delivery status updated successfully',
+      deliveryStatus: result.deliveryStatus,
+      order: result.order // Pass back the updated order data
     });
     
   } catch (error) {
     console.error('Error updating delivery status:', error);
-    return NextResponse.json({ error: error.message || 'Failed to update delivery status' }, { status: 500 });
+    console.log(`--- EXITING GET /api/orders/update-delivery-status (Caught Exception) ---`);
+    return NextResponse.json({ 
+        success: false, 
+        error: error.message || 'Failed to update delivery status' 
+    }, { status: 500 });
   }
 }
 
@@ -164,43 +150,17 @@ export async function GET(request) {
  * @param {string} trackingNumber - The tracking number
  * @returns {Promise<string|null>} - The parcel status or null if not found
  */
-async function fetchSendCloudParcelStatus(trackingNumber) {
-  try {
-    // Check if SendCloud API credentials are available
-    const sendCloudApiKey = SENDCLOUD_API_KEY || process.env.SENDCLOUD_API_KEY;
-    const sendCloudApiSecret = SENDCLOUD_API_SECRET || process.env.SENDCLOUD_API_SECRET;
-    
-    if (!sendCloudApiKey || !sendCloudApiSecret) {
-      throw new Error('SendCloud API credentials not available');
-    }
-    
-    // Prepare the SendCloud API credentials
-    const auth = Buffer.from(`${sendCloudApiKey}:${sendCloudApiSecret}`).toString('base64');
-    
-    // Use the SendCloud tracking API endpoint instead of parcels endpoint
-    const response = await fetch(`https://panel.sendcloud.sc/api/v2/tracking/${trackingNumber}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/json'
-      },
-      // Add these options for Node.js environment
-      cache: 'no-store',
-      next: { revalidate: 0 }
-    });
-    
-    if (!response.ok) {
-      console.error('SendCloud API error:', response.status, response.statusText);
-      return null;
-    }
-    
-    const data = await response.json();
-    
-    // Return the status from the tracking endpoint
-    return data.status?.message || data.status || 'Unknown';
-    
-  } catch (error) {
-    console.error('Error fetching SendCloud parcel status:', error);
-    return null;
-  }
-} 
+// Remove fetchSendCloudParcelStatus function as it's no longer used directly by GET
+// async function fetchSendCloudParcelStatus(trackingNumber) { ... }
+
+// --- Keep the POST handler for batch updates if still needed --- 
+// /**
+//  * POST handler for batch updates (Not typically called directly by client)
+//  */
+// export async function POST(request) { ... }
+
+// --- Keep the GET handler for batch updates if still needed --- 
+// /**
+//  * GET handler for batch updates (Not typically called directly by client)
+//  */
+// export async function GET(request) { ... } 
