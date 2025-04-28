@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { fetchOrders, searchOrders, filterOrders } from "../utils/supabase-client";
+import { fetchOrders, searchOrders, filterOrders, triggerBulkDeliveryUpdate } from "../utils/supabase-client";
 import OrderSearch from "../components/OrderSearch";
 import EnhancedOrdersTable from "../components/EnhancedOrdersTable";
 import OrderFilters from "../components/OrderFilters";
@@ -266,26 +266,14 @@ export default function Orders() {
   };
 
   const handleUpdateDeliveryStatus = async () => {
-    try {
-      setIsUpdatingStatus(true);
-      const response = await fetch('/api/scheduled-tasks?task=delivery-status', {
-        method: 'POST'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update delivery statuses');
-      }
-      
-      const data = await response.json();
-      toast.success('Delivery statuses updated successfully');
-      
+    setIsUpdatingStatus(true);
+    const result = await triggerBulkDeliveryUpdate(); // Call the utility function
+    if (result.success) {
+      // Reload orders data on success
       loadOrders();
-    } catch (error) {
-      console.error('Error updating delivery statuses:', error);
-      toast.error('Failed to update delivery statuses');
-    } finally {
-      setIsUpdatingStatus(false);
     }
+    // Error handling/toast is done within the utility function
+    setIsUpdatingStatus(false);
   };
 
   // NEW: Handler for the notification button click

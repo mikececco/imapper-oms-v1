@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './env';
 import { calculateOrderInstruction } from './order-instructions';
+import { toast } from 'react-hot-toast';
 
 // Check if we're in a build context
 const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
@@ -558,5 +559,29 @@ export async function fetchTrackedOrders(limit = 10) {
   } catch (error) {
     console.error('Exception fetching tracked orders:', error);
     return [];
+  }
+}
+
+// Utility function to trigger the bulk delivery status update task
+export async function triggerBulkDeliveryUpdate() {
+  try {
+    const response = await fetch('/api/scheduled-tasks?task=delivery-status', {
+      method: 'POST'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({})); // Try to parse error, default to empty obj
+      console.error('Error triggering bulk update:', response.status, errorData);
+      throw new Error(errorData.error || 'Failed to trigger delivery status update task');
+    }
+
+    const data = await response.json();
+    toast.success(data.message || 'Delivery status update task triggered successfully');
+    return { success: true, data };
+
+  } catch (error) {
+    console.error('Exception triggering bulk update:', error);
+    toast.error(error.message || 'Failed to trigger delivery status update task');
+    return { success: false, error: error.message };
   }
 } 

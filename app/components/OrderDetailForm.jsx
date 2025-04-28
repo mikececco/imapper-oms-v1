@@ -386,21 +386,21 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
 
     // Identify changes, especially for address
     const updatedFields = {
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim(),
-      shipping_address_line1: formData.shipping_address_line1.trim(),
-      shipping_address_house_number: formData.shipping_address_house_number.trim(),
-      shipping_address_line2: formData.shipping_address_line2.trim(),
-      shipping_address_city: formData.shipping_address_city.trim(),
-      shipping_address_postal_code: formData.shipping_address_postal_code.trim(),
-      shipping_address_country: normalizeCountryToCode(formData.shipping_address_country),
+      name: typeof formData.name === 'string' ? formData.name.trim() : '',
+      email: typeof formData.email === 'string' ? formData.email.trim() : '',
+      phone: typeof formData.phone === 'string' ? formData.phone.trim() : '',
+      shipping_address_line1: typeof formData.shipping_address_line1 === 'string' ? formData.shipping_address_line1.trim() : '',
+      shipping_address_house_number: typeof formData.shipping_address_house_number === 'string' ? formData.shipping_address_house_number.trim() : '',
+      shipping_address_line2: typeof formData.shipping_address_line2 === 'string' ? formData.shipping_address_line2.trim() : '',
+      shipping_address_city: typeof formData.shipping_address_city === 'string' ? formData.shipping_address_city.trim() : '',
+      shipping_address_postal_code: typeof formData.shipping_address_postal_code === 'string' ? formData.shipping_address_postal_code.trim() : (formData.shipping_address_postal_code || ''),
+      shipping_address_country: typeof formData.shipping_address_country === 'string' ? formData.shipping_address_country.trim().toUpperCase() : (formData.shipping_address_country || ''),
       order_pack_list_id: formData.order_pack_list_id || null,
       order_pack_quantity: formData.order_pack_quantity,
-      order_notes: formData.order_notes.trim(),
+      order_notes: typeof formData.order_notes === 'string' ? formData.order_notes.trim() : '',
       weight: formData.weight,
-      shipping_method: formData.shipping_method.trim(),
-      serial_number: formData.serial_number.trim(),
+      shipping_method: typeof formData.shipping_method === 'string' ? formData.shipping_method.trim() : 'standard', // Default to 'standard' if not string
+      serial_number: typeof formData.serial_number === 'string' ? formData.serial_number.trim() : '',
       updated_at: new Date().toISOString(),
     };
 

@@ -7,6 +7,8 @@ import NewOrderModal from './NewOrderModal';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Button } from './ui/button';
 import { toast } from 'react-hot-toast';
+import { useSupabase } from "./Providers";
+import { triggerBulkDeliveryUpdate } from "../utils/supabase-client";
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -53,27 +55,12 @@ export default function Navigation() {
   };
 
   const handleUpdateDeliveryStatus = async () => {
-    try {
-      setIsUpdatingStatus(true);
-      const response = await fetch('/api/scheduled-tasks?task=delivery-status', {
-        method: 'POST'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update delivery statuses');
-      }
-      
-      const data = await response.json();
-      toast.success('Delivery statuses updated successfully');
-      
-      // Refresh the page
+    setIsUpdatingStatus(true);
+    const result = await triggerBulkDeliveryUpdate();
+    if (result.success) {
       router.refresh();
-    } catch (error) {
-      console.error('Error updating delivery statuses:', error);
-      toast.error('Failed to update delivery statuses');
-    } finally {
-      setIsUpdatingStatus(false);
     }
+    setIsUpdatingStatus(false);
   };
 
   return (

@@ -210,7 +210,7 @@ export async function batchUpdateDeliveryStatus(limit = 50) {
       .select('id, tracking_link, status, shipping_id, tracking_number, last_delivery_status_check') // Select last_delivery_status_check
       .not('tracking_link', 'is', null)
       .not('status', 'eq', 'delivered')
-      .neq('manual_instruction', 'NO ACTION REQUIRED') // Exclude orders marked as NO ACTION REQUIRED
+      .not('manual_instruction', 'in', '("NO ACTION REQUIRED", "DELIVERED")') // Corrected: Exclude orders with either instruction
       // Filter for orders not checked recently or never checked
       .or(`last_delivery_status_check.is.null,last_delivery_status_check.lt.${checkThreshold}`) 
       .order('last_delivery_status_check', { ascending: true, nullsFirst: true }) // Process oldest first

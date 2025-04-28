@@ -216,9 +216,9 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       });
   };
 
-  const handleUpdateDeliveryStatus = async () => {
-    // ... (existing implementation) ...
-  };
+  // const handleUpdateDeliveryStatus = async () => { // <-- Comment out or delete this block
+  //   // ... (existing implementation) ...
+  // };
 
   const handleMarkNoActionRequired = async (orderId) => {
     // ... (existing implementation) ...
