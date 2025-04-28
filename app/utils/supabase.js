@@ -1,21 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY } from './env';
+import { SERVER_SUPABASE_URL } from './env';
 import { normalizeCountryToCode } from './country-utils';
 
 // Check if we're in a build context
 const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
 
-if (!SERVER_SUPABASE_URL || !SERVER_SUPABASE_ANON_KEY || SERVER_SUPABASE_URL === 'build-placeholder') {
-  console.warn('Missing Supabase environment variables. Using fallback values.');
+// Check if environment variables are set
+// Use process.env directly here for server-side
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_URL === 'build-placeholder') {
+  console.warn('Missing Supabase environment variables (URL or Service Key). Using fallback values.');
 }
 
 // Create Supabase client with error handling
 let supabase;
 try {
-  // Only create the client if we're not in a build context
-  if (!isBuildTime && SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY && SERVER_SUPABASE_URL !== 'build-placeholder') {
-    supabase = createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, {
+  // Only create the client if we're not in a build context and vars exist
+  if (!isBuildTime && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_URL !== 'build-placeholder') {
+    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { // Use SERVICE KEY
       auth: { persistSession: false }
     });
   } else {

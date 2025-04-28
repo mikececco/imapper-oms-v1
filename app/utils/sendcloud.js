@@ -54,9 +54,19 @@ export async function fetchDeliveryStatus(trackingNumber) {
     }
 
     const data = await response.json();
+    console.log(`[fetchDeliveryStatus] SendCloud Raw Response for ${trackingNumber}:`, JSON.stringify(data, null, 2)); // Log raw response
+    
+    // Extract latest status from the statuses array
+    let latestStatus = null;
+    if (data.statuses && Array.isArray(data.statuses) && data.statuses.length > 0) {
+      const latestStatusObject = data.statuses[data.statuses.length - 1];
+      latestStatus = latestStatusObject.carrier_message || latestStatusObject.parent_status || null; // Use carrier_message, fallback to parent_status
+    }
+    console.log(`[fetchDeliveryStatus] Determined latest status for ${trackingNumber}:`, latestStatus);
+
     return {
-      status: data.status || null,
-      lastUpdate: data.last_update || null,
+      status: latestStatus, // Use the extracted latest status
+      lastUpdate: data.last_update || null, // Keep this if needed
       carrier: data.carrier || null,
       destination: data.destination || null,
       rawData: data
@@ -69,27 +79,16 @@ export async function fetchDeliveryStatus(trackingNumber) {
 
 /**
  * Update order delivery status from SendCloud
- * @param {string} orderId - The order ID
+ * @param {Object} order - The complete order object (including tracking_link)
  * @returns {Promise<Object>} - Result of the update operation
  */
-export async function updateOrderDeliveryStatus(orderId) {
+export async function updateOrderDeliveryStatus(order) {
+  const orderId = order.id; // Get ID from the passed object
   console.log(`[updateOrderDeliveryStatus] Processing order: ${orderId}`); // Log start
   try {
-    // Get order details from Supabase
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('id, shipping_id, tracking_number, status, last_delivery_status_check, manual_instruction')
-      .eq('id', orderId)
-      .single();
-
-    if (orderError) {
-      console.error(`[updateOrderDeliveryStatus] Error fetching order ${orderId}:`, orderError.message); // Log fetch error
-      return { success: false, error: 'Failed to fetch order details' };
-    }
-
     if (!order) {
-      console.warn(`[updateOrderDeliveryStatus] Order ${orderId} not found.`); // Log not found
-      return { success: false, error: 'Order not found' };
+      console.warn(`[updateOrderDeliveryStatus] Invalid order object received.`); // Log invalid object
+      return { success: false, error: 'Invalid order object provided' };
     }
 
     // Skip check if manual_instruction is 'NO ACTION REQUIRED'
@@ -129,7 +128,9 @@ export async function updateOrderDeliveryStatus(orderId) {
 
     // --- Attempt 2: Fetch using tracking_number (if fetch by shipping_id failed or wasn't attempted) ---
     if (!fetchedStatus) {
+      console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Checking for tracking number. order.tracking_number:`, order.tracking_number, `order.tracking_link:`, order.tracking_link);
       const trackingNumber = order.tracking_number || extractTrackingNumber(order.tracking_link);
+      console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Determined trackingNumber variable as:`, trackingNumber);
       if (trackingNumber) {
           console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Attempting fetchDeliveryStatus with tracking_number: ${trackingNumber}`);
           try {
@@ -200,19 +201,71 @@ export async function batchUpdateDeliveryStatus(limit = 50) {
   try {
     console.log(`[batchUpdateDeliveryStatus] Fetching up to ${limit} orders for status check (prioritizing oldest checks)...`);
     
+    // --- ENVIRONMENT VARIABLE CHECK --- 
+    console.log(`[batchUpdateDeliveryStatus] ENV CHECK: SUPABASE_URL exists? ${!!process.env.SUPABASE_URL}`);
+    console.log(`[batchUpdateDeliveryStatus] ENV CHECK: SUPABASE_SERVICE_ROLE_KEY exists? ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
+    console.log(`[batchUpdateDeliveryStatus] ENV CHECK: SENDCLOUD_API_KEY exists? ${!!process.env.SENDCLOUD_API_KEY}`);
+    console.log(`[batchUpdateDeliveryStatus] ENV CHECK: SENDCLOUD_API_SECRET exists? ${!!process.env.SENDCLOUD_API_SECRET}`);
+    // --- END ENV CHECK --- 
+
     // Calculate time threshold (e.g., 12 hours ago)
-    const checkThreshold = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+    const checkThreshold = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    const checkThresholdISO = checkThreshold.toISOString();
+    console.log(`[batchUpdateDeliveryStatus] Check threshold: ${checkThresholdISO}`);
+
+    // --- DEBUGGING: Pre-check potential candidates --- 
+    console.log(`[batchUpdateDeliveryStatus] DEBUG: Checking potential candidates (simplified query)...`);
+    const { data: potentialOrders, error: potentialError } = await supabase
+      .from('orders')
+      .select('id, tracking_link, status, manual_instruction, last_delivery_status_check')
+      // .not('status', 'eq', 'delivered') // Temporarily removed for debug
+      // .not('manual_instruction', 'in', '("NO ACTION REQUIRED", "DELIVERED")') // Temporarily removed for debug
+      .limit(limit * 5); // Fetch more candidates for debugging scope
+
+    if (potentialError) {
+      console.error('[batchUpdateDeliveryStatus] DEBUG: Error fetching potential candidates:', potentialError.message);
+    } else if (potentialOrders && potentialOrders.length > 0) {
+      console.log(`[batchUpdateDeliveryStatus] DEBUG: Found ${potentialOrders.length} potential candidates. Analyzing exclusion reasons:`);
+      potentialOrders.forEach(order => {
+        const exclusionReasons = [];
+        // Check each condition from the main query
+        if (!order.tracking_link) {
+          exclusionReasons.push('Missing tracking_link');
+        }
+        // Status check already done in initial query
+        // Manual instruction check already done in initial query
+        
+        const lastCheck = order.last_delivery_status_check ? new Date(order.last_delivery_status_check) : null;
+        const needsCheckBasedOnTime = !lastCheck || lastCheck < checkThreshold;
+        if (!needsCheckBasedOnTime) {
+          exclusionReasons.push(`Checked recently (${lastCheck?.toISOString()})`);
+        }
+
+        if (exclusionReasons.length > 0) {
+          console.log(`[batchUpdateDeliveryStatus] DEBUG: Order ${order.id} EXCLUDED. Reasons: [${exclusionReasons.join(', ')}]`);
+        } else {
+          // If no exclusion reasons found by this logic, it *should* be eligible according to the main criteria
+          console.log(`[batchUpdateDeliveryStatus] DEBUG: Order ${order.id} should be ELIGIBLE.`);
+        }
+      });
+    } else {
+      console.log('[batchUpdateDeliveryStatus] DEBUG: No potential candidates found based on initial status/instruction filters.');
+    }
+    console.log(`[batchUpdateDeliveryStatus] DEBUG: Pre-check finished. Proceeding with main query...`);
+    // --- END DEBUGGING --- 
 
     // Get orders with tracking links that are not delivered 
     // AND haven't been checked recently (or ever)
     const { data: orders, error: fetchError } = await supabase
       .from('orders')
-      .select('id, tracking_link, status, shipping_id, tracking_number, last_delivery_status_check') // Select last_delivery_status_check
+      .select('id, tracking_link, status, shipping_id, tracking_number, last_delivery_status_check, manual_instruction') // Added manual_instruction back
       .not('tracking_link', 'is', null)
-      .not('status', 'eq', 'delivered')
-      .not('manual_instruction', 'in', '("NO ACTION REQUIRED", "DELIVERED")') // Corrected: Exclude orders with either instruction
+      // Explicitly handle NULL status or status not equal to delivered
+      .or('status.is.null,status.neq.delivered')
+      // Explicitly handle NULL manual_instruction or instruction not in the excluded list
+      .or('manual_instruction.is.null,manual_instruction.not.in.("NO ACTION REQUIRED","DELIVERED")') 
       // Filter for orders not checked recently or never checked
-      .or(`last_delivery_status_check.is.null,last_delivery_status_check.lt.${checkThreshold}`) 
+      .or(`last_delivery_status_check.is.null,last_delivery_status_check.lt.${checkThresholdISO}`) 
       .order('last_delivery_status_check', { ascending: true, nullsFirst: true }) // Process oldest first
       .limit(limit); // Keep the limit
     
@@ -234,7 +287,8 @@ export async function batchUpdateDeliveryStatus(limit = 50) {
     const results = [];
     // Using Promise.all for potential concurrency, adjust if needed
     await Promise.all(orders.map(async (order) => {
-      const result = await updateOrderDeliveryStatus(order.id);
+      // Pass the full order object now
+      const result = await updateOrderDeliveryStatus(order); 
       results.push({
         orderId: order.id,
         success: result.success,
