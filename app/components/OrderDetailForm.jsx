@@ -61,6 +61,9 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
   
   // Initialize form data and original data
   useEffect(() => {
+    // --- INVESTIGATION LOG --- 
+    console.log('[OrderDetailForm Effect] Received order prop with id:', order?.id);
+    // --- END LOG ---
     const initialData = {
       name: order.name || '',
       email: order.email || '',
@@ -486,6 +489,10 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     
     setIsFetchingStatus(true);
     toast.loading('Fetching latest status...', { id: 'fetch-status-toast' });
+    
+    // --- INVESTIGATION LOG --- 
+    console.log('[handleFetchStatus] Attempting fetch using orderId:', order?.id);
+    // --- END LOG ---
     
     try {
       const response = await fetch(`/api/orders/update-delivery-status?orderId=${order.id}`);
