@@ -69,6 +69,8 @@ export async function fetchDeliveryStatus(trackingNumber) {
       lastUpdate: data.last_update || null, // Keep this if needed
       carrier: data.carrier || null,
       destination: data.destination || null,
+      expectedDeliveryDate: data.expected_delivery_date || null, // Add expected date
+      statusesArray: data.statuses || [], // Add full statuses array
       rawData: data
     };
   } catch (error) {
@@ -102,6 +104,7 @@ export async function updateOrderDeliveryStatus(order) {
     let shippingDetails = null;
     let fetchedStatus = null;
     let fetchMethod = null; // Track how status was fetched
+    let updatePayload = null; // Prepare for potential update data
 
     // --- Attempt 1: Fetch using shipping_id if available ---
     if (order.shipping_id) {
@@ -135,9 +138,17 @@ export async function updateOrderDeliveryStatus(order) {
           console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Attempting fetchDeliveryStatus with tracking_number: ${trackingNumber}`);
           try {
               const statusResult = await fetchDeliveryStatus(trackingNumber);
+              console.log(`[updateOrderDeliveryStatus] fetchDeliveryStatus result for ${trackingNumber}:`, statusResult);
               if (statusResult.status) { // Check if status was successfully retrieved
                   fetchedStatus = statusResult.status;
                   fetchMethod = 'tracking_number';
+                  // Prepare data for potential update, including new fields
+                  updatePayload = {
+                    status: fetchedStatus,
+                    last_delivery_status_check: new Date().toISOString(),
+                    expected_delivery_date: statusResult.expectedDeliveryDate, 
+                    sendcloud_tracking_history: statusResult.statusesArray
+                  };
                   console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Fetched status via tracking_number: ${fetchedStatus}`);
               } else {
                   console.error(`[updateOrderDeliveryStatus] Failed fetchDeliveryStatus for tracking number ${trackingNumber} (Order ${orderId}): ${statusResult.error || 'Status not found in response'}`);
@@ -157,11 +168,21 @@ export async function updateOrderDeliveryStatus(order) {
     
     // --- Update Database if status fetched and changed ---
     if (fetchedStatus) {
-        if (fetchedStatus !== order.status) {
+        // Prepare the final update payload (this was potentially prepared earlier)
+        // We always update history and expected date if fetched, status only if changed.
+        let finalUpdatePayload = {
+          last_delivery_status_check: new Date().toISOString(),
+          expected_delivery_date: updatePayload?.expected_delivery_date, // Use data from fetch result
+          sendcloud_tracking_history: updatePayload?.sendcloud_tracking_history // Use data from fetch result
+        };
+
+        if (fetchedStatus !== order.status) { 
             console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Status changed (${order.status} -> ${fetchedStatus}). Updating DB...`);
+            finalUpdatePayload.status = fetchedStatus; // Add status only if it changed
+
             const { error: updateError } = await supabase
               .from('orders')
-              .update({ status: fetchedStatus, last_delivery_status_check: new Date().toISOString() })
+              .update(finalUpdatePayload) // Use the constructed payload
               .eq('id', orderId);
 
             if (updateError) {
@@ -169,14 +190,18 @@ export async function updateOrderDeliveryStatus(order) {
               return { success: false, error: 'Failed to update order status' };
             }
             console.log(`[updateOrderDeliveryStatus] Successfully updated order ${orderId} status to: ${fetchedStatus}`);
-            return { success: true, deliveryStatus: fetchedStatus, order: {
+            return { success: true, deliveryStatus: fetchedStatus, order: { // Return updated fields
               id: orderId,
-              status: fetchedStatus,
-              last_delivery_status_check: new Date().toISOString()
+              ...finalUpdatePayload // Spread the updated fields
             } };
         } else {
-            console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Status unchanged (${order.status}). Updating last checked time.`);
-            await supabase.from('orders').update({ last_delivery_status_check: new Date().toISOString() }).eq('id', orderId);
+            console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Status unchanged (${order.status}). Updating last checked time, history, and expected date.`);
+            // Even if status is unchanged, update check time, history, and expected date
+            await supabase.from('orders').update({ 
+              last_delivery_status_check: new Date().toISOString(),
+              expected_delivery_date: updatePayload?.expected_delivery_date,
+              sendcloud_tracking_history: updatePayload?.sendcloud_tracking_history 
+            }).eq('id', orderId);
             return { success: true, deliveryStatus: order.status, message: 'Status unchanged' };
         }
     } else {

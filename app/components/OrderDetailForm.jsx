@@ -822,6 +822,18 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
             </div>
           </div>
 
+          {/* Expected Delivery Date - TEMP DEBUG */}
+          {order.expected_delivery_date && (
+            <div>
+               <label className="text-sm font-medium block mb-1">
+                 Expected Delivery Date
+               </label>
+              <div className="text-sm p-2 border border-gray-200 rounded bg-gray-50">
+                {formatDate(order.expected_delivery_date)}
+              </div>
+            </div>
+          )}
+
           <div>
             <label htmlFor="shipping_id" className="text-sm font-medium block">
               SendCloud Parcel ID
@@ -971,6 +983,20 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent mt-1"
             />
           </div>
+
+          {/* Sendcloud Tracking History - TEMP DEBUG */}
+          {order.sendcloud_tracking_history && Array.isArray(order.sendcloud_tracking_history) && order.sendcloud_tracking_history.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h4 className="font-medium text-black mb-2">Tracking History</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded p-2 bg-gray-50">
+                {order.sendcloud_tracking_history.slice().map((item, index) => ( // Show oldest first
+                  <div key={item.parcel_status_history_id || index} className="text-xs text-gray-700 border-b border-gray-100 pb-1 mb-1 last:border-b-0 last:mb-0">
+                    <span className="font-medium">{formatDate(item.carrier_update_timestamp)}:</span> {item.carrier_message || item.parent_status || 'Status update'}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <p className="text-sm text-gray-600 italic">
             You can manually update tracking information if needed.
