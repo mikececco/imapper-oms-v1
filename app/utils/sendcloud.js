@@ -138,11 +138,16 @@ export async function updateOrderDeliveryStatus(order) {
           console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Attempting fetchDeliveryStatus with tracking_number: ${trackingNumber}`);
           try {
               const statusResult = await fetchDeliveryStatus(trackingNumber);
-              console.log(`[updateOrderDeliveryStatus] fetchDeliveryStatus result for ${trackingNumber}:`, statusResult);
+              // --- DETAILED LOGGING --- 
+              console.log(`[updateOrderDeliveryStatus] fetchDeliveryStatus FULL result for ${trackingNumber}:`, JSON.stringify(statusResult, null, 2));
+              // --- END LOGGING ---
               if (statusResult.status) { // Check if status was successfully retrieved
                   fetchedStatus = statusResult.status;
                   fetchMethod = 'tracking_number';
                   // Prepare data for potential update, including new fields
+                  // --- DETAILED LOGGING --- 
+                  console.log(`[updateOrderDeliveryStatus] Assigning to updatePayload: expected_delivery_date=${statusResult.expectedDeliveryDate}, history_items=${statusResult.statusesArray?.length ?? 0}`);
+                  // --- END LOGGING ---
                   updatePayload = {
                     status: fetchedStatus,
                     last_delivery_status_check: new Date().toISOString(),
@@ -172,7 +177,7 @@ export async function updateOrderDeliveryStatus(order) {
         let finalUpdatePayload = {
           last_delivery_status_check: new Date().toISOString(),
           expected_delivery_date: updatePayload.expectedDeliveryDate, 
-          sendcloud_tracking_history: updatePayload.statusesArray // Use the correct field name from fetchDeliveryStatus result
+          sendcloud_tracking_history: updatePayload.statusesArray
         };
 
         // Add status to the payload ONLY if it changed
@@ -182,6 +187,10 @@ export async function updateOrderDeliveryStatus(order) {
         } else {
              console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Status unchanged (${order.status}). Updating check time, history, and expected date only.`);
         }
+
+        // --- DETAILED LOGGING --- 
+        console.log(`[updateOrderDeliveryStatus] Preparing to update DB for order ${orderId} with payload:`, JSON.stringify(finalUpdatePayload, null, 2));
+        // --- END LOGGING ---
 
         // Perform the single update operation
         const { error: updateError } = await supabase
