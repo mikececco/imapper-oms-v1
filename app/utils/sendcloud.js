@@ -401,7 +401,7 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
 
     console.log("Sending Corrected Payload to SendCloud Returns API:", JSON.stringify(returnPayload, null, 2));
 
-    const response = await fetch('https://panel.sendcloud.sc/api/v2/returns', {
+    const response = await fetch('https://panel.sendcloud.sc/api/v3/returns', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

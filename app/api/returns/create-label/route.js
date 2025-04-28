@@ -48,9 +48,15 @@ export async function POST(request) {
        return NextResponse.json({ error: 'Valid warehouse return address (Return To) is required' }, { status: 400 });
     }
 
-    // Validate parcelWeight (basic check for positive number format)
-    if (!parcelWeight || typeof parcelWeight !== 'string' || parseFloat(parcelWeight) <= 0 || !/^\d*\.?\d+$/.test(parcelWeight)) {
-       return NextResponse.json({ error: 'Valid parcel weight (e.g., 1.000) is required' }, { status: 400 });
+    // Validate parcelWeight (allow string or number, check if positive)
+    let weightValue = NaN;
+    if (typeof parcelWeight === 'string') {
+      weightValue = parseFloat(parcelWeight);
+    } else if (typeof parcelWeight === 'number') {
+      weightValue = parcelWeight;
+    }
+    if (isNaN(weightValue) || weightValue <= 0) {
+       return NextResponse.json({ error: 'Valid parcel weight (must be a number greater than 0) is required' }, { status: 400 });
     }
 
     // ADDED: Validate returnReason (ensure it's a non-empty string)

@@ -64,6 +64,7 @@ const RETURN_REASONS = [
   'Changed my mind',
   'Ordered by mistake',
   'Arrived too late',
+  'Return after trial period',
   'Other'
 ];
 
@@ -206,14 +207,14 @@ export default function ReturnConfirmationModal({
 
     // Check From Address
     requiredFromFields.forEach(field => {
-      if (!returnFromAddress[field] || returnFromAddress[field].trim() === '') {
+      if (!returnFromAddress[field] || (typeof returnFromAddress[field] === 'string' && returnFromAddress[field].trim() === '')) {
         missingFields.push(`Return From: ${field.replace('_', ' ')}`);
       }
     });
 
     // Check To Address
     requiredToFields.forEach(field => {
-      if (!returnToAddressState[field] || returnToAddressState[field].trim() === '') {
+      if (!returnToAddressState[field] || (typeof returnToAddressState[field] === 'string' && returnToAddressState[field].trim() === '')) {
         missingFields.push(`Return To: ${field.replace('_', ' ')}`);
       }
     });
@@ -235,6 +236,7 @@ export default function ReturnConfirmationModal({
     }
     // --- End Validation ---
 
+    console.log("Confirming return with weight:", parcelWeight, typeof parcelWeight);
     // Proceed if validation passes
     if (order && order.id) {
       onConfirm(order.id, returnFromAddress, returnToAddressState, parcelWeight, returnReason);
