@@ -176,8 +176,8 @@ export async function updateOrderDeliveryStatus(order) {
         // Prepare the final update payload. Always update check time, history, and expected date.
         let finalUpdatePayload = {
           last_delivery_status_check: new Date().toISOString(),
-          expected_delivery_date: updatePayload.expectedDeliveryDate, 
-          sendcloud_tracking_history: updatePayload.statusesArray
+          expected_delivery_date: updatePayload.expected_delivery_date,
+          sendcloud_tracking_history: updatePayload.sendcloud_tracking_history
         };
 
         // Add status to the payload ONLY if it changed
