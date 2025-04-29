@@ -184,9 +184,26 @@ export function calculateOrderInstruction(order) {
   if (
     status !== "pending" &&
     paid === true &&
-    (status?.toLowerCase().includes('delivered') || status?.toLowerCase().includes('package delivered') || status?.toLowerCase().includes('shipment collected by customer'))
+    (status?.toLowerCase().includes('delivered') || status?.toLowerCase().includes('package delivered') || status?.toLowerCase().includes('shipment collected by customer') || status?.toLowerCase().includes('package picked-up'))
   ) {
     return 'DELIVERED';
+  }
+  
+  // 3.1 RETURNED (New Check)
+  if (
+    status !== "pending" &&
+    paid === true && // Assuming returns happen after payment
+    status?.toLowerCase().includes('parcel was returned to the sender')
+  ) {
+    return 'RETURNED';
+  }
+  
+  // 3.2 CANCELLED (New Check)
+  if (
+    status !== "pending" && // Assuming cancellation happens after initial processing
+    status?.toLowerCase().includes('cancelled')
+  ) {
+    return 'CANCELLED';
   }
   
   // 4. SHIPPED
@@ -194,7 +211,7 @@ export function calculateOrderInstruction(order) {
     status !== "pending" &&
     status !== 'Ready to send' &&
     paid === true &&
-    !(status?.toLowerCase().includes('delivered') || status?.toLowerCase().includes('package delivered') || status?.toLowerCase().includes('shipment collected by customer')) &&
+    !(status?.toLowerCase().includes('delivered') || status?.toLowerCase().includes('package delivered') || status?.toLowerCase().includes('shipment collected by customer') || status?.toLowerCase().includes('package picked-up') || status?.toLowerCase().includes('parcel was returned to the sender') || status?.toLowerCase().includes('cancelled')) && // Exclude CANCELLED status
     !isEmpty(tracking_link)
   ) {
     return 'SHIPPED';
