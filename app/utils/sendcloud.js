@@ -108,11 +108,31 @@ export async function updateOrderDeliveryStatus(order) {
     let statusPayload = null; // Holds data fetched via fetchDeliveryStatus (includes history/date)
     let trackingApiError = null; // Store error from fetchDeliveryStatus if it occurs
 
-    // --- Attempt 1: Fetch using tracking_number/tracking_link (Prioritized) ---
-    console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Attempting fetch via tracking link/number first.`);
-    const trackingNumber = order.tracking_number || extractTrackingNumber(order.tracking_link);
-    console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Determined trackingNumber as:`, trackingNumber);
+    // --- Attempt 1: Fetch using tracking_link (Prioritized) or tracking_number (Secondary) ---
+    let trackingNumber = null;
 
+    // Try tracking_link first
+    if (order.tracking_link) {
+      console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Attempting extraction from tracking_link first.`);
+      trackingNumber = extractTrackingNumber(order.tracking_link);
+      if (trackingNumber) {
+        console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Extracted trackingNumber from link:`, trackingNumber);
+      } else {
+        console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Failed to extract trackingNumber from link. Will check tracking_number field next.`);
+      }
+    } else {
+      console.log(`[updateOrderDeliveryStatus] Order ${orderId}: No tracking_link found. Will check tracking_number field.`);
+    }
+
+    // If link didn't yield a number, try the tracking_number field directly
+    if (!trackingNumber && order.tracking_number) {
+      console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Using tracking_number field directly:`, order.tracking_number);
+      trackingNumber = order.tracking_number;
+    }
+
+    console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Final trackingNumber determined for fetch attempt:`, trackingNumber);
+
+    // Now proceed with fetch attempt if we have a trackingNumber
     if (trackingNumber) {
       console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Attempting fetchDeliveryStatus with tracking_number: ${trackingNumber}`);
       try {
@@ -143,8 +163,8 @@ export async function updateOrderDeliveryStatus(order) {
         console.error(`[updateOrderDeliveryStatus] ${trackingApiError} for tracking ${trackingNumber} (Order ${orderId})`);
       }
     } else {
-      console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Could not determine tracking number from link/field. Will attempt shipping_id fallback if available.`);
-      trackingApiError = 'No tracking number available'; // Set error for context if fallback also fails
+      console.log(`[updateOrderDeliveryStatus] Order ${orderId}: Could not determine tracking number from link or field. Will attempt shipping_id fallback if available.`);
+      trackingApiError = 'No tracking number available from link or field'; // Set error for context if fallback also fails
     }
 
     // --- Attempt 2: Fetch using shipping_id (Fallback) ---
