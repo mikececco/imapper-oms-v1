@@ -602,7 +602,7 @@ export default function OrderDetailModal({ children }) {
                         <div className="w-full text-center py-2">
                           <span className="text-yellow-500 text-base">Pending</span>
                           <p className="text-sm text-gray-500 mt-1">
-                            Label created (ID: {order.shipping_id.substring(0, 8)}...) but URL not available
+                            Label created (ID: {String(order.shipping_id || '').substring(0, 8)}...) but URL not available
                           </p>
                         </div>
                       )}
