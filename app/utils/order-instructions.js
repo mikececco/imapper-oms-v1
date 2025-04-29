@@ -184,7 +184,7 @@ export function calculateOrderInstruction(order) {
   if (
     status !== "pending" &&
     paid === true &&
-    (status?.toLowerCase() === 'delivered' || status?.toLowerCase() === 'package delivered')
+    (status?.toLowerCase().includes('delivered') || status?.toLowerCase().includes('package delivered') || status?.toLowerCase().includes('shipment collected by customer'))
   ) {
     return 'DELIVERED';
   }
@@ -194,7 +194,7 @@ export function calculateOrderInstruction(order) {
     status !== "pending" &&
     status !== 'Ready to send' &&
     paid === true &&
-    !(status?.toLowerCase() === 'delivered' || status?.toLowerCase() === 'package delivered') &&
+    !(status?.toLowerCase().includes('delivered') || status?.toLowerCase().includes('package delivered') || status?.toLowerCase().includes('shipment collected by customer')) &&
     !isEmpty(tracking_link)
   ) {
     return 'SHIPPED';
