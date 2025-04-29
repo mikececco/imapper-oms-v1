@@ -184,7 +184,7 @@ export function calculateOrderInstruction(order) {
   if (
     status !== "pending" &&
     paid === true &&
-    status === 'Delivered'
+    (status?.toLowerCase() === 'delivered' || status?.toLowerCase() === 'package delivered')
   ) {
     return 'DELIVERED';
   }
@@ -194,7 +194,7 @@ export function calculateOrderInstruction(order) {
     status !== "pending" &&
     status !== 'Ready to send' &&
     paid === true &&
-    status !== 'Delivered' &&
+    !(status?.toLowerCase() === 'delivered' || status?.toLowerCase() === 'package delivered') &&
     !isEmpty(tracking_link)
   ) {
     return 'SHIPPED';
