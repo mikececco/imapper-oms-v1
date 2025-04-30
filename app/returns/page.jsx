@@ -216,7 +216,7 @@ export default function ReturnsPage() {
 
     } catch (error) {
       console.error('Error creating return label:', error);
-      toast.error(`Error: ${error.message}`, { id: toastId });
+      toast.error(`${error.message}`, { id: toastId });
     } finally {
       setCreatingLabelOrderId(null);
     }
