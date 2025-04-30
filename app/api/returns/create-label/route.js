@@ -120,13 +120,17 @@ export async function POST(request) {
     
   } catch (error) {
     console.error(`API Route: CATCH BLOCK - Error creating return label for Order ID: ${orderId || 'Unknown'}`, error);
-    // Ensure the error message passed to the client is useful but not overly detailed
-    const clientErrorMessage = error.message.startsWith('Sendcloud API Error') || error.message.startsWith('Failed to update order')
-      ? error.message
-      : 'Failed to create return label';
+    // Pass the actual error message back to the client, 
+    // providing a fallback only if the message is empty.
+    const clientErrorMessage = error.message || 'An unknown error occurred during return label creation.';
+    
+    // Determine appropriate status code (default 500)
+    let statusCode = 500;
+    // Add logic here if specific error types should return different codes, e.g., 4xx for validation
+    
     return NextResponse.json(
       { error: clientErrorMessage },
-      { status: 500 } // Use appropriate status code based on error type if possible
+      { status: statusCode } 
     );
   } finally {
      console.log("--- Return Label API Route END ---"); // Log end
