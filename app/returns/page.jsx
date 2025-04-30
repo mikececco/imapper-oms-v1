@@ -74,7 +74,7 @@ export default function ReturnsPage() {
         supabase
           .from('orders')
           .select('*')
-          .or('status.in.("delivered","Delivered"),manual_instruction.eq.NO ACTION REQUIRED,sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal')
+          .or('status.in.("delivered","Delivered"),manual_instruction.eq.NO ACTION REQUIRED,manual_instruction.eq.DELIVERED,sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal')
           .order('updated_at', { ascending: false }),
         supabase
           .from('order_pack_lists')
