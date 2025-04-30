@@ -10,8 +10,10 @@ import { formatDate } from '../utils/date-utils';
 export default function LateralOrderModal({ order, isOpen, onClose }) {
   const supabase = useSupabase();
   const [orderDetails, setOrderDetails] = useState(null);
+  const [orderPackLabel, setOrderPackLabel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadingPackLabel, setLoadingPackLabel] = useState(false);
 
   useEffect(() => {
     if (isOpen && order) {
@@ -19,6 +21,7 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
     }
     if (!isOpen) {
         setOrderDetails(null);
+        setOrderPackLabel(null);
         setLoading(true);
         setError(null);
     }
@@ -26,10 +29,13 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
 
   const loadOrderDetails = async () => {
     if (!supabase || !order?.id) return;
+    setLoading(true);
+    setError(null);
+    setOrderPackLabel(null);
+    setLoadingPackLabel(false);
+
     try {
-      setLoading(true);
-      setError(null);
-      const { data, error: fetchError } = await supabase
+      const { data: detailsData, error: detailsError } = await supabase
         .from('orders')
         .select(`
           id,
@@ -46,25 +52,51 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
           tracking_number,
           tracking_link,
           sendcloud_return_id,
-          sendcloud_return_parcel_id
+          sendcloud_return_parcel_id,
+          sendcloud_return_label_url,
+          order_pack_list_id
         `)
         .eq('id', order.id)
         .single();
 
-      if (fetchError) throw fetchError;
-      setOrderDetails(data);
+      if (detailsError) throw detailsError;
+
+      setOrderDetails(detailsData);
+
+      if (detailsData?.order_pack_list_id) {
+        setLoadingPackLabel(true);
+        try {
+          const { data: packData, error: packError } = await supabase
+            .from('order_pack_lists')
+            .select('label')
+            .eq('id', detailsData.order_pack_list_id)
+            .single();
+
+          if (packError) {
+            console.error('Error fetching order pack label:', packError);
+            setOrderPackLabel('Error');
+          } else {
+            setOrderPackLabel(packData?.label || 'N/A');
+          }
+        } catch (packErr) {
+          console.error('Exception fetching order pack label:', packErr);
+          setOrderPackLabel('Error');
+        } finally {
+          setLoadingPackLabel(false);
+        }
+      } else {
+        setOrderPackLabel('N/A');
+      }
+
     } catch (err) {
       console.error('Error loading order details:', err);
       setError('Failed to load order details');
-      toast.error('Failed to load order details');
     } finally {
       setLoading(false);
     }
   };
 
   if (!isOpen) return null;
-
-  const orderPackName = 'N/A';
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -135,7 +167,7 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                 <div>
                   <h4 className="font-medium mb-2 text-gray-700">Order Details</h4>
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <p><strong>Order Pack:</strong> {orderPackName}</p>
+                    <p><strong>Order Pack:</strong> {loadingPackLabel ? 'Loading pack...' : (orderPackLabel || 'N/A')}</p>
                     <p><strong>Status:</strong> {orderDetails.status || 'N/A'}</p>
                     {orderDetails.tracking_number && (
                       <p>
@@ -175,8 +207,10 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
                               if (parcelId) {
                                 const proxyUrl = `/api/returns/download-label/${parcelId}`;
                                 window.open(proxyUrl, '_blank');
+                              } else if (orderDetails.sendcloud_return_label_url) {
+                                toast.error('Missing Parcel ID to download label via proxy.');
                               } else {
-                                 toast.error('Missing Parcel ID to download label.');
+                                 toast.error('Missing label information.');
                               }
                             }}
                           >

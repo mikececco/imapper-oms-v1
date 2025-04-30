@@ -151,7 +151,12 @@ export default function ReturnsPage() {
   };
 
   const ordersForCreateReturn = filteredOrders.filter(o => 
-    (o.status?.toLowerCase() === 'delivered' || o.manual_instruction === 'NO ACTION REQUIRED' || o.created_via === 'returns_portal') &&
+    (
+      o.status?.toLowerCase() === 'delivered' || 
+      o.manual_instruction === 'NO ACTION REQUIRED' || 
+      o.manual_instruction === 'DELIVERED' ||
+      o.created_via === 'returns_portal'
+    ) &&
     !o.sendcloud_return_id && !o.sendcloud_return_parcel_id &&
     !o.upgrade_shipping_id
   );
