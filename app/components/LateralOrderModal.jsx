@@ -46,9 +46,7 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
           tracking_number,
           tracking_link,
           sendcloud_return_id,
-          sendcloud_return_parcel_id,
-          sendcloud_return_label_url,
-          order_pack_lists ( name ) 
+          sendcloud_return_parcel_id
         `)
         .eq('id', order.id)
         .single();
@@ -66,7 +64,7 @@ export default function LateralOrderModal({ order, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const orderPackName = orderDetails?.order_pack_lists?.name || 'N/A';
+  const orderPackName = 'N/A';
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
