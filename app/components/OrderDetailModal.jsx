@@ -694,16 +694,33 @@ export default function OrderDetailModal({ children }) {
                          </svg>
                        </Button>
                     </div>
-                    {/* Debugging logs for disabled state */}
-                    {console.log('Dropdown Disabled Flags:', { isLoadingDbMethods, isSavingShippingMethod, isSyncingMethods, isLoadingAllMethods, isOrderMissing: !order })}
+                    
+                    {/* ---- Indicators and ID Display START ---- */}
+                    {/* Debugging log for ID display conditions */}
+                    {console.log('ID Display Check:', { currentShippingMethodId, isSavingShippingMethod, isSyncingMethods, isLoadingAllMethods })}
+                    
+                    {/* Saving indicator */}
                     {isSavingShippingMethod && <p className="text-xs text-blue-500 mt-1 animate-pulse">Saving...</p>}
+                    {/* Syncing indicator */}
                     {isSyncingMethods && <p className="text-xs text-orange-500 mt-1 animate-pulse">Syncing with SendCloud...</p>}
+                    {/* Fetching All indicator */}
                     {isLoadingAllMethods && <p className="text-xs text-purple-500 mt-1 animate-pulse">Fetching all from SendCloud...</p>}
-                    {order.shipping_method && String(order.shipping_method) !== currentShippingMethodId && !isSavingShippingMethod && !isSyncingMethods && !isLoadingAllMethods && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Original DB value: {order.shipping_method}
+                    
+                    {/* Display Selected ID */}
+                    {currentShippingMethodId && !isSavingShippingMethod && !isSyncingMethods && !isLoadingAllMethods && (
+                      <p className="text-xs text-gray-600 mt-1 font-medium">
+                        Selected ID: {currentShippingMethodId}
                       </p>
                     )}
+                    
+                    {/* Original DB value display (adjusted to show only if different) */}
+                    {order.shipping_method && String(order.shipping_method) !== currentShippingMethodId && !isSavingShippingMethod && !isSyncingMethods && !isLoadingAllMethods && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        (Original DB value: {order.shipping_method})
+                      </p>
+                    )}
+                    {/* ---- Indicators and ID Display END ---- */}
+                    
                   </div>
 
                   {/* Shipping Label Status */}
