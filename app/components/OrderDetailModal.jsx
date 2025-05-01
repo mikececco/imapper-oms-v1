@@ -356,14 +356,15 @@ export default function OrderDetailModal({ children }) {
         throw new Error(data.error || 'Failed to create shipping label');
       }
       
-      // Create activity log entry for shipping label creation
-      const { error: activityError } = await supabase
+      // --- Activity Log Insertion ---
+      // This part only runs if response.ok is true
+      const { error: activityError } = await supabase // Use client instance
         .from('order_activities')
         .insert([
           {
             order_id: order.id,
             action_type: 'shipping_label_created',
-            changes: {
+            changes: { // Assumes data has these fields
               shipping_id: data.shipping_id,
               tracking_number: data.tracking_number,
               label_url: data.label_url
@@ -373,10 +374,13 @@ export default function OrderDetailModal({ children }) {
         ]);
 
       if (activityError) {
+        // *** Important: This only logs to console, doesn't notify user ***
         console.error('Error creating activity log:', activityError);
+        // ADD USER FEEDBACK:
+        toast.error(`Label created, but failed to log activity: ${activityError.message}`)
       }
       
-      // Update the local order state with the new data
+      // --- Update Local State & Refresh ---
       setOrder(prevOrder => ({
         ...prevOrder,
         ...data,
