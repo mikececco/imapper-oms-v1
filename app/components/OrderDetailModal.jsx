@@ -18,7 +18,7 @@ import { TableCell } from './ui/table';
 import { calculateOrderInstruction } from '../utils/order-instructions';
 import { toast } from 'react-hot-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, CloudDownload } from 'lucide-react';
 
 // Create context for the OrderDetailModal
 export const OrderDetailModalContext = createContext({
@@ -153,6 +153,9 @@ export default function OrderDetailModal({ children }) {
   const [isSyncingMethods, setIsSyncingMethods] = useState(false);
   const [allSendCloudMethods, setAllSendCloudMethods] = useState([]);
   const [isLoadingAllMethods, setIsLoadingAllMethods] = useState(false);
+  const [embeddedLabelUrl, setEmbeddedLabelUrl] = useState(null);
+  const [isLoadingLabel, setIsLoadingLabel] = useState(false);
+  const [labelFetchError, setLabelFetchError] = useState(null);
 
   const openModal = (orderId) => {
     setSelectedOrderId(orderId);
@@ -512,6 +515,50 @@ export default function OrderDetailModal({ children }) {
     }
   };
 
+  // Function to fetch and create a Blob URL for the label
+  const fetchAndEmbedLabel = async () => {
+    if (!order || !order.shipping_id) return;
+
+    setIsLoadingLabel(true);
+    setLabelFetchError(null);
+    // Revoke previous blob URL if it exists
+    if (embeddedLabelUrl) {
+      URL.revokeObjectURL(embeddedLabelUrl);
+      setEmbeddedLabelUrl(null);
+    }
+
+    try {
+      const response = await fetch(`/api/labels/${order.shipping_id}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP error ${response.status}` }));
+        throw new Error(errorData.error || `Failed to fetch label (${response.status})`);
+      }
+
+      const pdfBlob = await response.blob();
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      setEmbeddedLabelUrl(blobUrl);
+
+    } catch (error) {
+      console.error('Error fetching/embedding label:', error);
+      setLabelFetchError(error.message || 'Could not load label.');
+      toast.error(`Error loading label: ${error.message}`);
+    } finally {
+      setIsLoadingLabel(false);
+    }
+  };
+
+  // Effect to revoke blob URL on unmount
+  useEffect(() => {
+    // Return cleanup function
+    return () => {
+      if (embeddedLabelUrl) {
+        console.log('Revoking Blob URL:', embeddedLabelUrl);
+        URL.revokeObjectURL(embeddedLabelUrl);
+      }
+    };
+  }, [embeddedLabelUrl]); // Re-run only if blob URL changes
+
   // Expose the openModal function to the window object so it can be called from anywhere
   useEffect(() => {
     window.openOrderDetail = openModal;
@@ -528,7 +575,7 @@ export default function OrderDetailModal({ children }) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">
               Order Details {order?.id && `(${order.id})`}
@@ -856,74 +903,43 @@ export default function OrderDetailModal({ children }) {
                         </div>
                       )}
 
-                      {(!order.ok_to_ship || !order.paid || !currentShippingMethodId || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone) && (
-                        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <h4 className="text-sm font-semibold text-yellow-800 mb-2">Missing Required Fields</h4>
-                          <div className="space-y-2">
-                            {/* Customer Information */}
-                            {(!order.name || !order.email || !order.phone) && (
-                              <div className="border-b border-yellow-200 pb-2">
-                                <p className="text-xs font-medium text-yellow-800 mb-1">Customer Information:</p>
-                                <div className="space-y-1">
-                                  {!order.name && <p className="text-sm text-red-600">❌ Name is required</p>}
-                                  {order.name && order.name.length > 35 && (
-                                    <p className="text-sm text-amber-600">⚠️ Name exceeds 35 characters and will be truncated ({order.name.length} chars)</p>
-                                  )}
-                                  {!order.email && <p className="text-sm text-red-600">❌ Email is required</p>}
-                                  {!order.phone && <p className="text-sm text-red-600">❌ Phone is required</p>}
-                                </div>
-                              </div>
+                      {/* --- Label Viewing Section --- */}
+                      {order.shipping_id && (
+                        <div className="mt-4 space-y-2">
+                           {/* Button to trigger label fetch/embed */}
+                           <Button 
+                              onClick={fetchAndEmbedLabel}
+                              disabled={isLoadingLabel}
+                              variant="info" // Use a different variant if available or default
+                              className="w-full"
+                            >
+                              {isLoadingLabel ? ( 
+                                  <><RefreshCcw className="h-4 w-4 mr-2 animate-spin" />Loading Label...</>
+                               ) : embeddedLabelUrl ? (
+                                   'Reload Embedded Label'
+                               ) : (
+                                   'View/Embed Label Below'
+                               )}
+                            </Button>
+
+                            {/* Display error if fetching label failed */}
+                            {labelFetchError && (
+                                <p className="text-sm text-red-600 text-center">Error: {labelFetchError}</p>
                             )}
 
-                            {/* Shipping Address */}
-                            {(!order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country) && (
-                              <div className="border-b border-yellow-200 pb-2">
-                                <p className="text-xs font-medium text-yellow-800 mb-1">Shipping Address:</p>
-                                <div className="space-y-1">
-                                  {!order.shipping_address_line1 && <p className="text-sm text-red-600">❌ Address Line 1 is required</p>}
-                                  {!order.shipping_address_house_number && <p className="text-sm text-red-600">❌ House Number is required</p>}
-                                  {!order.shipping_address_city && <p className="text-sm text-red-600">❌ City is required</p>}
-                                  {!order.shipping_address_postal_code && <p className="text-sm text-red-600">❌ Postal Code is required</p>}
-                                  {!order.shipping_address_country && <p className="text-sm text-red-600">❌ Country Code is required</p>}
-                                </div>
-                              </div>
+                            {/* Conditionally render iframe for embedded PDF */}
+                            {embeddedLabelUrl && !isLoadingLabel && !labelFetchError && (
+                              <iframe 
+                                src={embeddedLabelUrl}
+                                title={`Shipping Label for Order ${order.id}`}
+                                className="w-full h-[500px] border rounded mt-2" // Adjust height as needed
+                                type="application/pdf"
+                              >
+                                Your browser does not support embedded PDFs. 
+                                <a href={embeddedLabelUrl} download={`label-${order.shipping_id}.pdf`}>Download the label PDF</a>.
+                              </iframe>
                             )}
-
-                            {/* Order Details */}
-                            {(!order.order_pack_list_id || !order.ok_to_ship || !order.paid) && (
-                              <div>
-                                <p className="text-xs font-medium text-yellow-800 mb-1">Order Details:</p>
-                                <div className="space-y-1">
-                                  {!order.order_pack_list_id && <p className="text-sm text-red-600">❌ Order Pack is required</p>}
-                                  {!order.ok_to_ship && <p className="text-sm text-red-600">❌ Order must be marked as OK TO SHIP</p>}
-                                  {!order.paid && <p className="text-sm text-red-600">❌ Payment is required</p>}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* View Label Button - points to our proxy route */}
-                      {order.shipping_id && ( // Check for shipping_id instead of label_url
-                        <a 
-                          href={`/api/labels/${order.shipping_id}`} // Use the proxy route
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-base text-center block mt-2" // Added margin top
-                        >
-                          View Label
-                        </a>
-                      )}
-                      {/* Display Pending message if shipping_id exists but maybe no label was generated (though less likely now) */}
-                      {/* This condition might need adjustment based on actual flow */}
-                      {order.shipping_id && !order.label_url && (
-                        <div className="w-full text-center py-2">
-                          <span className="text-yellow-500 text-base">Pending Label Generation?</span>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Parcel created (ID: {String(order.shipping_id || '').substring(0, 8)}...). Try 'View Label'.
-                          </p>
-                        </div>
+                         </div>
                       )}
                     </div>
                   </div>
