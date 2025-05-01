@@ -57,21 +57,25 @@ export async function GET(request) {
 
     console.log(`Fetched ${allMethods.length} total methods from DB. Applying filters...`);
 
-    // Apply filtering logic based on toCountry
+    // Apply filtering logic based on toCountry using exact matches
     let filteredMethods = [];
+    const frMethodName = 'DHL Express Domestic 0-70kg';
+    const worldwideDapMethodName = 'DHL Express Worldwide 0-70kg - incoterm DAP';
+    const economySelectMethodName = 'DHL Express Economy Select 0-70kg';
+
     if (toCountry === 'FR') {
-      filteredMethods = allMethods.filter(m => m.name?.includes('DHL Express Domestic 0-70kg'));
-      console.log(`Filtered for FR (${filteredMethods.length} methods)`);
+      filteredMethods = allMethods.filter(m => m.name === frMethodName);
+      console.log(`Filtered for FR (Exact Match: "${frMethodName}") (${filteredMethods.length} methods)`);
     } else if (toCountry === 'CH' || toCountry === 'GB') {
-      filteredMethods = allMethods.filter(m => m.name?.includes('DHL Express Worldwide 0-70kg') && m.name?.includes('DAP'));
-      console.log(`Filtered for CH/GB (${filteredMethods.length} methods)`);
+      filteredMethods = allMethods.filter(m => m.name === worldwideDapMethodName);
+      console.log(`Filtered for CH/GB (Exact Match: "${worldwideDapMethodName}") (${filteredMethods.length} methods)`);
     } else if (toCountry === 'US') {
-      filteredMethods = allMethods.filter(m => m.name?.includes('DHL Express Worldwide 0-70kg - incoterm DAP') && m.name?.includes('DAP'));
-      console.log(`Filtered for US (${filteredMethods.length} methods)`);
+      filteredMethods = allMethods.filter(m => m.name === worldwideDapMethodName);
+      console.log(`Filtered for US (Exact Match: "${worldwideDapMethodName}") (${filteredMethods.length} methods)`);
     } else if (toCountry) { // For any other specific country not matching above rules
-      // Default rule: Filter *only* for DHL Express Economy Select
-      filteredMethods = allMethods.filter(m => m.name?.includes('DHL Express Economy Select 0-70kg'));
-      console.log(`Filtered for other country ${toCountry} (default rule) (${filteredMethods.length} methods)`);
+      // Default rule: Filter *only* for the exact Economy Select name
+      filteredMethods = allMethods.filter(m => m.name === economySelectMethodName);
+      console.log(`Filtered for other country ${toCountry} (Exact Match: "${economySelectMethodName}") (${filteredMethods.length} methods)`);
     } else {
         // If no country provided, return all methods from DB (or handle as error?)
         console.log('No specific country provided, returning all DB methods.');

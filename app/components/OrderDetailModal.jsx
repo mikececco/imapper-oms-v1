@@ -646,7 +646,8 @@ export default function OrderDetailModal({ children }) {
                            updateShippingMethodInDb(value);
                          }}
                          disabled={isLoadingDbMethods || isSavingShippingMethod || isSyncingMethods || isLoadingAllMethods || !order}
-                         className="flex-grow h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                         className="flex-grow h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 
+                                    w-full overflow-hidden whitespace-nowrap text-ellipsis"
                        >
                          {/* Default placeholder option */}
                          {!currentShippingMethodId && <option value="" disabled>Select shipping method...</option>}
@@ -655,14 +656,19 @@ export default function OrderDetailModal({ children }) {
                          {isLoadingDbMethods ? (
                              <option value="loading" disabled>Loading methods...</option>
                          ) : dbShippingMethods.length > 0 ? (
-                             dbShippingMethods.map((method) => (
-                               <option 
-                                 key={method.id} 
-                                 value={String(method.id)}
-                               >
-                                 {method.name} ({method.carrier || 'DB'})
-                               </option>
-                             ))
+                             dbShippingMethods.map((method) => {
+                               // Check if this method is the currently selected one
+                               const isDefault = String(method.id) === currentShippingMethodId;
+                               return (
+                                 <option 
+                                   key={method.id} 
+                                   value={String(method.id)}
+                                 >
+                                   {/* Append ' - DEFAULT' if it matches the current selection */}
+                                   {method.name} ({method.carrier || 'DB'}){isDefault ? ' - DEFAULT' : ''}
+                                 </option>
+                               );
+                             })
                            ) : (
                              <option value="no-methods" disabled>
                                {order?.shipping_address_country ? 'No applicable methods found' : 'Enter country first'}
