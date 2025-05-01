@@ -864,27 +864,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         </div>
       </div>
 
-      {/* Conditionally display Shipping Method Input */}
-      {(formData.shipping_address_country?.toUpperCase() === 'GB' || formData.shipping_address_country?.toUpperCase() === 'CH') && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <h3 className="font-medium text-black mb-2">Shipping Method (Required for {formData.shipping_address_country.toUpperCase()})</h3>
-          <div>
-            <label htmlFor="shipping_method" className="text-sm font-medium block">
-              Shipping Method <span className='text-xs text-gray-500'>(e.g., standard, express)</span>
-            </label>
-            <input
-              id="shipping_method"
-              name="shipping_method"
-              type="text"
-              placeholder="Enter shipping method"
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('shipping_method')}`}
-              value={formData.shipping_method}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-      )}
-
       {/* Shipping & Tracking Information Section */}
       <div className="mt-8 pt-6 border-t border-gray-200">
         <h3 className="font-medium text-black mb-4">Shipping & Tracking Information</h3>
