@@ -684,7 +684,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Customer & Shipping Info Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-100 p-4 rounded-md">
         {/* Customer Information */}
         <div className="space-y-2">
           <div>
@@ -829,8 +830,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         </div>
       </div>
       
-      {/* Order Details */}
-      <div className="space-y-2">
+      {/* Order Details Section */}
+      <div className="space-y-2 bg-green-100 p-4 rounded-md">
         <h3 className="font-medium text-black">Order Details</h3>
         
         {/* Manual Instruction Display */}
@@ -973,7 +974,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
 
       {/* --- EDITABLE Customs Information Section (Conditionally Rendered) --- */}
       {requiresCustoms && (
-        <div className="mt-6 pt-6 border-t border-gray-200 bg-blue-50 border border-blue-200 p-4 rounded-md">
+        <div className="mt-6 pt-6 border-t border-gray-200 bg-blue-100 border border-blue-300 p-4 rounded-md">
           <h3 className="text-lg font-semibold mb-4">
             Customs Information (Required for {destinationCountry})
           </h3>
@@ -1074,7 +1075,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       {/* --- END EDITABLE Customs Information Section --- */}
 
       {/* Shipping & Tracking Information Section */}
-      <div className="mt-8 pt-6 border-t border-gray-200">
+      <div className="mt-8 pt-6 border-t border-gray-200 bg-indigo-100 p-4 rounded-md">
         <h3 className="font-medium text-black mb-4">Shipping & Tracking Information</h3>
         
         <div className="space-y-4">
