@@ -141,7 +141,7 @@ export default function OrderActivityLog({ orderId }) {
                 <IconComponent className="h-5 w-5 text-gray-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900">
+                <p className="text-sm text-gray-900 break-words">
                   {formatActivityMessage(activity)}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
