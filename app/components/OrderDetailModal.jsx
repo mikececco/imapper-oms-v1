@@ -723,6 +723,8 @@ export default function OrderDetailModal({ children }) {
                          )}
                        </select>
 
+                       {/* REMOVED Sync Button */}
+                       {/* 
                        <Button
                          variant="secondary" 
                          size="icon"
@@ -734,7 +736,10 @@ export default function OrderDetailModal({ children }) {
                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m-15.357-2a8.001 8.001 0 0115.357-2m0 0H15" />
                          </svg>
                        </Button>
+                       */}
 
+                       {/* REMOVED Fetch All Button */}
+                       {/* 
                        <Button
                          variant="outline" 
                          size="icon"
@@ -746,6 +751,7 @@ export default function OrderDetailModal({ children }) {
                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10m16-5H4m16 5H4M4 7h16v10H4V7z" />
                          </svg>
                        </Button>
+                       */}
                     </div>
                     
                     {/* ---- Indicators and ID Display START ---- */}
@@ -754,17 +760,19 @@ export default function OrderDetailModal({ children }) {
                     
                     {/* Saving indicator */}
                     {isSavingShippingMethod && <p className="text-xs text-blue-500 mt-1 animate-pulse">Saving...</p>}
-                    {/* Syncing indicator */}
+                    {/* Syncing indicator - Kept for now, although button is removed */}
                     {isSyncingMethods && <p className="text-xs text-orange-500 mt-1 animate-pulse">Syncing with SendCloud...</p>}
-                    {/* Fetching All indicator */}
+                    {/* Fetching All indicator - Kept for now, although button is removed */}
                     {isLoadingAllMethods && <p className="text-xs text-purple-500 mt-1 animate-pulse">Fetching all from SendCloud...</p>}
                     
-                    {/* Display Selected ID */}
+                    {/* REMOVED Display Selected ID */}
+                    {/* 
                     {currentShippingMethodId && !isSavingShippingMethod && !isSyncingMethods && !isLoadingAllMethods && (
                       <p className="text-xs text-gray-600 mt-1 font-medium">
                         Selected ID: {currentShippingMethodId}
                       </p>
                     )}
+                    */}
                     
                     {/* Original DB value display (adjusted to show only if different) */}
                     {order.shipping_method && String(order.shipping_method) !== currentShippingMethodId && !isSavingShippingMethod && !isSyncingMethods && !isLoadingAllMethods && (
