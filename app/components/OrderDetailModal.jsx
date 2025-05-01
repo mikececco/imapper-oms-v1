@@ -904,21 +904,24 @@ export default function OrderDetailModal({ children }) {
                         </div>
                       )}
                       
-                      {order.label_url && (
+                      {/* View Label Button - points to our proxy route */}
+                      {order.shipping_id && ( // Check for shipping_id instead of label_url
                         <a 
-                          href={order.label_url} 
+                          href={`/api/labels/${order.shipping_id}`} // Use the proxy route
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-base text-center block"
+                          className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-base text-center block mt-2" // Added margin top
                         >
                           View Label
                         </a>
                       )}
+                      {/* Display Pending message if shipping_id exists but maybe no label was generated (though less likely now) */}
+                      {/* This condition might need adjustment based on actual flow */}
                       {order.shipping_id && !order.label_url && (
                         <div className="w-full text-center py-2">
-                          <span className="text-yellow-500 text-base">Pending</span>
+                          <span className="text-yellow-500 text-base">Pending Label Generation?</span>
                           <p className="text-sm text-gray-500 mt-1">
-                            Label created (ID: {String(order.shipping_id || '').substring(0, 8)}...) but URL not available
+                            Parcel created (ID: {String(order.shipping_id || '').substring(0, 8)}...). Try 'View Label'.
                           </p>
                         </div>
                       )}
