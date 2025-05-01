@@ -227,9 +227,55 @@ async function createSendCloudParcel(order, orderPackValue, shippingMethodId) {
     const auth = Buffer.from(`${sendCloudApiKey}:${sendCloudApiSecret}`).toString('base64');
     
     // Ensure weight is in the correct format (string with 3 decimal places)
-    const weight = order.weight ? order.weight.toString() : '1.000';
+    const totalWeight = order.weight ? parseFloat(order.weight) : 1.0;
+    const weightString = totalWeight.toFixed(3);
+
+    // --- Customs Information Logic --- 
+    const destinationCountry = order.shipping_address_country?.toUpperCase();
+    // Define countries requiring customs declarations (expand as needed)
+    const countriesRequiringCustoms = ['GB', 'CH', 'US', 'CA', 'AU', 'NO']; // Example list
+    const requiresCustoms = countriesRequiringCustoms.includes(destinationCountry);
+
+    let parcelItems = [];
+    let totalQuantity = 0;
+
+    if (requiresCustoms) {
+      try {
+        const lineItems = typeof order.line_items === 'string' 
+          ? JSON.parse(order.line_items) 
+          : (Array.isArray(order.line_items) ? order.line_items : []);
+
+        if (!lineItems || lineItems.length === 0) {
+          // If no line items, potentially create a default item or throw error
+          // For now, let's log a warning and continue without items, 
+          // which might still cause an error but highlights the missing data.
+          console.warn(`Order ${order.id} requires customs but has no line items.`);
+          // Throwing an error might be safer:
+          // throw new Error('Customs requires parcel items, but order line items are missing or invalid.');
+        } else {
+          // Calculate total quantity for weight distribution
+          totalQuantity = lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+          if (totalQuantity === 0) totalQuantity = 1; // Avoid division by zero
+
+          parcelItems = lineItems.map(item => ({
+            description: item.description ? item.description.substring(0, 50) : 'Product', // Max 50 chars
+            quantity: item.quantity || 1,
+            // Distribute total weight proportionally (approximation)
+            weight: ((totalWeight / totalQuantity) * (item.quantity || 1)).toFixed(3),
+            value: (item.amount || 0).toFixed(2), // Price per item
+            hs_code: item.hs_code || '90151000', // Use provided HS code as default
+            origin_country: item.origin_country || 'FR', // Use origin_country if available, else default (NEEDS ATTENTION)
+            sku: item.sku || '' // Add SKU if available
+          }));
+        }
+      } catch (parseError) {
+        console.error(`Error parsing line_items for order ${order.id}:`, parseError);
+        throw new Error('Invalid line items format, cannot generate customs information.');
+      }
+    }
+    // --- End Customs Information Logic ---
     
-    // Prepare the parcel data
+    // Prepare the base parcel data
     const parcelData = {
       parcel: {
         name: (order.name || 'Customer').slice(0, 35), // Truncate name to 35 characters
@@ -239,18 +285,37 @@ async function createSendCloudParcel(order, orderPackValue, shippingMethodId) {
         address_2: order.shipping_address_line2 || '',
         city: order.shipping_address_city,
         postal_code: order.shipping_address_postal_code,
-        country: order.shipping_address_country,
+        country: destinationCountry, // Use normalized country code
         email: order.email || '',
         telephone: order.phone || '',
         order_number: orderPackValue, // Use the passed orderPackValue
-        weight: weight,
-        request_label: true, // Keep request_label as true
-        apply_shipping_rules: false, // Set apply_shipping_rules to FALSE as we provide the method ID
-        shipment: { // Add the shipment object with the provided ID
-            id: shippingMethodId 
+        weight: weightString, // Total weight as string
+        request_label: true,
+        apply_shipping_rules: false,
+        shipment: {
+          id: shippingMethodId
         }
       }
     };
+
+    // Conditionally add customs fields
+    if (requiresCustoms) {
+      console.log(`Adding customs info for order ${order.id} to ${destinationCountry}`);
+      parcelData.parcel.customs_shipment_type = 'commercial_goods'; // Or determine dynamically if needed
+      // Use stripe_invoice_id if available, otherwise fallback to order.id
+      parcelData.parcel.customs_invoice_nr = order.stripe_invoice_id || order.id || 'N/A'; 
+      // Only add parcel_items if it's not empty
+      if (parcelItems.length > 0) {
+          parcelData.parcel.parcel_items = parcelItems;
+      } else {
+          // Handle cases where line items were missing/invalid - SendCloud might reject this.
+          console.warn(`Proceeding without parcel_items for customs for order ${order.id}. SendCloud may reject.`);
+          // Consider adding a default item if required by SendCloud
+          /* parcelData.parcel.parcel_items = [{ 
+              description: 'Default Item', quantity: 1, weight: weightString, value: '0.01', hs_code: null, origin_country: 'FR' 
+          }]; */
+      }
+    }
     
     console.log('Sending parcel data to SendCloud:', JSON.stringify(parcelData, null, 2));
     

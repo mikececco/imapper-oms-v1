@@ -12,6 +12,9 @@ import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '
 import { toast } from 'react-hot-toast';
 import { formatDate } from './OrderDetailModal';
 
+// Define countries requiring customs for reuse
+const COUNTRIES_REQUIRING_CUSTOMS = ['GB', 'CH', 'US', 'CA', 'AU', 'NO'];
+
 export default function OrderDetailForm({ order, orderPackOptions, onUpdate, calculatedInstruction }) {
   const router = useRouter();
   // Use useRef to track client-side rendering
@@ -59,11 +62,47 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
   // Store the original form data for comparison
   const [originalFormData, setOriginalFormData] = useState({});
   
-  // Initialize form data and original data
+  // --- State for Editable Customs Fields ---
+  const [customsShipmentType, setCustomsShipmentType] = useState('commercial_goods');
+  const [customsInvoiceNr, setCustomsInvoiceNr] = useState('');
+  const [editableParcelItems, setEditableParcelItems] = useState([]);
+  // --- End State --- 
+  
+  // Initialize form data and original data (including customs)
   useEffect(() => {
-    // --- INVESTIGATION LOG --- 
     console.log('[OrderDetailForm Effect] Received order prop with id:', order?.id);
-    // --- END LOG ---
+    
+    // Parse line items for initial customs state
+    let initialParcelItems = [];
+    let lineItems = [];
+    try {
+      lineItems = typeof order.line_items === 'string' 
+        ? JSON.parse(order.line_items) 
+        : (Array.isArray(order.line_items) ? order.line_items : []);
+      
+      const totalWeight = order.weight ? parseFloat(order.weight) : 0;
+      const totalQuantity = lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
+
+      initialParcelItems = lineItems.map(item => ({
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        value: (item.amount || 0).toFixed(2),
+        weight: ((totalWeight / totalQuantity) * (item.quantity || 1)).toFixed(3),
+        hs_code: item.hs_code || '90151000',
+        origin_country: item.origin_country || 'FR',
+        sku: item.sku || ''
+      }));
+    } catch (err) {
+      console.error('Error initializing parcel items from order.line_items:', err);
+      // Leave initialParcelItems empty if parsing fails
+    }
+    
+    // Try to get customs data from the order if it exists, otherwise use defaults/parsed items
+    setCustomsShipmentType(order.customs_shipment_type || 'commercial_goods');
+    // Use stripe_invoice_id if available, otherwise fallback to order.id
+    setCustomsInvoiceNr(order.customs_invoice_nr || order.stripe_invoice_id || order.id || ''); 
+    setEditableParcelItems(order.customs_parcel_items || initialParcelItems); // Use stored if available
+
     const initialData = {
       name: order.name || '',
       email: order.email || '',
@@ -74,7 +113,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       shipping_address_city: order.shipping_address_city || '',
       shipping_address_postal_code: order.shipping_address_postal_code || '',
       shipping_address_country: order.shipping_address_country || '',
-      order_pack: '',
+      order_pack: '', // This seems derived, maybe remove from state?
       order_pack_quantity: order.order_pack_quantity || 1,
       order_notes: order.order_notes || '',
       weight: order.weight || '1.000',
@@ -83,10 +122,14 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       shipping_id: order.shipping_id || '',
       order_pack_list_id: order.order_pack_list_id || '',
       serial_number: order.serial_number || '',
+      // Add customs fields to initialData for diff tracking
+      customs_shipment_type: order.customs_shipment_type || 'commercial_goods',
+      customs_invoice_nr: order.customs_invoice_nr || order.stripe_invoice_id || order.id || '', 
+      customs_parcel_items: JSON.stringify(order.customs_parcel_items || initialParcelItems) // Store as string for comparison
     };
     
-    setFormData(initialData);
-    setOriginalFormData(initialData);
+    setFormData(initialData); // Keep this for non-customs fields
+    setOriginalFormData(initialData); // Store original state including customs
   }, [order]);
   
   // Check if form data has changed
@@ -417,38 +460,60 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       updatedFields.shipping_id = formData.shipping_id;
     }
 
+    // --- Prepare Update Data ---
+    const updateData = {
+      ...formData, // Start with existing form data (non-customs fields)
+      shipping_address_country: formData.shipping_address_country?.toUpperCase(), // Use normalized code for DB
+      updated_at: new Date().toISOString(), // Always update the timestamp
+      // Add customs fields from state
+      customs_shipment_type: customsShipmentType,
+      customs_invoice_nr: customsInvoiceNr,
+      customs_parcel_items: editableParcelItems // Save the array/object directly (assuming JSONB column)
+    };
+    delete updateData.order_pack; // Remove derived field
+    // Remove fields that might be in formData but belong to customs state
+    // (These were added to originalFormData for diffing)
+    delete updateData.customs_parcel_items; 
+
+
     // --- Calculate Changes for Logging ---
     const changesForLog = {};
-    const original = originalFormData; // Get the original data stored in state
+    // Use a combined object representing the full current state for comparison
+    const currentStateForCompare = {
+       ...formData, // Non-customs fields
+       customs_shipment_type: customsShipmentType,
+       customs_invoice_nr: customsInvoiceNr,
+       customs_parcel_items: JSON.stringify(editableParcelItems) // Compare stringified version
+    };
+    const original = originalFormData; // Contains original state including stringified customs items
     let hasActualChanges = false;
 
     // ---- MORE LOGGING ----
-    console.log('[handleSubmit] Comparing formData with originalFormData:');
+    console.log('[handleSubmit] Comparing currentState with originalFormData:');
     console.log('[handleSubmit] Original:', original);
-    console.log('[handleSubmit] Submitted (updateData):', updatedFields);
+    console.log('[handleSubmit] Current State for Compare:', currentStateForCompare);
     // ---- END LOGGING ----
 
-    Object.keys(updatedFields).forEach(key => {
-      // Check if the key exists in original data and if the value has changed
-      // Also ignore 'updated_at' for logging purposes
+    // Compare against the combined current state
+    Object.keys(currentStateForCompare).forEach(key => {
       const originalValue = original.hasOwnProperty(key) ? original[key] : undefined;
-      const newValue = updatedFields[key];
+      const newValue = currentStateForCompare[key];
       
-      // Improved comparison to handle null/undefined/empty strings slightly better
+      // Use string comparison, especially important for customs_parcel_items
       const valuesDiffer = String(originalValue ?? '') !== String(newValue ?? '');
 
       if (key !== 'updated_at' && valuesDiffer) {
         changesForLog[key] = {
-          old_value: originalValue,
+          // Log the correct original value
+          old_value: original.hasOwnProperty(key) ? original[key] : null, 
           new_value: newValue
         };
-        hasActualChanges = true; // Mark that at least one field changed
+        hasActualChanges = true;
       }
     });
 
     // ---- MORE LOGGING ----
     console.log('[handleSubmit] Calculated changesForLog:', changesForLog);
-    console.log('[handleSubmit] hasActualChanges:', hasActualChanges);
     // ---- END LOGGING ----
 
     // --- Database Update ---
@@ -457,7 +522,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       try {
         const { error } = await supabase
           .from('orders')
-          .update(updatedFields)
+          .update(updateData)
           .eq('id', order.id);
 
         if (error) throw error;
@@ -490,11 +555,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         
         // Call the onUpdate callback if provided
         if (onUpdate) {
-          onUpdate(updatedFields); 
+          onUpdate(updateData); 
         }
         
         // Recalculate status after update
-        setCalculatedStatus(calculateOrderStatus({ ...order, ...updatedFields }));
+        setCalculatedStatus(calculateOrderStatus({ ...order, ...updateData }));
         
         // Optional: Refresh router cache if needed
         // router.refresh();
@@ -574,6 +639,48 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       ? 'border-yellow-400' 
       : 'border-gray-300';
   };
+
+  // --- Handler for Editable Parcel Items Table ---
+  const handleParcelItemChange = (index, field, value) => {
+    const updatedItems = [...editableParcelItems];
+    updatedItems[index] = { ...updatedItems[index], [field]: value };
+    setEditableParcelItems(updatedItems);
+    setIsFormModified(true); // Mark form as modified
+  };
+  // --- End Handler ---
+
+  // --- Add Parcel Item Function ---
+  const addParcelItem = () => {
+    setEditableParcelItems(prevItems => [
+      ...prevItems,
+      // Add a new item with default values
+      {
+        description: '', 
+        quantity: 1, 
+        value: '0.00', 
+        weight: '0.100', // Default weight, user should adjust
+        hs_code: '90151000', // Default HS code
+        origin_country: 'FR', // Default origin
+        sku: '' 
+      }
+    ]);
+    setIsFormModified(true); // Mark form as modified since structure changed
+  };
+  // --- End Add Function ---
+
+  // --- Remove Parcel Item Function ---
+  const removeParcelItem = (indexToRemove) => {
+    setEditableParcelItems(prevItems => 
+      prevItems.filter((_, index) => index !== indexToRemove)
+    );
+    setIsFormModified(true); // Mark form as modified
+  };
+  // --- End Remove Function ---
+
+  // --- Determine if customs section should be shown ---
+  const destinationCountry = formData.shipping_address_country?.toUpperCase();
+  const requiresCustoms = destinationCountry && COUNTRIES_REQUIRING_CUSTOMS.includes(destinationCountry);
+  // --- End Determination ---
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -863,6 +970,108 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           </div>
         </div>
       </div>
+
+      {/* --- EDITABLE Customs Information Section (Conditionally Rendered) --- */}
+      {requiresCustoms && (
+        <div className="mt-6 pt-6 border-t border-gray-200 bg-blue-50 border border-blue-200 p-4 rounded-md">
+          <h3 className="text-lg font-semibold mb-4">
+            Customs Information (Required for {destinationCountry})
+          </h3>
+          <div className="space-y-4">
+            {/* Customs Shipment Type */}
+            <div>
+              <label htmlFor="customs_shipment_type" className="text-sm font-medium block mb-1">
+                Customs Shipment Type
+              </label>
+              <select
+                id="customs_shipment_type"
+                name="customs_shipment_type"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('customs_shipment_type')}`}
+                value={customsShipmentType}
+                onChange={(e) => { setCustomsShipmentType(e.target.value); setIsFormModified(true); }}
+              >
+                <option value="commercial_goods">Commercial Goods</option>
+                <option value="gift">Gift</option>
+                <option value="documents">Documents</option>
+                <option value="sample">Sample</option>
+                <option value="return_merchandise">Return Merchandise</option>
+              </select>
+            </div>
+
+            {/* Customs Invoice Nr */}
+            <div>
+              <label htmlFor="customs_invoice_nr" className="text-sm font-medium block mb-1">
+                Customs Invoice Nr.
+              </label>
+              <input
+                id="customs_invoice_nr"
+                name="customs_invoice_nr"
+                type="text"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('customs_invoice_nr')}`}
+                value={customsInvoiceNr}
+                onChange={(e) => { setCustomsInvoiceNr(e.target.value); setIsFormModified(true); }}
+                placeholder="e.g., Order ID or Invoice Number"
+              />
+            </div>
+
+            {/* Editable Parcel Items Table */}            
+            <div>
+              <h4 className="text-md font-semibold mb-2">Parcel Items</h4>
+              {editableParcelItems.length > 0 ? (
+                <div className="overflow-x-auto border rounded-md">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-2 py-2 text-left font-medium text-gray-600 uppercase">Desc.</th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-600 uppercase">Qty</th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-600 uppercase">Value (€)</th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-600 uppercase">Weight (kg)</th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-600 uppercase">HS Code</th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-600 uppercase">Origin</th>
+                        <th className="px-2 py-2 text-left font-medium text-gray-600 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {editableParcelItems.map((item, index) => (
+                        <tr key={index}>
+                          <td className="px-1 py-1"><input type="text" value={item.description} onChange={(e) => handleParcelItemChange(index, 'description', e.target.value)} className="w-full border-gray-200 rounded p-1" /></td>
+                          <td className="px-1 py-1"><input type="number" value={item.quantity} onChange={(e) => handleParcelItemChange(index, 'quantity', parseInt(e.target.value) || 1)} className="w-16 border-gray-200 rounded p-1" min="1"/></td>
+                          <td className="px-1 py-1"><input type="text" inputMode="decimal" value={item.value} onChange={(e) => handleParcelItemChange(index, 'value', e.target.value)} className="w-20 border-gray-200 rounded p-1" /></td>
+                          <td className="px-1 py-1"><input type="text" inputMode="decimal" value={item.weight} onChange={(e) => handleParcelItemChange(index, 'weight', e.target.value)} className="w-20 border-gray-200 rounded p-1" /></td>
+                          <td className="px-1 py-1"><input type="text" value={item.hs_code} onChange={(e) => handleParcelItemChange(index, 'hs_code', e.target.value)} className="w-24 border-gray-200 rounded p-1" /></td>
+                          <td className="px-1 py-1"><input type="text" value={item.origin_country} onChange={(e) => handleParcelItemChange(index, 'origin_country', e.target.value.toUpperCase())} className="w-12 border-gray-200 rounded p-1" maxLength="2" /></td>
+                          <td className="px-1 py-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => removeParcelItem(index)}
+                              className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                              title="Remove Item"
+                            >
+                              X
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">No line items found to generate parcel items. Please ensure order has line items.</p>
+              )}
+              {/* --- Add Item Button (Moved outside conditional rendering of table content) --- */}
+              <button
+                type="button" 
+                onClick={addParcelItem}
+                className="mt-2 px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+              >
+                + Add Parcel Item
+              </button>
+              {/* --- End Button --- */}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* --- END EDITABLE Customs Information Section --- */}
 
       {/* Shipping & Tracking Information Section */}
       <div className="mt-8 pt-6 border-t border-gray-200">
