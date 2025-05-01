@@ -11,120 +11,97 @@ const serverSupabase = SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY
 // Force dynamic rendering to ensure this route is not statically optimized
 export const dynamic = 'force-dynamic';
 
-// Convert the SHIPPING_OPTIONS object to an array of objects for fallback
-const defaultMethods = Object.entries(SHIPPING_OPTIONS).map(([key, value], index) => ({
-  id: index + 1,
-  code: value,
-  name: key.charAt(0) + key.slice(1).toLowerCase(),
-  display_order: index + 1,
-  active: true
-}));
-
 // Cache for API responses
 let responseCache = null;
 let lastFetchTime = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 export async function GET(request) {
-  // Check for cache busting parameter
   const url = new URL(request.url);
   const bypassCache = url.searchParams.has('bypass_cache');
-  
-  // Check if we have a valid cache
+  const toCountry = url.searchParams.get('to_country')?.toUpperCase(); // Read and normalize to_country
+
+  // Use cache key that includes the country for filtering
+  const cacheKey = `shipping_methods_${toCountry || 'all'}`;
   const now = Date.now();
-  if (!bypassCache && responseCache && (now - lastFetchTime < CACHE_TTL)) {
-    return NextResponse.json(responseCache);
+  if (!bypassCache && responseCache && responseCache[cacheKey] && (now - lastFetchTime < CACHE_TTL)) {
+    console.log(`Returning cached filtered shipping methods for ${toCountry || 'all'}.`);
+    return NextResponse.json(responseCache[cacheKey]);
   }
   
   try {
-    // Check if we have a valid Supabase client
     if (!serverSupabase) {
-      console.log('No valid Supabase client, using default shipping methods');
-      
-      const response = {
-        success: true,
-        data: defaultMethods,
-        source: 'default'
-      };
-      
-      // Update cache
-      responseCache = response;
-      lastFetchTime = now;
-      
-      return NextResponse.json(response);
+      console.error('Supabase client not available for fetching shipping methods');
+      // Don't return defaults, throw error as DB is expected to be populated
+      return NextResponse.json({ error: 'Database connection error', success: false }, { status: 500 });
     }
 
-    // Try to fetch shipping methods from the database
-    const { data, error } = await serverSupabase
+    console.log(`Fetching all shipping methods from DB for filtering (to_country: ${toCountry || 'N/A'})...`);
+    // Fetch all methods from the database
+    const { data: allMethods, error } = await serverSupabase
       .from('shipping_methods')
-      .select('*')
-      .order('display_order', { ascending: true });
+      .select('*') // Select all needed columns (id, name, carrier, etc.)
+      // .order('display_order', { ascending: true }); // Removed ordering by non-existent column
+      // Optionally, order by name if desired:
+      .order('name', { ascending: true });
     
-    // If there's an error or no data, return the default shipping methods
-    if (error || !data || data.length === 0) {
-      // Check if the error is because the table doesn't exist
-      const isTableNotExistError = error && error.code === '42P01';
-      
-      if (isTableNotExistError) {
-        console.log('Shipping methods table does not exist, using default methods');
-        
-        // Try to create the table if it doesn't exist
-        try {
-          await createShippingMethodsTable();
-        } catch (createError) {
-          console.error('Failed to create shipping methods table:', createError);
-        }
-      } else {
-        console.log('Using default shipping methods from constants:', error);
-      }
-      
-      const response = {
-        success: true,
-        data: defaultMethods,
-        source: 'default',
-        error: error ? error.message : null
-      };
-      
-      // Update cache
-      responseCache = response;
-      lastFetchTime = now;
-      
-      return NextResponse.json(response);
+    if (error) {
+      console.error('Error fetching shipping methods from DB:', error);
+       return NextResponse.json({ error: 'Failed to fetch methods from database', success: false, details: error.message }, { status: 500 });
     }
     
-    // Return the shipping methods from the database
+    if (!allMethods || allMethods.length === 0) {
+       console.warn('No shipping methods found in the database. Run sync?');
+       return NextResponse.json({ success: true, data: [], source: 'database', message: 'No methods found in DB' });
+    }
+
+    console.log(`Fetched ${allMethods.length} total methods from DB. Applying filters...`);
+
+    // Apply filtering logic based on toCountry
+    let filteredMethods = [];
+    if (toCountry === 'FR') {
+      filteredMethods = allMethods.filter(m => m.name?.includes('DHL Express Domestic 0-70kg'));
+      console.log(`Filtered for FR (${filteredMethods.length} methods)`);
+    } else if (toCountry === 'CH' || toCountry === 'GB') {
+      filteredMethods = allMethods.filter(m => m.name?.includes('DHL Express Worldwide 0-70kg') && m.name?.includes('DAP'));
+      console.log(`Filtered for CH/GB (${filteredMethods.length} methods)`);
+    } else if (toCountry === 'US') {
+      filteredMethods = allMethods.filter(m => m.name?.includes('DHL Express Worldwide 0-70kg - incoterm DAP') && m.name?.includes('DAP'));
+      console.log(`Filtered for US (${filteredMethods.length} methods)`);
+    } else if (toCountry) { // For any other specific country not matching above rules
+      // Default rule: Filter *only* for DHL Express Economy Select
+      filteredMethods = allMethods.filter(m => m.name?.includes('DHL Express Economy Select 0-70kg'));
+      console.log(`Filtered for other country ${toCountry} (default rule) (${filteredMethods.length} methods)`);
+    } else {
+        // If no country provided, return all methods from DB (or handle as error?)
+        console.log('No specific country provided, returning all DB methods.');
+        filteredMethods = allMethods; 
+    }
+    
+    // Prepare response with filtered data
     const response = {
       success: true,
-      data,
-      source: 'database'
+      data: filteredMethods,
+      source: 'database_filtered'
     };
     
-    // Update cache
-    responseCache = response;
-    lastFetchTime = now;
+    // Update cache with filtered results under the specific key
+    if (!responseCache) responseCache = {};
+    responseCache[cacheKey] = response;
+    lastFetchTime = now; // Update timestamp for the whole cache object
     
     return NextResponse.json(response);
     
   } catch (error) {
-    console.error('Error fetching shipping methods:', error);
-    
-    // Return default shipping methods in case of error
-    const response = {
-      success: true,
-      data: defaultMethods,
-      source: 'default',
-      error: error.message
-    };
-    
-    // Update cache
-    responseCache = response;
-    lastFetchTime = now;
-    
-    return NextResponse.json(response);
+    console.error('Error fetching/filtering shipping methods:', error);
+    return NextResponse.json({ 
+        success: false, 
+        error: error.message || 'Failed to process shipping methods' 
+    }, { status: 500 });
   }
 }
 
-// Helper function to create the shipping_methods table
+// Helper function to create the shipping_methods table (keep for potential first run)
 async function createShippingMethodsTable() {
   if (!serverSupabase) return;
   
@@ -139,11 +116,11 @@ async function createShippingMethodsTable() {
   // Insert default methods
   await serverSupabase
     .from('shipping_methods')
-    .upsert(defaultMethods.map(method => ({
-      code: method.code,
-      name: method.name,
-      display_order: method.display_order,
-      active: method.active
+    .upsert(SHIPPING_OPTIONS.map(method => ({
+      code: method,
+      name: method.charAt(0) + method.slice(1).toLowerCase(),
+      display_order: Object.values(SHIPPING_OPTIONS).indexOf(method) + 1,
+      active: true
     })), {
       onConflict: 'code',
       ignoreDuplicates: false

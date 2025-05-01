@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 import { supabase } from '../utils/supabase-client';
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from './OrderActions';
 import OrderDetailForm from './OrderDetailForm';
@@ -17,6 +17,8 @@ import { Textarea } from './ui/textarea';
 import { TableCell } from './ui/table';
 import { calculateOrderInstruction } from '../utils/order-instructions';
 import { toast } from 'react-hot-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { RefreshCcw } from 'lucide-react';
 
 // Create context for the OrderDetailModal
 export const OrderDetailModalContext = createContext({
@@ -144,6 +146,13 @@ export default function OrderDetailModal({ children }) {
   const [labelMessage, setLabelMessage] = useState(null);
   const [migrationNeeded, setMigrationNeeded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [dbShippingMethods, setDbShippingMethods] = useState([]);
+  const [isLoadingDbMethods, setIsLoadingDbMethods] = useState(false);
+  const [currentShippingMethodId, setCurrentShippingMethodId] = useState('');
+  const [isSavingShippingMethod, setIsSavingShippingMethod] = useState(false);
+  const [isSyncingMethods, setIsSyncingMethods] = useState(false);
+  const [allSendCloudMethods, setAllSendCloudMethods] = useState([]);
+  const [isLoadingAllMethods, setIsLoadingAllMethods] = useState(false);
 
   const openModal = (orderId) => {
     setSelectedOrderId(orderId);
@@ -175,6 +184,7 @@ export default function OrderDetailModal({ children }) {
       if (error) throw error;
       
       setOrder(data);
+      setCurrentShippingMethodId(data.shipping_method || '');
       
       // Check if migration is needed
       setMigrationNeeded(!data.label_url && !data.tracking_number && !data.tracking_link);
@@ -193,6 +203,81 @@ export default function OrderDetailModal({ children }) {
     }
   }, [isOpen, selectedOrderId, fetchOrder]);
 
+  // Fetch DB Shipping Methods on open (passing country code)
+  useEffect(() => {
+    const fetchDbMethods = async () => {
+      if (!isOpen || !order) return; 
+
+      const toCountryCode = order.shipping_address_country?.trim().toUpperCase();
+      // Store the previously selected/saved method ID for comparison later
+      const previouslySavedMethodId = order.shipping_method ? String(order.shipping_method) : null;
+      setCurrentShippingMethodId(''); // Reset selection while loading
+      setDbShippingMethods([]); // Clear previous list
+
+      if (!toCountryCode) {
+        console.warn('Order is missing country code, cannot fetch filtered shipping methods.');
+        setIsLoadingDbMethods(false); // Ensure loading stops
+        return;
+      }
+
+      setIsLoadingDbMethods(true);
+      let fetchedMethods = []; // To store methods fetched from API
+      try {
+        const response = await fetch(`/api/shipping-methods?to_country=${toCountryCode}`); 
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to fetch filtered DB shipping methods');
+        }
+        fetchedMethods = data.data || [];
+        setDbShippingMethods(fetchedMethods);
+
+      } catch (err) {
+        console.error('Error fetching filtered DB shipping methods:', err);
+        toast.error(`Failed to load shipping methods: ${err.message}`);
+        // Leave dbShippingMethods empty on error
+      } finally {
+        setIsLoadingDbMethods(false);
+        
+        // --- Default Selection Logic --- 
+        if (fetchedMethods.length > 0) {
+            // Check if the previously saved method is valid within the fetched list
+            const isPreviousMethodValid = previouslySavedMethodId && fetchedMethods.some(m => String(m.id) === previouslySavedMethodId);
+
+            if (isPreviousMethodValid) {
+                // If previous selection is still valid for this country, re-select it
+                console.log(`Previously saved method ${previouslySavedMethodId} is valid for ${toCountryCode}. Re-selecting.`);
+                setCurrentShippingMethodId(previouslySavedMethodId);
+                // No need to save again if it was already the saved value
+            } else {
+                // If no valid previous selection, find the first method from the filtered list as default
+                const defaultMethod = fetchedMethods[0]; // The API already applied the rule, take the first match
+                const defaultMethodId = String(defaultMethod.id);
+                console.log(`Selecting default method ${defaultMethodId} (${defaultMethod.name}) for ${toCountryCode}.`);
+                setCurrentShippingMethodId(defaultMethodId);
+                // Automatically save this new default to the database
+                updateShippingMethodInDb(defaultMethodId);
+            }
+        } else {
+            // No methods found for this country
+            console.log(`No applicable shipping methods found for ${toCountryCode}. Clearing selection.`);
+            setCurrentShippingMethodId('');
+             // If a method was previously saved, maybe clear it in DB too?
+             // if (previouslySavedMethodId) { updateShippingMethodInDb(null); }
+        }
+        // --- End Default Selection Logic --- 
+      }
+    };
+
+    // Re-fetch when modal opens or when order.shipping_address_country changes
+    if (isOpen && order) { 
+      fetchDbMethods();
+    } else if (!isOpen) {
+      setDbShippingMethods([]); // Clear methods when modal closes
+      setCurrentShippingMethodId(''); // Clear selection
+    }
+  // Only re-run if isOpen changes or the order ID or country code changes
+  }, [isOpen, order?.id, order?.shipping_address_country]); 
+
   const refreshOrder = () => {
     fetchOrder();
   };
@@ -208,8 +293,42 @@ export default function OrderDetailModal({ children }) {
     // setIsOpen(false); // REMOVED: Keep modal open after update
   };
 
+  // Add function to update shipping method in DB
+  const updateShippingMethodInDb = async (methodId) => {
+    if (!order || !order.id || !methodId) return;
+    setIsSavingShippingMethod(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ shipping_method: methodId, updated_at: new Date().toISOString() })
+        .eq('id', order.id)
+        .select('shipping_method') // Select to confirm update
+        .single();
+
+      if (error) throw error;
+
+      // Update local order state optimistically
+      handleOrderUpdate({ shipping_method: data.shipping_method }); 
+      setCurrentShippingMethodId(String(data.shipping_method)); // Ensure state matches DB
+      toast.success('Shipping method saved.');
+
+    } catch (err) {
+      console.error('Error updating shipping method:', err);
+      toast.error(`Failed to save shipping method: ${err.message}`);
+      // Optionally revert local state if needed
+      setCurrentShippingMethodId(String(order.shipping_method || '')); 
+    } finally {
+      setIsSavingShippingMethod(false);
+    }
+  };
+
   // Function to create a shipping label
   const createShippingLabel = async () => {
+    // Ensure a shipping method is selected
+    if (!currentShippingMethodId) {
+      toast.error('Please select a shipping method first.');
+      return;
+    }
     if (!order || !order.id) return;
     
     setCreatingLabel(true);
@@ -221,7 +340,11 @@ export default function OrderDetailModal({ children }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ orderId: order.id }),
+        // Pass the selected shipping method ID
+        body: JSON.stringify({ 
+          orderId: order.id, 
+          shippingMethodId: parseInt(currentShippingMethodId, 10) // Ensure it's an integer
+        }),
       });
       
       const data = await response.json();
@@ -296,6 +419,99 @@ export default function OrderDetailModal({ children }) {
     }
   };
 
+  // Function to trigger the admin sync endpoint
+  const triggerSyncSendCloudMethods = async () => {
+    // Ensure ADMIN_SECRET_KEY is available client-side (use environment variables properly)
+    // WARNING: Exposing secrets client-side is insecure. This is for demonstration ONLY.
+    // In a real app, this POST request should be made from a secure context/admin panel.
+    const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET_KEY; // Needs to be NEXT_PUBLIC_ for client access
+
+    if (!adminSecret) {
+      toast.error('Admin secret key is not configured for client-side sync trigger.');
+      return;
+    }
+
+    setIsSyncingMethods(true);
+    const toastId = toast.loading('Syncing shipping methods with SendCloud...');
+
+    try {
+      const response = await fetch('/api/admin/sync-sendcloud-methods', {
+        method: 'POST',
+        headers: {
+          // Basic auth check used in the API route - REPLACE WITH REAL AUTH
+          'X-Admin-Secret': adminSecret,
+          'Content-Type': 'application/json' // Add content type even if body is empty
+        },
+        // No body needed for this specific POST request based on current API logic
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `Sync failed with status ${response.status}`);
+      }
+
+      toast.success(`Sync successful! ${data.count || 0} methods updated.`, { id: toastId });
+      
+      // Optionally, re-fetch the filtered methods for the current order after sync
+      // This requires fetchDbMethods to be defined or accessible here
+      if (order) { // Check if order context is available
+          // Assuming fetchDbMethods is defined in this scope or can be called
+          // You might need to slightly refactor how fetchDbMethods is triggered
+          // For now, let's just log. A simple page refresh might be easier.
+          console.log('Sync complete. Re-fetching filtered methods for the current order might be needed.');
+          // Example: Trigger refetch (adjust based on actual implementation)
+          // fetchDbMethods(); // This might cause issues if fetchDbMethods depends only on useEffect
+      } else {
+        console.log('Sync complete. Order context not available to auto-refresh methods.');
+      }
+
+    } catch (error) {
+      console.error('Error triggering SendCloud sync:', error);
+      toast.error(`Sync failed: ${error.message}`, { id: toastId });
+    } finally {
+      setIsSyncingMethods(false);
+    }
+  };
+
+  // Function to fetch ALL methods directly from SendCloud endpoint
+  const fetchAllSendCloudMethods = async () => {
+    setIsLoadingAllMethods(true);
+    setAllSendCloudMethods([]); // Clear previous results
+    const toastId = toast.loading('Fetching all methods from SendCloud API...');
+
+    try {
+      // Call the SendCloud proxy endpoint without country filter
+      // Pass sender_address if available in order, as it might influence results
+      const senderAddressId = order?.sender_address || ''; 
+      const apiUrl = new URL('/api/sendcloud/shipping-methods', window.location.origin);
+      if (senderAddressId) {
+        apiUrl.searchParams.append('sender_address', senderAddressId);
+      }
+      // No to_country parameter here
+
+      console.log(`Fetching ALL SendCloud methods: ${apiUrl.toString()}`);
+      const response = await fetch(apiUrl.toString());
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to fetch all SendCloud methods');
+      }
+
+      const fetchedMethods = data.data || [];
+      setAllSendCloudMethods(fetchedMethods);
+      console.log('Fetched All SendCloud Methods:', fetchedMethods); // Log results
+      toast.success(`Fetched ${fetchedMethods.length} total methods from SendCloud.`, { id: toastId });
+      // Note: These are NOT automatically added to the dropdown, which uses filtered DB data.
+
+    } catch (error) {
+      console.error('Error fetching all SendCloud methods:', error);
+      toast.error(`Failed to fetch all methods: ${error.message}`, { id: toastId });
+    } finally {
+      setIsLoadingAllMethods(false);
+    }
+  };
+
   // Expose the openModal function to the window object so it can be called from anywhere
   useEffect(() => {
     window.openOrderDetail = openModal;
@@ -317,6 +533,9 @@ export default function OrderDetailModal({ children }) {
             <DialogTitle className="text-xl font-bold">
               Order Details {order?.id && `(${order.id})`}
             </DialogTitle>
+            <DialogDescription className="sr-only"> {/* Screen-reader only description */}
+              View and edit the details for order {order?.id || ''}. Manage status, shipping, and view activity.
+            </DialogDescription>
           </DialogHeader>
           
           {loading ? (
@@ -413,6 +632,80 @@ export default function OrderDetailModal({ children }) {
                     </div>
                   </div>
 
+                  {/* Shipping Method Dropdown */}
+                  <div className="status-row">
+                    <span className="status-label">Shipping Method:</span>
+                    <div className="flex items-center space-x-2">
+                       {/* Replace shadcn/ui Select with native HTML select */}
+                       <select
+                         id="shipping-method-select"
+                         value={currentShippingMethodId} // Use state variable
+                         onChange={(e) => {
+                           const value = e.target.value;
+                           setCurrentShippingMethodId(value);
+                           updateShippingMethodInDb(value);
+                         }}
+                         disabled={isLoadingDbMethods || isSavingShippingMethod || isSyncingMethods || isLoadingAllMethods || !order}
+                         className="flex-grow h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                       >
+                         {/* Default placeholder option */}
+                         {!currentShippingMethodId && <option value="" disabled>Select shipping method...</option>}
+                         
+                         {/* Options based on filtered DB methods */}
+                         {isLoadingDbMethods ? (
+                             <option value="loading" disabled>Loading methods...</option>
+                         ) : dbShippingMethods.length > 0 ? (
+                             dbShippingMethods.map((method) => (
+                               <option 
+                                 key={method.id} 
+                                 value={String(method.id)}
+                               >
+                                 {method.name} ({method.carrier || 'DB'})
+                               </option>
+                             ))
+                           ) : (
+                             <option value="no-methods" disabled>
+                               {order?.shipping_address_country ? 'No applicable methods found' : 'Enter country first'}
+                             </option>
+                         )}
+                       </select>
+
+                       <Button
+                         variant="secondary" 
+                         size="icon"
+                         onClick={triggerSyncSendCloudMethods}
+                         disabled={isSyncingMethods || isLoadingAllMethods}
+                         title="Sync methods from SendCloud to DB (Admin)"
+                       >
+                         <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isSyncingMethods ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m-15.357-2a8.001 8.001 0 0115.357-2m0 0H15" />
+                         </svg>
+                       </Button>
+
+                       <Button
+                         variant="outline" 
+                         size="icon"
+                         onClick={fetchAllSendCloudMethods}
+                         disabled={isSyncingMethods || isLoadingAllMethods || !order}
+                         title="Fetch all available methods directly from SendCloud API"
+                       >
+                         <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isLoadingAllMethods ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10m16-5H4m16 5H4M4 7h16v10H4V7z" />
+                         </svg>
+                       </Button>
+                    </div>
+                    {/* Debugging logs for disabled state */}
+                    {console.log('Dropdown Disabled Flags:', { isLoadingDbMethods, isSavingShippingMethod, isSyncingMethods, isLoadingAllMethods, isOrderMissing: !order })}
+                    {isSavingShippingMethod && <p className="text-xs text-blue-500 mt-1 animate-pulse">Saving...</p>}
+                    {isSyncingMethods && <p className="text-xs text-orange-500 mt-1 animate-pulse">Syncing with SendCloud...</p>}
+                    {isLoadingAllMethods && <p className="text-xs text-purple-500 mt-1 animate-pulse">Fetching all from SendCloud...</p>}
+                    {order.shipping_method && String(order.shipping_method) !== currentShippingMethodId && !isSavingShippingMethod && !isSyncingMethods && !isLoadingAllMethods && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Original DB value: {order.shipping_method}
+                      </p>
+                    )}
+                  </div>
+
                   {/* Shipping Label Status */}
                   <div className="status-row flex-col items-stretch">
                     <div className="w-full space-y-2">
@@ -474,11 +767,11 @@ export default function OrderDetailModal({ children }) {
                       <button
                         onClick={() => createShippingLabel()}
                         className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
-                          order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone
+                          order.ok_to_ship && order.paid && currentShippingMethodId && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone
                             ? 'bg-green-500 text-white hover:bg-green-600'
                             : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                         }`}
-                        disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone || creatingLabel}
+                        disabled={!order.ok_to_ship || !order.paid || !currentShippingMethodId || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone || creatingLabel}
                       >
                         {creatingLabel ? (
                           <>
@@ -540,7 +833,7 @@ export default function OrderDetailModal({ children }) {
                         </div>
                       )}
 
-                      {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone) && (
+                      {(!order.ok_to_ship || !order.paid || !currentShippingMethodId || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone) && (
                         <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                           <h4 className="text-sm font-semibold text-yellow-800 mb-2">Missing Required Fields</h4>
                           <div className="space-y-2">

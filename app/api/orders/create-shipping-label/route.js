@@ -42,10 +42,14 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
-    const { orderId } = await request.json();
+    const { orderId, shippingMethodId } = await request.json();
     
     if (!orderId) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
+    }
+    
+    if (!shippingMethodId) {
+        return NextResponse.json({ error: 'Shipping Method ID is required when requesting label directly' }, { status: 400 });
     }
     
     // Fetch the order from Supabase
@@ -109,8 +113,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Selected order pack has an empty value, cannot create label' }, { status: 400 });
     }
     
-    // Create a parcel in SendCloud
-    const parcel = await createSendCloudParcel(order, orderPackValue);
+    // Create a parcel in SendCloud, passing the explicit shippingMethodId
+    const parcel = await createSendCloudParcel(order, orderPackValue, shippingMethodId);
     
     if (!parcel || !parcel.id) {
       return NextResponse.json({ error: 'Failed to create parcel in SendCloud' }, { status: 500 });
@@ -206,9 +210,10 @@ export async function POST(request) {
  * Create a parcel in SendCloud
  * @param {Object} order - The order object
  * @param {string} orderPackValue - The value of the order pack from order_pack_lists
+ * @param {number} shippingMethodId - The explicit shipping method ID selected by the user
  * @returns {Promise<Object>} - The created parcel object
  */
-async function createSendCloudParcel(order, orderPackValue) {
+async function createSendCloudParcel(order, orderPackValue, shippingMethodId) {
   try {
     // Check if SendCloud API credentials are available
     const sendCloudApiKey = process.env.SENDCLOUD_API_KEY;
@@ -223,9 +228,6 @@ async function createSendCloudParcel(order, orderPackValue) {
     
     // Ensure weight is in the correct format (string with 3 decimal places)
     const weight = order.weight ? order.weight.toString() : '1.000';
-    
-    // Get shipping method or use default
-    const shippingMethod = order.shipping_method || 'standard';
     
     // Prepare the parcel data
     const parcelData = {
@@ -242,8 +244,11 @@ async function createSendCloudParcel(order, orderPackValue) {
         telephone: order.phone || '',
         order_number: orderPackValue, // Use the passed orderPackValue
         weight: weight,
-        request_label: false, // Revert request_label based on previous state? Keep false for now.
-        apply_shipping_rules: false, // Revert apply_shipping_rules? Keep false for now.
+        request_label: true, // Keep request_label as true
+        apply_shipping_rules: false, // Set apply_shipping_rules to FALSE as we provide the method ID
+        shipment: { // Add the shipment object with the provided ID
+            id: shippingMethodId 
+        }
       }
     };
     
