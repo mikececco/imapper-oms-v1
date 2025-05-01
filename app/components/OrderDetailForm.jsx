@@ -417,68 +417,98 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       updatedFields.shipping_id = formData.shipping_id;
     }
 
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update(updatedFields)
-        .eq('id', order.id);
+    // --- Calculate Changes for Logging ---
+    const changesForLog = {};
+    const original = originalFormData; // Get the original data stored in state
+    let hasActualChanges = false;
 
-      if (error) throw error;
+    // ---- MORE LOGGING ----
+    console.log('[handleSubmit] Comparing formData with originalFormData:');
+    console.log('[handleSubmit] Original:', original);
+    console.log('[handleSubmit] Submitted (updateData):', updatedFields);
+    // ---- END LOGGING ----
 
-      // Log address changes if any occurred
-      const addressChanges = {};
-      let hasAddressChanged = false;
+    Object.keys(updatedFields).forEach(key => {
+      // Check if the key exists in original data and if the value has changed
+      // Also ignore 'updated_at' for logging purposes
+      const originalValue = original.hasOwnProperty(key) ? original[key] : undefined;
+      const newValue = updatedFields[key];
+      
+      // Improved comparison to handle null/undefined/empty strings slightly better
+      const valuesDiffer = String(originalValue ?? '') !== String(newValue ?? '');
 
-      Object.keys(updatedFields).forEach(key => {
-        if (key !== 'updated_at' && key !== 'shipping_method' && key !== 'order_pack_list_id' && key !== 'order_pack' && key !== 'order_pack_quantity' && key !== 'weight' && key !== 'shipping_address_country') {
-          addressChanges[key] = {
-            old_value: originalFormData[key],
-            new_value: updatedFields[key]
-          };
-          hasAddressChanged = true;
-        }
-      });
+      if (key !== 'updated_at' && valuesDiffer) {
+        changesForLog[key] = {
+          old_value: originalValue,
+          new_value: newValue
+        };
+        hasActualChanges = true; // Mark that at least one field changed
+      }
+    });
 
-      if (hasAddressChanged) {
+    // ---- MORE LOGGING ----
+    console.log('[handleSubmit] Calculated changesForLog:', changesForLog);
+    console.log('[handleSubmit] hasActualChanges:', hasActualChanges);
+    // ---- END LOGGING ----
+
+    // --- Database Update ---
+    // Only proceed if there are actual changes to save
+    if (hasActualChanges) {
+      try {
+        const { error } = await supabase
+          .from('orders')
+          .update(updatedFields)
+          .eq('id', order.id);
+
+        if (error) throw error;
+
+        // --- Activity Log (Re-inserted) ---
+        // Log the changes only if the update was successful
+        console.log('[handleSubmit] Order updated successfully, logging activity with diff:', changesForLog);
         const { error: activityError } = await supabase
           .from('order_activities')
-          .insert({
+          .insert([{
             order_id: order.id,
-            action_type: 'order_update', // Use the valid enum value
-            changes: addressChanges, // Log the specific address changes
-            performed_by: null, // Explicitly set performed_by to null
+            action_type: 'order_update',
+            changes: changesForLog, // Use the calculated diff
             created_at: new Date().toISOString()
-          });
-                
-        if (activityError) {
-          console.error('Error logging order update activity:', activityError);
-          // Don't block the main success message, but log the error
-        }
-      } 
+          }]);
 
-      setUpdateMessage({ text: 'Order updated successfully!', type: 'success' });
-      toast.success('Order updated successfully!');
-      
-      // Update originalFormData to reflect the successful save
-      setOriginalFormData(formData);
-      setIsFormModified(false); // Reset modified state
-      
-      // Call the onUpdate callback if provided
-      if (onUpdate) {
-        onUpdate(updatedFields); 
+        if (activityError) {
+          // Log the error but don't block the success message for the main update
+          console.error('[handleSubmit] Error creating activity log:', activityError);
+          toast.error(`Order updated, but failed to log activity: ${activityError.message}`);
+        }
+        // --- End Activity Log ---
+
+        setUpdateMessage({ text: 'Order updated successfully!', type: 'success' });
+        toast.success('Order updated successfully!');
+        
+        // Update originalFormData to reflect the successful save
+        setOriginalFormData(formData);
+        setIsFormModified(false); // Reset modified state
+        
+        // Call the onUpdate callback if provided
+        if (onUpdate) {
+          onUpdate(updatedFields); 
+        }
+        
+        // Recalculate status after update
+        setCalculatedStatus(calculateOrderStatus({ ...order, ...updatedFields }));
+        
+        // Optional: Refresh router cache if needed
+        // router.refresh();
+        
+      } catch (error) {
+        console.error('Error updating order:', error);
+        setUpdateMessage({ text: `Error: ${error.message}`, type: 'error' });
+        toast.error(`Failed to update order: ${error.message}`);
+      } finally {
+        setIsUpdating(false);
       }
-      
-      // Recalculate status after update
-      setCalculatedStatus(calculateOrderStatus({ ...order, ...updatedFields }));
-      
-      // Optional: Refresh router cache if needed
-      // router.refresh();
-      
-    } catch (error) {
-      console.error('Error updating order:', error);
-      setUpdateMessage({ text: `Error: ${error.message}`, type: 'error' });
-      toast.error(`Failed to update order: ${error.message}`);
-    } finally {
+    } else {
+      setUpdateMessage({ text: 'No changes to save', type: 'info' });
+      toast.info('No changes to save');
       setIsUpdating(false);
     }
   };
