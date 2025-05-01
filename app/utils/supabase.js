@@ -967,7 +967,7 @@ export async function findOrCreateCustomer(stripeCustomerId, customerData) {
 }
 
 // Helper function to fetch customers
-export async function fetchCustomers() {
+export async function fetchCustomers(supabase) {
   try {
     const { data, error } = await supabase
       .from('customers')
@@ -987,8 +987,14 @@ export async function fetchCustomers() {
 }
 
 // Helper function to fetch a customer by ID
-export async function fetchCustomerById(customerId) {
+export async function fetchCustomerById(supabase, customerId) {
   try {
+    console.log(`Fetching customer by ID: ${customerId}`);
+    if (!customerId) {
+      console.warn('fetchCustomerById called with null or undefined customerId.');
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('customers')
       .select('*')
@@ -1029,8 +1035,14 @@ export async function fetchCustomerByStripeId(stripeCustomerId) {
 }
 
 // Helper function to fetch orders for a customer
-export async function fetchOrdersByCustomerId(customerId) {
+export async function fetchOrdersByCustomerId(supabase, customerId) {
   try {
+    console.log(`Fetching orders for customer ID: ${customerId}`);
+    if (!customerId) {
+      console.warn('fetchOrdersByCustomerId called with null or undefined customerId.');
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('orders')
       .select('*')
@@ -1041,10 +1053,10 @@ export async function fetchOrdersByCustomerId(customerId) {
       console.error(`Error fetching orders for customer ${customerId}:`, error);
       return [];
     }
-    
+    console.log(`Orders for customer ${customerId} fetched successfully:`, data);
     return data || [];
-  } catch (e) {
-    console.error(`Exception fetching orders for customer ${customerId}:`, e);
+  } catch (error) {
+    console.error(`Exception fetching orders for customer ${customerId}:`, error);
     return [];
   }
 }

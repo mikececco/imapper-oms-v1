@@ -8,9 +8,11 @@ import Link from 'next/link';
 import { ArrowLeft, Mail, Phone, MapPin, Package, Edit } from 'lucide-react';
 import EditCustomerModal from '../../components/EditCustomerModal';
 import { Button } from '../../components/ui/button';
+import { useSupabase } from '../../components/Providers';
 
 export default function CustomerDetailPage({ params }) {
   const { id } = params;
+  const supabase = useSupabase();
   const [customer, setCustomer] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,12 +22,13 @@ export default function CustomerDetailPage({ params }) {
 
   useEffect(() => {
     async function loadCustomerData() {
+      if (!supabase) return;
       try {
         setLoading(true);
-        const customerData = await fetchCustomerById(id);
+        const customerData = await fetchCustomerById(supabase, id);
         if (customerData) {
           setCustomer(customerData);
-          const ordersData = await fetchOrdersByCustomerId(id);
+          const ordersData = await fetchOrdersByCustomerId(supabase, id);
           setOrders(ordersData || []);
         }
       } catch (error) {
@@ -35,10 +38,10 @@ export default function CustomerDetailPage({ params }) {
       }
     }
 
-    if (id) {
+    if (id && supabase) {
       loadCustomerData();
     }
-  }, [id]);
+  }, [id, supabase]);
 
   const handleGoBack = () => {
     router.back();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchCustomers } from '../utils/supabase';
 import { formatDate } from '../utils/helpers';
@@ -9,8 +9,10 @@ import { Search, Plus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import CustomerDetailsModal from '../components/CustomerDetailsModal';
 import EditCustomerModal from '../components/EditCustomerModal';
+import { useSupabase } from '../components/Providers';
 
 export default function CustomersPage() {
+  const supabase = useSupabase();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,14 +24,11 @@ export default function CustomersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    loadCustomers();
-  }, []);
-
-  async function loadCustomers() {
+  const loadCustomers = useCallback(async () => {
+    if (!supabase) return;
     try {
       setLoading(true);
-      const data = await fetchCustomers();
+      const data = await fetchCustomers(supabase);
       setCustomers(data || []);
     } catch (error) {
       console.error('Error loading customers:', error);
@@ -37,7 +36,11 @@ export default function CustomersPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
 
   const handleFetchStripeCustomer = async () => {
     if (!stripeCustomerId.trim()) {
