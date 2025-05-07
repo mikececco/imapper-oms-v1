@@ -585,6 +585,21 @@ export default function OrderDetailModal({ children }) {
     setIsMounted(true);
   }, []);
 
+  // Before the button, calculate missing fields:
+  const missingFields = [];
+  if (!order.ok_to_ship) missingFields.push('OK TO SHIP status');
+  if (!order.paid) missingFields.push('Payment');
+  if (!currentShippingMethodId) missingFields.push('Shipping Method');
+  if (!order.shipping_address_line1) missingFields.push('Address Line 1');
+  if (!order.shipping_address_house_number) missingFields.push('House Number');
+  if (!order.shipping_address_city) missingFields.push('City');
+  if (!order.shipping_address_postal_code) missingFields.push('Postal Code');
+  if (!order.shipping_address_country) missingFields.push('Country');
+  if (!order.order_pack_list_id) missingFields.push('Order Pack');
+  if (!order.name) missingFields.push('Name');
+  if (!order.email) missingFields.push('Email');
+  if (!order.phone) missingFields.push('Phone');
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -904,6 +919,16 @@ export default function OrderDetailModal({ children }) {
                           'Create Shipping Label'
                         )}
                       </button>
+                      {(!creatingLabel && missingFields.length > 0) && (
+                        <div className="mt-2 text-sm text-red-600">
+                          <span>Missing required fields:</span>
+                          <ul className="list-disc list-inside">
+                            {missingFields.map(field => (
+                              <li key={field}>{field}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                       {/* Display SendCloud error message */}
                       {labelMessage && labelMessage.type === 'error' && (
                         <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
