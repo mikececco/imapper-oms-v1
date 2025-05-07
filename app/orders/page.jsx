@@ -25,7 +25,6 @@ export default function Orders() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilters, setActiveFilters] = useState(null);
-  const [activeCountry, setActiveCountry] = useState('all');
   const [isMounted, setIsMounted] = useState(false);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -37,7 +36,6 @@ export default function Orders() {
   const [isLoadingOverdue, setIsLoadingOverdue] = useState(false);
   const [justOpenedStagnantModal, setJustOpenedStagnantModal] = useState(false);
 
-  // Read country from URL param on load
   const initialCountry = (() => {
     const urlCountry = searchParams.get('country');
     if (urlCountry && urlCountry !== 'all') {
@@ -45,6 +43,8 @@ export default function Orders() {
     }
     return 'all';
   })();
+
+  const [activeCountry, setActiveCountry] = useState(initialCountry);
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -265,6 +265,8 @@ export default function Orders() {
     const urlCountry = searchParams.get('country');
     if (urlCountry && urlCountry.toUpperCase() !== activeCountry) {
       setActiveCountry(urlCountry.toUpperCase());
+    } else if (!urlCountry && activeCountry !== 'all') {
+      setActiveCountry('all');
     }
     // eslint-disable-next-line
   }, [searchParams]);
@@ -342,6 +344,16 @@ export default function Orders() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     // eslint-disable-next-line
   }, [activeCountry]);
+
+  // Ensure filteredOrders is set on first load and when orders/activeCountry changes
+  useEffect(() => {
+    if (orders.length > 0) {
+      setFilteredOrders(filterOrdersByCountry(orders, activeCountry));
+    } else {
+      setFilteredOrders([]);
+    }
+    // eslint-disable-next-line
+  }, [orders, activeCountry]);
 
   return (
     <div className="">
