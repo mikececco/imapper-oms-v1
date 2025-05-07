@@ -125,6 +125,15 @@ const formatCombinedAddress = (order, isMounted = false) => {
   return 'N/A';
 };
 
+// Add at the top of the file, after imports:
+const CUSTOMS_SHIPMENT_TYPE_OPTIONS = [
+  { value: 0, label: 'Gift' },
+  { value: 1, label: 'Documents' },
+  { value: 2, label: 'Commercial Goods' },
+  { value: 3, label: 'Commercial Sample' },
+  { value: 4, label: 'Returned Goods' }
+];
+
 // Provider component for the OrderDetailModal
 export function OrderDetailModalProvider({ children }) {
   return (
@@ -666,6 +675,37 @@ export default function OrderDetailModal({ children }) {
                       onUpdate={handleOrderUpdate}
                     />
                   </div>
+
+                  {/* Customs Shipment Type */}
+                  {typeof order.customs_shipment_type !== 'undefined' && (
+                    <div className="status-row">
+                      <span className="status-label">Customs Shipment Type</span>
+                      <select
+                        value={typeof order.customs_shipment_type === 'number' ? order.customs_shipment_type : (parseInt(order.customs_shipment_type, 10) || 2)}
+                        onChange={async (e) => {
+                          const newValue = parseInt(e.target.value, 10);
+                          try {
+                            const { data, error } = await supabase
+                              .from('orders')
+                              .update({ customs_shipment_type: newValue, updated_at: new Date().toISOString() })
+                              .eq('id', order.id)
+                              .select('customs_shipment_type')
+                              .single();
+                            if (error) throw error;
+                            handleOrderUpdate({ customs_shipment_type: data.customs_shipment_type });
+                            toast.success('Customs shipment type updated.');
+                          } catch (err) {
+                            toast.error('Failed to update customs shipment type.');
+                          }
+                        }}
+                        className="w-full max-w-xs border-gray-300 rounded p-2 text-sm"
+                      >
+                        {CUSTOMS_SHIPMENT_TYPE_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {/* Weight */}
                   {order.weight && (

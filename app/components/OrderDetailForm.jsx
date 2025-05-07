@@ -15,6 +15,25 @@ import { formatDate } from './OrderDetailModal';
 // Define countries requiring customs for reuse
 const COUNTRIES_REQUIRING_CUSTOMS = ['GB', 'CH', 'US', 'CA', 'AU', 'NO'];
 
+const PARCEL_DESCRIPTION_OPTIONS = [
+  'Laser',
+  'Lens',
+  'Frame',
+  'Accessory',
+  'Gift',
+  'Sample',
+  'Other',
+  'Custom...'
+];
+
+const CUSTOMS_SHIPMENT_TYPE_OPTIONS = [
+  { value: 0, label: 'Gift' },
+  { value: 1, label: 'Documents' },
+  { value: 2, label: 'Commercial Goods' },
+  { value: 3, label: 'Commercial Sample' },
+  { value: 4, label: 'Returned Goods' }
+];
+
 export default function OrderDetailForm({ order, orderPackOptions, onUpdate, calculatedInstruction }) {
   const router = useRouter();
   // Use useRef to track client-side rendering
@@ -63,7 +82,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
   const [originalFormData, setOriginalFormData] = useState({});
   
   // --- State for Editable Customs Fields ---
-  const [customsShipmentType, setCustomsShipmentType] = useState('commercial_goods');
+  const [customsShipmentType, setCustomsShipmentType] = useState(2); // Default to 2 (Commercial Goods)
   const [customsInvoiceNr, setCustomsInvoiceNr] = useState('');
   const [editableParcelItems, setEditableParcelItems] = useState([]);
   // --- End State --- 
@@ -98,7 +117,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     }
     
     // Try to get customs data from the order if it exists, otherwise use defaults/parsed items
-    setCustomsShipmentType(order.customs_shipment_type || 'commercial_goods');
+    setCustomsShipmentType(
+      typeof order.customs_shipment_type === 'number'
+        ? order.customs_shipment_type
+        : (parseInt(order.customs_shipment_type, 10) || 2)
+    );
     // Use stripe_invoice_id if available, otherwise fallback to order.id
     setCustomsInvoiceNr(order.customs_invoice_nr || order.stripe_invoice_id || order.id || ''); 
     setEditableParcelItems(order.customs_parcel_items || initialParcelItems); // Use stored if available
@@ -123,7 +146,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       order_pack_list_id: order.order_pack_list_id || '',
       serial_number: order.serial_number || '',
       // Add customs fields to initialData for diff tracking
-      customs_shipment_type: order.customs_shipment_type || 'commercial_goods',
+      customs_shipment_type: order.customs_shipment_type || 2,
       customs_invoice_nr: order.customs_invoice_nr || order.stripe_invoice_id || order.id || '', 
       customs_parcel_items: JSON.stringify(order.customs_parcel_items || initialParcelItems) // Store as string for comparison
     };
@@ -471,10 +494,6 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       customs_parcel_items: editableParcelItems // Save the array/object directly (assuming JSONB column)
     };
     delete updateData.order_pack; // Remove derived field
-    // Remove fields that might be in formData but belong to customs state
-    // (These were added to originalFormData for diffing)
-    delete updateData.customs_parcel_items; 
-
 
     // --- Calculate Changes for Logging ---
     const changesForLog = {};
@@ -520,6 +539,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
     // Only proceed if there are actual changes to save
     if (hasActualChanges) {
       try {
+        // Log the updateData object for debugging
+        console.log('[Order Update] updateData:', updateData);
         const { error } = await supabase
           .from('orders')
           .update(updateData)
@@ -989,13 +1010,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
                 name="customs_shipment_type"
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('customs_shipment_type')}`}
                 value={customsShipmentType}
-                onChange={(e) => { setCustomsShipmentType(e.target.value); setIsFormModified(true); }}
+                onChange={e => { setCustomsShipmentType(parseInt(e.target.value, 10)); setIsFormModified(true); }}
               >
-                <option value="commercial_goods">Commercial Goods</option>
-                <option value="gift">Gift</option>
-                <option value="documents">Documents</option>
-                <option value="sample">Sample</option>
-                <option value="return_merchandise">Return Merchandise</option>
+                {CUSTOMS_SHIPMENT_TYPE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
 
@@ -1035,7 +1054,50 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
                     <tbody className="bg-white divide-y divide-gray-200">
                       {editableParcelItems.map((item, index) => (
                         <tr key={index}>
-                          <td className="px-1 py-1"><input type="text" value={item.description} onChange={(e) => handleParcelItemChange(index, 'description', e.target.value)} className="w-full border-gray-200 rounded p-1" /></td>
+                          <td className="px-1 py-1">
+                            {PARCEL_DESCRIPTION_OPTIONS.includes(item.description) ? (
+                              <select
+                                value={item.description}
+                                onChange={e => {
+                                  const value = e.target.value;
+                                  if (value === 'Custom...') {
+                                    handleParcelItemChange(index, 'description', '');
+                                  } else {
+                                    handleParcelItemChange(index, 'description', value);
+                                  }
+                                }}
+                                className="w-full border-gray-200 rounded p-1"
+                              >
+                                {PARCEL_DESCRIPTION_OPTIONS.map(opt => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <>
+                                <select
+                                  value={'Custom...'}
+                                  onChange={e => {
+                                    const value = e.target.value;
+                                    if (value !== 'Custom...') {
+                                      handleParcelItemChange(index, 'description', value);
+                                    }
+                                  }}
+                                  className="w-full border-gray-200 rounded p-1 mb-1"
+                                >
+                                  {PARCEL_DESCRIPTION_OPTIONS.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="text"
+                                  value={item.description}
+                                  onChange={e => handleParcelItemChange(index, 'description', e.target.value)}
+                                  className="w-full border-gray-200 rounded p-1 mt-1"
+                                  placeholder="Enter custom description"
+                                />
+                              </>
+                            )}
+                          </td>
                           <td className="px-1 py-1"><input type="number" value={item.quantity} onChange={(e) => handleParcelItemChange(index, 'quantity', parseInt(e.target.value) || 1)} className="w-16 border-gray-200 rounded p-1" min="1"/></td>
                           <td className="px-1 py-1"><input type="text" inputMode="decimal" value={item.value} onChange={(e) => handleParcelItemChange(index, 'value', e.target.value)} className="w-20 border-gray-200 rounded p-1" /></td>
                           <td className="px-1 py-1"><input type="text" inputMode="decimal" value={item.weight} onChange={(e) => handleParcelItemChange(index, 'weight', e.target.value)} className="w-20 border-gray-200 rounded p-1" /></td>

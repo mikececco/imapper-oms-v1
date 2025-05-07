@@ -240,37 +240,37 @@ async function createSendCloudParcel(order, orderPackValue, shippingMethodId) {
     let totalQuantity = 0;
 
     if (requiresCustoms) {
-      try {
-        const lineItems = typeof order.line_items === 'string' 
-          ? JSON.parse(order.line_items) 
-          : (Array.isArray(order.line_items) ? order.line_items : []);
+      // Prefer order.customs_parcel_items if present and valid
+      if (Array.isArray(order.customs_parcel_items) && order.customs_parcel_items.length > 0) {
+        parcelItems = order.customs_parcel_items;
+      } else {
+        try {
+          const lineItems = typeof order.line_items === 'string' 
+            ? JSON.parse(order.line_items) 
+            : (Array.isArray(order.line_items) ? order.line_items : []);
 
-        if (!lineItems || lineItems.length === 0) {
-          // If no line items, potentially create a default item or throw error
-          // For now, let's log a warning and continue without items, 
-          // which might still cause an error but highlights the missing data.
-          console.warn(`Order ${order.id} requires customs but has no line items.`);
-          // Throwing an error might be safer:
-          // throw new Error('Customs requires parcel items, but order line items are missing or invalid.');
-        } else {
-          // Calculate total quantity for weight distribution
-          totalQuantity = lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
-          if (totalQuantity === 0) totalQuantity = 1; // Avoid division by zero
+          if (!lineItems || lineItems.length === 0) {
+            console.warn(`Order ${order.id} requires customs but has no line items.`);
+          } else {
+            // Calculate total quantity for weight distribution
+            totalQuantity = lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            if (totalQuantity === 0) totalQuantity = 1; // Avoid division by zero
 
-          parcelItems = lineItems.map(item => ({
-            description: item.description ? item.description.substring(0, 50) : 'Product', // Max 50 chars
-            quantity: item.quantity || 1,
-            // Distribute total weight proportionally (approximation)
-            weight: ((totalWeight / totalQuantity) * (item.quantity || 1)).toFixed(3),
-            value: (item.amount || 0).toFixed(2), // Price per item
-            hs_code: item.hs_code || '90151000', // Use provided HS code as default
-            origin_country: item.origin_country || 'FR', // Use origin_country if available, else default (NEEDS ATTENTION)
-            sku: item.sku || '' // Add SKU if available
-          }));
+            parcelItems = lineItems.map(item => ({
+              description: item.description ? item.description.substring(0, 50) : 'Product', // Max 50 chars
+              quantity: item.quantity || 1,
+              // Distribute total weight proportionally (approximation)
+              weight: ((totalWeight / totalQuantity) * (item.quantity || 1)).toFixed(3),
+              value: (item.amount || 0).toFixed(2), // Price per item
+              hs_code: item.hs_code || '90151000', // Use provided HS code as default
+              origin_country: item.origin_country || 'FR', // Use origin_country if available, else default
+              sku: item.sku || '' // Add SKU if available
+            }));
+          }
+        } catch (parseError) {
+          console.error(`Error parsing line_items for order ${order.id}:`, parseError);
+          throw new Error('Invalid line items format, cannot generate customs information.');
         }
-      } catch (parseError) {
-        console.error(`Error parsing line_items for order ${order.id}:`, parseError);
-        throw new Error('Invalid line items format, cannot generate customs information.');
       }
     }
     // --- End Customs Information Logic ---
@@ -301,19 +301,16 @@ async function createSendCloudParcel(order, orderPackValue, shippingMethodId) {
     // Conditionally add customs fields
     if (requiresCustoms) {
       console.log(`Adding customs info for order ${order.id} to ${destinationCountry}`);
-      parcelData.parcel.customs_shipment_type = 'commercial_goods'; // Or determine dynamically if needed
-      // Use stripe_invoice_id if available, otherwise fallback to order.id
-      parcelData.parcel.customs_invoice_nr = order.stripe_invoice_id || order.id || 'N/A'; 
-      // Only add parcel_items if it's not empty
+      // Allowed integer values for SendCloud
+      const allowedShipmentTypes = [0, 1, 2, 3, 4];
+      let shipmentType = order.customs_shipment_type;
+      if (!allowedShipmentTypes.includes(shipmentType)) {
+        shipmentType = 2; // Default to 2 (Commercial Goods)
+      }
+      parcelData.parcel.customs_shipment_type = shipmentType;
+      parcelData.parcel.customs_invoice_nr = order.customs_invoice_nr || order.stripe_invoice_id || order.id || 'N/A';
       if (parcelItems.length > 0) {
-          parcelData.parcel.parcel_items = parcelItems;
-      } else {
-          // Handle cases where line items were missing/invalid - SendCloud might reject this.
-          console.warn(`Proceeding without parcel_items for customs for order ${order.id}. SendCloud may reject.`);
-          // Consider adding a default item if required by SendCloud
-          /* parcelData.parcel.parcel_items = [{ 
-              description: 'Default Item', quantity: 1, weight: weightString, value: '0.01', hs_code: null, origin_country: 'FR' 
-          }]; */
+        parcelData.parcel.parcel_items = parcelItems;
       }
     }
     
