@@ -125,14 +125,14 @@ const formatCombinedAddress = (order, isMounted = false) => {
   return 'N/A';
 };
 
-// Add at the top of the file, after imports:
-const CUSTOMS_SHIPMENT_TYPE_OPTIONS = [
-  { value: 0, label: 'Gift' },
-  { value: 1, label: 'Documents' },
-  { value: 2, label: 'Commercial Goods' },
-  { value: 3, label: 'Commercial Sample' },
-  { value: 4, label: 'Returned Goods' }
-];
+// // Add at the top of the file, after imports:
+// const CUSTOMS_SHIPMENT_TYPE_OPTIONS = [
+//   { value: 0, label: 'Gift' },
+//   { value: 1, label: 'Documents' },
+//   { value: 2, label: 'Commercial Goods' },
+//   { value: 3, label: 'Commercial Sample' },
+//   { value: 4, label: 'Returned Goods' }
+// ];
 
 // Provider component for the OrderDetailModal
 export function OrderDetailModalProvider({ children }) {
@@ -677,7 +677,7 @@ export default function OrderDetailModal({ children }) {
                   </div>
 
                   {/* Customs Shipment Type */}
-                  {typeof order.customs_shipment_type !== 'undefined' && (
+                  {/* {typeof order.customs_shipment_type !== 'undefined' && (
                     <div className="status-row">
                       <span className="status-label">Customs Shipment Type</span>
                       <select
@@ -705,7 +705,7 @@ export default function OrderDetailModal({ children }) {
                         ))}
                       </select>
                     </div>
-                  )}
+                  )} */}
 
                   {/* Weight */}
                   {order.weight && (
