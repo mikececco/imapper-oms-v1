@@ -5,9 +5,13 @@ import { supabase } from "../../utils/supabase";
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from "../../components/OrderActions";
 import OrderDetailForm from "../../components/OrderDetailForm";
 import { ORDER_PACK_OPTIONS } from "../../utils/constants";
-import { normalizeCountryToCode, getCountryDisplayName } from '../../utils/country-utils';
+import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../../utils/country-utils';
 import OrderActivityLog from "../../components/OrderActivityLog";
 import { calculateOrderInstruction } from "../../utils/order-instructions";
+
+const EU_COUNTRIES = [
+  'AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'
+];
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -81,6 +85,21 @@ export default async function OrderDetail({ params }) {
   // Calculate order instruction
   const calculatedInstruction = calculateOrderInstruction(order);
 
+  // Helper to check if customs info is required and complete
+  const isNonEU = order.shipping_address_country && !EU_COUNTRIES.includes(order.shipping_address_country.toUpperCase());
+  const requiresCustoms = isNonEU;
+  // Use the same logic as OrderDetailForm for customs completeness
+  const customsComplete = (
+    (order.customs_shipment_type !== undefined && order.customs_shipment_type !== null && order.customs_shipment_type !== '') || order.customs_shipment_type === 0
+  ) &&
+    typeof order.customs_invoice_nr === 'string' && order.customs_invoice_nr.trim() !== '' &&
+    !!order.eori && typeof order.eori === 'string' && order.eori.trim() !== '' &&
+    Array.isArray(order.customs_parcel_items) && order.customs_parcel_items.length > 0;
+  const eoriMissing = requiresCustoms && (!order.eori || typeof order.eori !== 'string' || order.eori.trim() === '');
+  const canCreateShippingLabel =
+    order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone &&
+    (!requiresCustoms || customsComplete) && !eoriMissing;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -126,6 +145,25 @@ export default async function OrderDetail({ params }) {
             orderPackOptions={ORDER_PACK_OPTIONS}
             calculatedInstruction={calculatedInstruction}
           />
+
+          {/* Debug: Print all checks for enabling the button in the order details form */}
+          <div className="mt-2 text-xs text-gray-500">
+            <div>ok_to_ship: {String(order.ok_to_ship)}</div>
+            <div>paid: {String(order.paid)}</div>
+            <div>shipping_address_line1: {String(!!order.shipping_address_line1)}</div>
+            <div>shipping_address_house_number: {String(!!order.shipping_address_house_number)}</div>
+            <div>shipping_address_city: {String(!!order.shipping_address_city)}</div>
+            <div>shipping_address_postal_code: {String(!!order.shipping_address_postal_code)}</div>
+            <div>shipping_address_country: {String(!!order.shipping_address_country)}</div>
+            <div>order_pack_list_id: {String(!!order.order_pack_list_id)}</div>
+            <div>name: {String(!!order.name)}</div>
+            <div>email: {String(!!order.email)}</div>
+            <div>phone: {String(!!order.phone)}</div>
+            <div>requiresCustoms: {String(requiresCustoms)}</div>
+            <div>customsComplete: {String(customsComplete)}</div>
+            <div>eoriMissing: {String(eoriMissing)}</div>
+            <div>canCreateShippingLabel: {String(canCreateShippingLabel)}</div>
+          </div>
         </div>
 
         {/* Order Status and Actions */}
@@ -240,14 +278,26 @@ export default async function OrderDetail({ params }) {
                   }
                 }}
                 className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
-                  order.ok_to_ship && order.paid && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone
+                  canCreateShippingLabel
                     ? 'bg-green-500 text-white hover:bg-green-600'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
-                disabled={!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone}
+                disabled={!canCreateShippingLabel}
               >
                 Create Shipping Label
               </button>
+
+              {eoriMissing && (
+                <div className="mt-2 text-sm text-red-500">
+                  EORI number is required for shipments to non-EU countries (e.g., GB, CH, US, etc.). Please provide a valid EORI in the customs section.
+                </div>
+              )}
+
+              {requiresCustoms && !customsComplete && (
+                <div className="mt-2 text-sm text-red-500">
+                  Customs information is required and incomplete for this destination. Please fill in all customs fields (type, invoice nr, EORI, and at least one parcel item).
+                </div>
+              )}
 
               {(!order.ok_to_ship || !order.paid || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone) && (
                 <div className="mt-2 text-sm space-y-1">

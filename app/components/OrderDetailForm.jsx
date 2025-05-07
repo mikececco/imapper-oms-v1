@@ -85,6 +85,7 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
   const [customsShipmentType, setCustomsShipmentType] = useState(2); // Default to 2 (Commercial Goods)
   const [customsInvoiceNr, setCustomsInvoiceNr] = useState('');
   const [editableParcelItems, setEditableParcelItems] = useState([]);
+  const [eori, setEori] = useState(order.eori || '');
   // --- End State --- 
   
   // Initialize form data and original data (including customs)
@@ -148,7 +149,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       // Add customs fields to initialData for diff tracking
       customs_shipment_type: order.customs_shipment_type || 2,
       customs_invoice_nr: order.customs_invoice_nr || order.stripe_invoice_id || order.id || '', 
-      customs_parcel_items: JSON.stringify(order.customs_parcel_items || initialParcelItems) // Store as string for comparison
+      customs_parcel_items: JSON.stringify(order.customs_parcel_items || initialParcelItems), // Store as string for comparison
+      eori: order.eori || ''
     };
     
     setFormData(initialData); // Keep this for non-customs fields
@@ -416,6 +418,11 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
           weight: prev.weight
         }));
       }
+    } else if (name === 'eori') {
+      setEori(value);
+      setFormData(prev => ({ ...prev, eori: value }));
+      setIsFormModified(true);
+      return;
     } else {
       setFormData(prev => ({
         ...prev,
@@ -491,7 +498,8 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       // Add customs fields from state
       customs_shipment_type: customsShipmentType,
       customs_invoice_nr: customsInvoiceNr,
-      customs_parcel_items: editableParcelItems // Save the array/object directly (assuming JSONB column)
+      customs_parcel_items: editableParcelItems, // Save the array/object directly (assuming JSONB column)
+      eori: eori
     };
     delete updateData.order_pack; // Remove derived field
 
@@ -1032,6 +1040,25 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
                 onChange={(e) => { setCustomsInvoiceNr(e.target.value); setIsFormModified(true); }}
                 placeholder="e.g., Order ID or Invoice Number"
               />
+            </div>
+
+            {/* EORI Number */}
+            <div>
+              <label htmlFor="eori" className="text-sm font-medium block mb-1">
+                EORI Number
+              </label>
+              <input
+                id="eori"
+                name="eori"
+                type="text"
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${getFieldBorderClass('eori')}`}
+                value={eori}
+                onChange={handleChange}
+                placeholder="Enter EORI number (if required for export)"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Required for shipments from France to GB, CH, and some other non-EU countries.
+              </p>
             </div>
 
             {/* Editable Parcel Items Table */}            

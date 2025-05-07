@@ -125,14 +125,10 @@ const formatCombinedAddress = (order, isMounted = false) => {
   return 'N/A';
 };
 
-// // Add at the top of the file, after imports:
-// const CUSTOMS_SHIPMENT_TYPE_OPTIONS = [
-//   { value: 0, label: 'Gift' },
-//   { value: 1, label: 'Documents' },
-//   { value: 2, label: 'Commercial Goods' },
-//   { value: 3, label: 'Commercial Sample' },
-//   { value: 4, label: 'Returned Goods' }
-// ];
+// Add EU_COUNTRIES for customs logic
+const EU_COUNTRIES = [
+  'AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'
+];
 
 // Provider component for the OrderDetailModal
 export function OrderDetailModalProvider({ children }) {
@@ -585,6 +581,20 @@ export default function OrderDetailModal({ children }) {
     setIsMounted(true);
   }, []);
 
+  // Guard all usages of order fields for null
+  const isNonEU = order && order.shipping_address_country && !EU_COUNTRIES.includes(order.shipping_address_country.toUpperCase());
+  const requiresCustoms = !!order && isNonEU;
+  const customsComplete = !!order && (
+    ((order.customs_shipment_type !== undefined && order.customs_shipment_type !== null && order.customs_shipment_type !== '') || order.customs_shipment_type === 0)
+    && typeof order.customs_invoice_nr === 'string' && order.customs_invoice_nr.trim() !== ''
+    && !!order.eori && typeof order.eori === 'string' && order.eori.trim() !== ''
+    && Array.isArray(order.customs_parcel_items) && order.customs_parcel_items.length > 0
+  );
+  const eoriMissing = !!order && requiresCustoms && (!order.eori || typeof order.eori !== 'string' || order.eori.trim() === '');
+  const canCreateShippingLabel = !!order &&
+    order.ok_to_ship && order.paid && currentShippingMethodId && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone &&
+    (!requiresCustoms || customsComplete) && !eoriMissing && !creatingLabel;
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -909,28 +919,46 @@ export default function OrderDetailModal({ children }) {
                                 <button
                                   onClick={() => createShippingLabel()}
                                   className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
-                                    order.ok_to_ship && order.paid && currentShippingMethodId && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone
+                                    canCreateShippingLabel
                                       ? 'bg-green-500 text-white hover:bg-green-600'
                                       : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                   }`}
-                                  disabled={!order.ok_to_ship || !order.paid || !currentShippingMethodId || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone || creatingLabel}
+                                  disabled={!canCreateShippingLabel}
                                 >
                                   {creatingLabel ? (
                                     <>
                                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                      Creating Label...
+                                      Creating Label... {canCreateShippingLabel ? 'true' : 'false'}
                                     </>
                                   ) : (
                                     'Create Shipping Label'
                                   )}
                                 </button>
-                                {(!creatingLabel && missingFields.length > 0) && (
+                                {/* Show missing fields if button is disabled and order is loaded */}
+                                {!canCreateShippingLabel && order && (
                                   <div className="mt-2 text-sm text-red-600">
                                     <span>Missing required fields:</span>
                                     <ul className="list-disc list-inside">
-                                      {missingFields.map(field => (
-                                        <li key={field}>{field}</li>
-                                      ))}
+                                      {!order.ok_to_ship && <li>OK TO SHIP status</li>}
+                                      {!order.paid && <li>Payment</li>}
+                                      {!currentShippingMethodId && <li>Shipping Method</li>}
+                                      {!order.shipping_address_line1 && <li>Address Line 1</li>}
+                                      {!order.shipping_address_house_number && <li>House Number</li>}
+                                      {!order.shipping_address_city && <li>City</li>}
+                                      {!order.shipping_address_postal_code && <li>Postal Code</li>}
+                                      {!order.shipping_address_country && <li>Country</li>}
+                                      {!order.order_pack_list_id && <li>Order Pack</li>}
+                                      {!order.name && <li>Name</li>}
+                                      {!order.email && <li>Email</li>}
+                                      {!order.phone && <li>Phone</li>}
+                                      {requiresCustoms && (
+                                        <>
+                                          {((order.customs_shipment_type === undefined || order.customs_shipment_type === null || order.customs_shipment_type === '') && order.customs_shipment_type !== 0) && <li>Customs Shipment Type</li>}
+                                          {(!order.customs_invoice_nr || typeof order.customs_invoice_nr !== 'string' || order.customs_invoice_nr.trim() === '') && <li>Customs Invoice Nr.</li>}
+                                          {(!order.eori || typeof order.eori !== 'string' || order.eori.trim() === '') && <li>EORI Number</li>}
+                                          {(!Array.isArray(order.customs_parcel_items) || order.customs_parcel_items.length === 0) && <li>Customs Parcel Items</li>}
+                                        </>
+                                      )}
                                     </ul>
                                   </div>
                                 )}

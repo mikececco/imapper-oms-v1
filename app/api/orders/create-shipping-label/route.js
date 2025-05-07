@@ -240,6 +240,11 @@ async function createSendCloudParcel(order, orderPackValue, shippingMethodId) {
     let totalQuantity = 0;
 
     if (requiresCustoms) {
+      // EORI is required for customs shipments
+      if (!order.eori || typeof order.eori !== 'string' || order.eori.trim() === '') {
+        console.error(`EORI is required for customs shipments to ${destinationCountry} but is missing for order ${order.id}`);
+        throw new Error('EORI number is required for shipments to non-EU countries (e.g., GB, CH, US, etc.). Please provide a valid EORI.');
+      }
       // Prefer order.customs_parcel_items if present and valid
       if (Array.isArray(order.customs_parcel_items) && order.customs_parcel_items.length > 0) {
         parcelItems = order.customs_parcel_items;
@@ -312,6 +317,7 @@ async function createSendCloudParcel(order, orderPackValue, shippingMethodId) {
       if (parcelItems.length > 0) {
         parcelData.parcel.parcel_items = parcelItems;
       }
+      parcelData.parcel.eori = order.eori;
     }
     
     console.log('Sending parcel data to SendCloud:', JSON.stringify(parcelData, null, 2));
