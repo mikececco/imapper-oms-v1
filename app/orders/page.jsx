@@ -37,6 +37,15 @@ export default function Orders() {
   const [isLoadingOverdue, setIsLoadingOverdue] = useState(false);
   const [justOpenedStagnantModal, setJustOpenedStagnantModal] = useState(false);
 
+  // Read country from URL param on load
+  const initialCountry = (() => {
+    const urlCountry = searchParams.get('country');
+    if (urlCountry && urlCountry !== 'all') {
+      return urlCountry.toUpperCase();
+    }
+    return 'all';
+  })();
+
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
     try {
@@ -252,14 +261,13 @@ export default function Orders() {
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (isMounted) {
-      const filtered = filterOrdersByCountry(orders, activeCountry);
-      setFilteredOrders(filtered);
+    // Sync state with URL if user navigates directly
+    const urlCountry = searchParams.get('country');
+    if (urlCountry && urlCountry.toUpperCase() !== activeCountry) {
+      setActiveCountry(urlCountry.toUpperCase());
     }
-  }, [orders, activeCountry, isMounted]);
+    // eslint-disable-next-line
+  }, [searchParams]);
 
   const handleOrderCreated = (newOrder) => {
     loadOrders();
@@ -322,6 +330,18 @@ export default function Orders() {
     setIsOverduePopupOpen(false);
     setOverdueOrdersForPopup([]); // Clear data when closing
   };
+
+  // Update URL when activeCountry changes
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (activeCountry && activeCountry !== 'all') {
+      params.set('country', activeCountry);
+    } else {
+      params.delete('country');
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // eslint-disable-next-line
+  }, [activeCountry]);
 
   return (
     <div className="">
