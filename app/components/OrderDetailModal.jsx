@@ -585,21 +585,6 @@ export default function OrderDetailModal({ children }) {
     setIsMounted(true);
   }, []);
 
-  // Before the button, calculate missing fields:
-  const missingFields = [];
-  if (!order.ok_to_ship) missingFields.push('OK TO SHIP status');
-  if (!order.paid) missingFields.push('Payment');
-  if (!currentShippingMethodId) missingFields.push('Shipping Method');
-  if (!order.shipping_address_line1) missingFields.push('Address Line 1');
-  if (!order.shipping_address_house_number) missingFields.push('House Number');
-  if (!order.shipping_address_city) missingFields.push('City');
-  if (!order.shipping_address_postal_code) missingFields.push('Postal Code');
-  if (!order.shipping_address_country) missingFields.push('Country');
-  if (!order.order_pack_list_id) missingFields.push('Order Pack');
-  if (!order.name) missingFields.push('Name');
-  if (!order.email) missingFields.push('Email');
-  if (!order.phone) missingFields.push('Phone');
-
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -901,34 +886,60 @@ export default function OrderDetailModal({ children }) {
                         </div>
                       )}
 
-                      <button
-                        onClick={() => createShippingLabel()}
-                        className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
-                          order.ok_to_ship && order.paid && currentShippingMethodId && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone
-                            ? 'bg-green-500 text-white hover:bg-green-600'
-                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                        }`}
-                        disabled={!order.ok_to_ship || !order.paid || !currentShippingMethodId || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone || creatingLabel}
-                      >
-                        {creatingLabel ? (
-                          <>
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                            Creating Label...
-                          </>
-                        ) : (
-                          'Create Shipping Label'
-                        )}
-                      </button>
-                      {(!creatingLabel && missingFields.length > 0) && (
-                        <div className="mt-2 text-sm text-red-600">
-                          <span>Missing required fields:</span>
-                          <ul className="list-disc list-inside">
-                            {missingFields.map(field => (
-                              <li key={field}>{field}</li>
-                            ))}
-                          </ul>
-                        </div>
+                      {/* Only render the button and missing fields if order exists */}
+                      {order && (
+                        <>
+                          {/* Calculate missing fields */}
+                          {(() => {
+                            const missingFields = [];
+                            if (!order.ok_to_ship) missingFields.push('OK TO SHIP status');
+                            if (!order.paid) missingFields.push('Payment');
+                            if (!currentShippingMethodId) missingFields.push('Shipping Method');
+                            if (!order.shipping_address_line1) missingFields.push('Address Line 1');
+                            if (!order.shipping_address_house_number) missingFields.push('House Number');
+                            if (!order.shipping_address_city) missingFields.push('City');
+                            if (!order.shipping_address_postal_code) missingFields.push('Postal Code');
+                            if (!order.shipping_address_country) missingFields.push('Country');
+                            if (!order.order_pack_list_id) missingFields.push('Order Pack');
+                            if (!order.name) missingFields.push('Name');
+                            if (!order.email) missingFields.push('Email');
+                            if (!order.phone) missingFields.push('Phone');
+                            return (
+                              <>
+                                <button
+                                  onClick={() => createShippingLabel()}
+                                  className={`w-full px-4 py-3 text-base rounded font-medium flex items-center justify-center ${
+                                    order.ok_to_ship && order.paid && currentShippingMethodId && order.shipping_address_line1 && order.shipping_address_house_number && order.shipping_address_city && order.shipping_address_postal_code && order.shipping_address_country && order.order_pack_list_id && order.name && order.email && order.phone
+                                      ? 'bg-green-500 text-white hover:bg-green-600'
+                                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                  }`}
+                                  disabled={!order.ok_to_ship || !order.paid || !currentShippingMethodId || !order.shipping_address_line1 || !order.shipping_address_house_number || !order.shipping_address_city || !order.shipping_address_postal_code || !order.shipping_address_country || !order.order_pack_list_id || !order.name || !order.email || !order.phone || creatingLabel}
+                                >
+                                  {creatingLabel ? (
+                                    <>
+                                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                      Creating Label...
+                                    </>
+                                  ) : (
+                                    'Create Shipping Label'
+                                  )}
+                                </button>
+                                {(!creatingLabel && missingFields.length > 0) && (
+                                  <div className="mt-2 text-sm text-red-600">
+                                    <span>Missing required fields:</span>
+                                    <ul className="list-disc list-inside">
+                                      {missingFields.map(field => (
+                                        <li key={field}>{field}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </>
                       )}
+
                       {/* Display SendCloud error message */}
                       {labelMessage && labelMessage.type === 'error' && (
                         <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
