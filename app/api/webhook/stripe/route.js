@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { createOrderFromStripeEvent, findOrCreateCustomer } from '../../../utils/supabase';
+import { createOrderFromStripeEvent, findOrCreateCustomer, extractHouseNumber } from '../../../utils/supabase';
 import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
 
 // Initialize Stripe with your secret key
@@ -17,6 +17,12 @@ const supabase = SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY && SERVER_SUPAB
 
 export async function POST(request) {
   try {
+    // Log the full incoming request body for debugging
+    const rawBody = await request.text();
+    console.log('Incoming Stripe webhook request body:', rawBody);
+    // Re-parse the body for further use
+    request.text = async () => rawBody;
+    
     // Check if clients aren't initialized
     if (!stripe || !supabase) {
       console.error('Stripe or Supabase client not initialized');
@@ -30,8 +36,7 @@ export async function POST(request) {
     const headersList = headers();
     const sig = headersList.get('stripe-signature');
     
-    // Get the raw body
-    const body = await request.text();
+    const body = rawBody;
     
     console.log('Raw body length:', body.length);
     console.log('Stripe signature:', sig);
@@ -242,12 +247,22 @@ async function handleCustomerCreated(event) {
     };
     
     // If shipping address exists, use it instead of billing address
+    let addressLine1 = customerData.address_line1;
     if (customer.shipping && customer.shipping.address) {
       customerData.address_line1 = customer.shipping.address.line1 || customerData.address_line1;
       customerData.address_line2 = customer.shipping.address.line2 || customerData.address_line2;
       customerData.address_city = customer.shipping.address.city || customerData.address_city;
       customerData.address_postal_code = customer.shipping.address.postal_code || customerData.address_postal_code;
       customerData.address_country = customer.shipping.address.country || customerData.address_country;
+      addressLine1 = customer.shipping.address.line1 || '';
+    }
+    
+    // Extract house number using extractHouseNumber utility
+    const houseNumber = extractHouseNumber(addressLine1);
+    console.log('House number:', houseNumber);
+    if (houseNumber) {
+      console.log('House number found:', houseNumber);
+      customerData.address_house_number = houseNumber;
     }
     
     const customerResult = await findOrCreateCustomer(customer.id, customerData);

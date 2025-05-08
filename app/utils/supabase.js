@@ -768,7 +768,7 @@ function formatShippingAddress(address) {
 }
 
 // Helper function to extract house number from address line 1
-function extractHouseNumber(line1) {
+export function extractHouseNumber(line1) {
   if (!line1) return null;
 
   // Trim whitespace
@@ -874,7 +874,9 @@ export async function findOrCreateCustomer(stripeCustomerId, customerData) {
           address_line2: customerData.address_line2 || existingCustomer.address_line2,
           address_city: customerData.address_city || existingCustomer.address_city,
           address_postal_code: customerData.address_postal_code || existingCustomer.address_postal_code,
-          address_country: customerData.address_country || existingCustomer.address_country
+          address_country: customerData.address_country || existingCustomer.address_country,
+          address_house_number: customerData.address_house_number || existingCustomer.address_house_number,
+          metadata: customerData.metadata || existingCustomer.metadata
         });
         
         const { error: updateError } = await supabase
@@ -888,6 +890,7 @@ export async function findOrCreateCustomer(stripeCustomerId, customerData) {
             address_city: customerData.address_city || existingCustomer.address_city,
             address_postal_code: customerData.address_postal_code || existingCustomer.address_postal_code,
             address_country: customerData.address_country || existingCustomer.address_country,
+            address_house_number: customerData.address_house_number || existingCustomer.address_house_number,
             metadata: customerData.metadata || existingCustomer.metadata,
             updated_at: new Date().toISOString()
           })
@@ -913,7 +916,9 @@ export async function findOrCreateCustomer(stripeCustomerId, customerData) {
       address_line2: customerData?.address_line2 || '',
       address_city: customerData?.address_city || '',
       address_postal_code: customerData?.address_postal_code || '',
-      address_country: customerData?.address_country || ''
+      address_country: customerData?.address_country || '',
+      address_house_number: customerData?.address_house_number || '',
+      metadata: customerData?.metadata || {}
     });
     
     const { data: newCustomer, error: createError } = await supabase
@@ -928,6 +933,7 @@ export async function findOrCreateCustomer(stripeCustomerId, customerData) {
         address_city: customerData?.address_city || '',
         address_postal_code: customerData?.address_postal_code || '',
         address_country: customerData?.address_country || '',
+        address_house_number: customerData?.address_house_number || '',
         metadata: customerData?.metadata || {},
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
