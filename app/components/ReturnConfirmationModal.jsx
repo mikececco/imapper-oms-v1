@@ -58,12 +58,8 @@ const fixedWarehouseAddress = {
 
 // Define return reasons
 const RETURN_REASONS = [
-  'Item defective or not working',
-  'Wrong item sent',
-  'Item not as described',
-  'Changed my mind',
-  'Ordered by mistake',
-  'Arrived too late',
+  'Return after-sales service',
+  'Return upgrade',
   'Return after trial period',
   'Other'
 ];
