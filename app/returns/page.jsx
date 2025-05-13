@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs"
 import { formatAddressForTable } from '../utils/formatters';
 import { Badge } from '../components/ui/badge';
 import { RefreshCw } from 'lucide-react';
+import { getReasonTagStyle } from '../components/EnhancedOrdersTable';
 
 export default function ReturnsPage() {
   const router = useRouter();
@@ -634,6 +635,13 @@ export default function ReturnsPage() {
 
         return displayStatus ? <Badge variant={badgeVariant}>{displayStatus}</Badge> : <span className="text-gray-400">N/A</span>;
       } 
+    },
+    { id: 'reason_for_shipment', label: 'Type', className: 'w-[120px] whitespace-nowrap text-center', type: 'custom', render: (order) => {
+        const reason = order.reason_for_shipment;
+        if (!reason) return <span className="text-xs text-gray-400">N/A</span>;
+        const styleClasses = getReasonTagStyle(reason); // getReasonTagStyle should be available in this scope
+        return <span className={styleClasses}>{reason.charAt(0).toUpperCase() + reason.slice(1)}</span>;
+      }
     },
     { id: 'shipping_address', label: 'Shipping Address', className: 'w-[250px] max-w-[250px] whitespace-nowrap', type: 'custom', render: (order) => formatAddressForTable(order, isMounted) },
     { 

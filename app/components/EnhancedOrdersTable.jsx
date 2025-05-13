@@ -40,7 +40,7 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table'
 import { Checkbox } from "./ui/checkbox";
-import { Clock, CalendarDays, Flag, CircleDollarSign, CheckCircle2, XCircle } from "lucide-react"; // Import icons
+import { Clock, CalendarDays, Flag, CircleDollarSign, CheckCircle2, XCircle, ShoppingBag } from "lucide-react"; // Import icons
 // --- End TanStack Table Imports ---
 
 // Parse shipping address for display
@@ -72,6 +72,35 @@ const truncateText = (text, maxLength = 30) => {
 // --- TanStack Column Definition Helper ---
 const columnHelper = createColumnHelper();
 // --- End TanStack Column Definition Helper ---
+
+// --- Helper function to get a specific style for Reason for Shipment tag ---
+export const getReasonTagStyle = (reason) => {
+  let backgroundColor = 'bg-gray-200';
+  let textColor = 'text-gray-700';
+
+  if (reason) {
+    switch (reason.toLowerCase()) {
+      case 'new order':
+        backgroundColor = 'bg-green-100';
+        textColor = 'text-green-700';
+        break;
+      case 'upgrade':
+        backgroundColor = 'bg-blue-100';
+        textColor = 'text-blue-700';
+        break;
+      case 'replacement':
+        backgroundColor = 'bg-yellow-100';
+        textColor = 'text-yellow-700';
+        break;
+      default:
+        // Keep default for other reasons
+        break;
+    }
+  }
+
+  return `px-2 py-0.5 rounded-full text-xs font-medium ${backgroundColor} ${textColor}`;
+};
+// --- End Helper ---
 
 export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrderUpdate }) {
   const router = useRouter();
@@ -469,28 +498,33 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
 
   // --- Define Columns Inside Component to access scope ---
   const columns = [
-    columnHelper.display({
+    columnHelper.accessor('select', {
       id: 'select',
       header: ({ table }) => (
         <Checkbox
           checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
-          className="translate-y-[2px] bg-white data-[state=checked]:bg-white data-[state=checked]:text-black border-gray-400"
+          className="translate-y-[2px]"
         />
       ),
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
+          onClick={(e) => e.stopPropagation()} // Prevent row click when interacting with checkbox
           aria-label="Select row"
-          onClick={(e) => e.stopPropagation()}
-          className="translate-y-[2px] bg-white data-[state=checked]:bg-white data-[state=checked]:text-black border-gray-400"
+          className="translate-y-[2px]"
         />
       ),
-      size: 50,
+      enableSorting: false,
+      enableHiding: false,
+      meta: { // Add meta for custom styling/handling if needed
+        headerClassName: 'w-12', // Example: Adjust width
+        cellClassName: 'w-12'   // Example: Adjust width
+      }
     }),
-    columnHelper.display({
+    columnHelper.accessor('actions', {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => {
@@ -549,7 +583,7 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       },
       size: 80,
     }),
-    columnHelper.display({
+    columnHelper.accessor('timeToShip', {
       id: 'timeToShip',
       header: () => (
         <div className="flex items-center justify-center" title="Since Label (Days)">
@@ -597,6 +631,26 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
             );
         },
         size: 150,
+    }),
+    columnHelper.accessor('reason_for_shipment', {
+      id: 'reason_for_shipment',
+      header: () => <div className="flex items-center justify-center"><ShoppingBag className="h-4 w-4" /></div>,
+      cell: ({ row }) => {
+        const reason = row.original.reason_for_shipment;
+        return reason ? (
+          <span className={getReasonTagStyle(reason)}>
+            {reason.charAt(0).toUpperCase() + reason.slice(1)}
+          </span>
+        ) : (
+          <span>N/A</span>
+        );
+      },
+      enableSorting: true,
+      meta: {
+        headerClassName: 'whitespace-nowrap',
+        cellClassName: 'text-center'
+      },
+      size: 80,
     }),
     columnHelper.accessor('id', {
       header: 'ID',

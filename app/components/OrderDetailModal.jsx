@@ -776,37 +776,8 @@ export default function OrderDetailModal({ children }) {
                              </option>
                          )}
                        </select>
-
-                       {/* REMOVED Sync Button */}
-                       {/* 
-                       <Button
-                         variant="secondary" 
-                         size="icon"
-                         onClick={triggerSyncSendCloudMethods}
-                         disabled={isSyncingMethods || isLoadingAllMethods}
-                         title="Sync methods from SendCloud to DB (Admin)"
-                       >
-                         <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isSyncingMethods ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m-15.357-2a8.001 8.001 0 0115.357-2m0 0H15" />
-                         </svg>
-                       </Button>
-                       */}
-
-                       {/* REMOVED Fetch All Button */}
-                       {/* 
-                       <Button
-                         variant="outline" 
-                         size="icon"
-                         onClick={fetchAllSendCloudMethods}
-                         disabled={isSyncingMethods || isLoadingAllMethods || !order}
-                         title="Fetch all available methods directly from SendCloud API"
-                       >
-                         <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isLoadingAllMethods ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                           <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10m16-5H4m16 5H4M4 7h16v10H4V7z" />
-                         </svg>
-                       </Button>
-                       */}
                     </div>
+                    
                     
                     {/* ---- Indicators and ID Display START ---- */}
                     {/* Debugging log for ID display conditions */}
@@ -829,13 +800,46 @@ export default function OrderDetailModal({ children }) {
                     */}
                     
                     {/* Original DB value display (adjusted to show only if different) */}
-                    {order.shipping_method && String(order.shipping_method) !== currentShippingMethodId && !isSavingShippingMethod && !isSyncingMethods && !isLoadingAllMethods && (
+                    {/* {order.shipping_method && String(order.shipping_method) !== currentShippingMethodId && !isSavingShippingMethod && !isSyncingMethods && !isLoadingAllMethods && (
                       <p className="text-xs text-gray-400 mt-1">
                         (Original DB value: {order.shipping_method})
                       </p>
-                    )}
+                    )} */}
                     {/* ---- Indicators and ID Display END ---- */}
                     
+                  </div>
+                  <div className="status-row">
+                    <span className="status-label">Type of Shipment:</span>
+                    {(!loading && !creatingLabel && order) ? (
+                      <select
+                        className="text-right text-sm text-gray-700 border border-gray-300 rounded px-2 py-1"
+                        value={order.reason_for_shipment || 'new order'}
+                        onChange={async (e) => {
+                          const newValue = e.target.value;
+                          setOrder(prev => ({ ...prev, reason_for_shipment: newValue }));
+                          try {
+                            const { error } = await supabase
+                              .from('orders')
+                              .update({ reason_for_shipment: newValue, updated_at: new Date().toISOString() })
+                              .eq('id', order.id);
+                            if (error) throw error;
+                            toast.success('Reason for shipment updated.');
+                          } catch (err) {
+                            toast.error('Failed to update reason for shipment.');
+                          }
+                        }}
+                      >
+                        <option value="new order">New Order</option>
+                        <option value="upgrade">Upgrade</option>
+                        <option value="replacement">Replacement</option>
+                      </select>
+                    ) : (
+                      <span className="text-right text-sm text-gray-700">
+                        {order.reason_for_shipment
+                          ? order.reason_for_shipment.charAt(0).toUpperCase() + order.reason_for_shipment.slice(1)
+                          : <span className="text-gray-400">Not specified</span>}
+                      </span>
+                    )}
                   </div>
 
                   {/* Shipping Label Status */}
