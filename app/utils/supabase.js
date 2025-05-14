@@ -701,40 +701,45 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     const houseNumber = extractHouseNumber(shippingAddressLine1);
     console.log(`Attempted house number extraction: ${houseNumber}`);
 
-    // Create the order in Supabase with dynamic fields
-    const insertData = {
-      id: orderId,
+    // Prepare the order data for insertion
+    const orderData = {
+      id: orderId, // Use the generated order ID
+      stripe_event_id: stripeEvent.id,
+      stripe_customer_id: customerId,
+      customer_id: customerId, // Link to our internal customer table
       name: customerName,
       email: customerEmail,
       phone: customerPhone,
       shipping_address_line1: shippingAddressLine1,
+      shipping_address_house_number: houseNumber || '', // Extracted house number
       shipping_address_line2: shippingAddressLine2,
       shipping_address_city: shippingAddressCity,
       shipping_address_postal_code: shippingAddressPostalCode,
-      shipping_address_country: shippingAddressCountry,
-      // Use the result of extraction, default to empty string if null
-      shipping_address_house_number: houseNumber || '', 
-      order_notes: orderNotes,
-      status: 'pending',
-      stripe_customer_id: stripeCustomerId,
-      stripe_invoice_id: stripeInvoiceId,
-      stripe_payment_intent_id: stripePaymentIntentId,
-      customer_id: customerId,
-      paid: isPaid,
-      ok_to_ship: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      shipping_address_country: shippingAddressCountry, // Normalized country code
+      line_items: lineItems,
+      currency: 'eur', // Assuming default currency
+      amount_total: 0, // Assuming amount_total is not available in the event data
+      payment_status: isPaid ? 'paid' : 'pending', // Set based on invoice.paid or session status
+      status: 'pending', // Initial status
+      paid: isPaid, // Set based on invoice.paid or session status
+      ok_to_ship: false, // Default to false
+      order_pack_list_id: null, // Default to null, to be set later
+      order_pack_quantity: 1, // Default quantity
+      weight: 0, // Assuming default weight is not available in the event data
+      created_at: new Date(stripeEvent.created * 1000).toISOString(), // Use event creation time
+      updated_at: new Date().toISOString(),
+      created_via: 'stripe_webhook', // Indicate creation source
+      reason_for_shipment: 'new order', // Default reason for shipment
+      // Add other fields as needed
     };
 
-    // Only add line_items if we have them
-    if (lineItemsJson) {
-      insertData.line_items = lineItemsJson;
-    }
+    // Log the prepared order data
+    console.log('Prepared order data:', orderData);
 
-    // Insert the order
+    // Create the order in Supabase with dynamic fields
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert(insertData)
+      .insert(orderData)
       .select()
       .single();
     

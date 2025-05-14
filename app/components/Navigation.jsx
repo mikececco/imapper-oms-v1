@@ -9,6 +9,27 @@ import { Button } from './ui/button';
 import { toast } from 'react-hot-toast';
 import { useSupabase } from "./Providers";
 import { triggerBulkDeliveryUpdate } from "../utils/supabase-client";
+import {
+  Home,
+  ShoppingCart,
+  Package,
+  Users,
+  ClipboardList,
+  Settings,
+  BarChart3,
+  FileText,
+  LifeBuoy,
+  MessageSquare,
+  ChevronDown,
+  LogOut,
+  ExternalLink,
+  Search,
+  Bell,
+  PackageOpen,
+  RefreshCw,
+  TrendingUp,
+  Dumbbell
+} from 'lucide-react';
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -194,6 +215,14 @@ export default function Navigation() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
             </svg>
             {(!isSidebarCollapsed || isMobileView) && <span>Returns</span>}
+          </Link>
+          <Link 
+            href="/trainings" 
+            className={`sidebar-link ${pathname.startsWith('/trainings') ? 'active' : ''}`}
+            title="Trainings"
+          >
+            <Dumbbell className="sidebar-icon" />
+            {(!isSidebarCollapsed || isMobileView) && <span>Trainings</span>}
           </Link>
           <Link 
             href="/customers" 
