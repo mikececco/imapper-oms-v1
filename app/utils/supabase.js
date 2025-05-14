@@ -698,22 +698,25 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     });
     
     // Extract house number from line1
-    const houseNumber = extractHouseNumber(shippingAddressLine1);
-    console.log(`Attempted house number extraction: ${houseNumber}`);
+    const addressParts = extractHouseNumber(shippingAddressLine1);
+    const extractedHouseNumber = addressParts.houseNumber;
+    const cleanedStreetLine1 = addressParts.streetLine;
+
+    console.log(`Address processing: Original L1: "${shippingAddressLine1}", Extracted HN: "${extractedHouseNumber}", Cleaned L1: "${cleanedStreetLine1}"`);
 
     // Create the order in Supabase with dynamic fields
     const insertData = {
       id: orderId,
+      stripe_event_id: stripeEvent.id, 
       name: customerName,
       email: customerEmail,
       phone: customerPhone,
-      shipping_address_line1: shippingAddressLine1,
+      shipping_address_line1: cleanedStreetLine1, // Use the cleaned street line
       shipping_address_line2: shippingAddressLine2,
       shipping_address_city: shippingAddressCity,
       shipping_address_postal_code: shippingAddressPostalCode,
       shipping_address_country: shippingAddressCountry,
-      // Use the result of extraction, default to empty string if null
-      shipping_address_house_number: houseNumber || '', 
+      shipping_address_house_number: extractedHouseNumber || '', // Use extracted number, or empty string
       order_notes: orderNotes,
       status: 'pending',
       stripe_customer_id: stripeCustomerId,
@@ -769,36 +772,49 @@ function formatShippingAddress(address) {
 
 // Helper function to extract house number from address line 1
 export function extractHouseNumber(line1) {
-  if (!line1) return null;
+  if (!line1) return { houseNumber: null, streetLine: '' };
 
   // Trim whitespace
   const trimmedLine1 = line1.trim();
+  let houseNumber = null;
+  let streetLine = trimmedLine1;
 
   // Pattern 1: Number at the beginning (e.g., "123 Main St", "45a High Road")
   // Allows for letters immediately after digits (e.g., 123a)
-  const matchStart = trimmedLine1.match(/^(\\d+[a-zA-Z]*)(\\s+.*|$)/);
+  // Regex: /^(\d+[a-zA-Z]*)(\s+.*|$)/
+  // Group 1: House number, Group 2: Rest of the street (or empty if number is the whole string)
+  const matchStart = trimmedLine1.match(/^(\d+[a-zA-Z]*)(\s+.*|$)/);
   if (matchStart && matchStart[1]) {
-    console.log(`Extracted house number (start): ${matchStart[1]} from "${trimmedLine1}"`);
-    return matchStart[1];
+    houseNumber = matchStart[1];
+    // Group 2 contains the leading space and the rest of the street.
+    // If group 2 exists and is not just whitespace, use it, otherwise, street is empty.
+    streetLine = matchStart[2] ? matchStart[2].trim() : '';
+    console.log(`Extracted house number (start): ${houseNumber} from "${trimmedLine1}". Street: "${streetLine}"`);
+    return { houseNumber, streetLine };
   }
 
   // Pattern 2: Number at the end (e.g., "Main St 123", "High Road 45a")
-  // Requires a space or comma before the number
-  const matchEnd = trimmedLine1.match(/(?:\\s+|,\\s*|\\s+-\\s*)(\\d+[a-zA-Z]*)$/);
-   if (matchEnd && matchEnd[1]) {
-    console.log(`Extracted house number (end): ${matchEnd[1]} from "${trimmedLine1}"`);
-    return matchEnd[1];
+  // Requires a space, comma, or hyphen before the number.
+  // Regex: /^(.*?)(\s+|,|\s*-\s*)(\d+[a-zA-Z]*)$/
+  // Group 1: Street part, Group 2: Separator, Group 3: House number
+  const matchEnd = trimmedLine1.match(/^(.*?)(\s+|,|\s*-\s*)(\d+[a-zA-Z]*)$/);
+  if (matchEnd && matchEnd[3]) {
+    houseNumber = matchEnd[3];
+    streetLine = matchEnd[1] ? matchEnd[1].trim() : ''; // The part before the separator and number
+    console.log(`Extracted house number (end): ${houseNumber} from "${trimmedLine1}". Street: "${streetLine}"`);
+    return { houseNumber, streetLine };
   }
   
-  // Pattern 3: Number after street name, potentially complex (e.g., "Route d'Arlon 1") - Less common but covers some edge cases
-  const matchMiddle = trimmedLine1.match(/^(?:[a-zA-Z\\s\\'-]+)(\\d+[a-zA-Z]*)(\\s+.*|$)/);
-  if (matchMiddle && matchMiddle[1]) {
-    console.log(`Extracted house number (middle): ${matchMiddle[1]} from "${trimmedLine1}"`);
-    return matchMiddle[1];
-  }
+  // Pattern 3: Number after street name, potentially complex (e.g., "Route d'Arlon 1") - Less common.
+  // This pattern is tricky to make non-greedy for the street part and robust.
+  // Let's simplify it or ensure it correctly splits.
+  // Regex: /^(.*?)\s+(\d+[a-zA-Z]*)(?:\s+.*)?$/ - attempts to find a number preceded by a space, not at the very end
+  // A simpler approach for "middle" numbers might be to assume they are not common or handled by specific logic if needed.
+  // The original regex: /^(?:[a-zA-Z\s\\'-]+)(\d+[a-zA-Z]*)(\s+.*|$)/ was also problematic.
 
-  console.log(`Could not extract house number from "${trimmedLine1}"`);
-  return null;
+  // If patterns 1 and 2 didn't match, we return the original line as streetLine.
+  console.log(`Could not extract house number from "${trimmedLine1}". Returning original line.`);
+  return { houseNumber: null, streetLine: trimmedLine1 };
 }
 
 // Helper function to verify that a Stripe event is stored in the database
