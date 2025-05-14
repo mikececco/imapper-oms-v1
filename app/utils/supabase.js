@@ -718,7 +718,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_country: shippingAddressCountry, // Normalized country code
       line_items: lineItems,
       currency: 'eur', // Assuming default currency
-      amount_total: 0, // Assuming amount_total is not available in the event data
+      amount: 0, // Assuming amount is not available in the event data
       payment_status: isPaid ? 'paid' : 'pending', // Set based on invoice.paid or session status
       status: 'pending', // Initial status
       paid: isPaid, // Set based on invoice.paid or session status
