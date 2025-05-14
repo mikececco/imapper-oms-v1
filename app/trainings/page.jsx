@@ -58,7 +58,8 @@ export default function TrainingsPage() {
         supabase
           .from('orders')
           .select('*')
-          .in('reason_for_shipment', ['new order', 'upgrade']) // Filter by reason_for_shipment
+          .eq('created_via', 'standard')
+          .in('reason_for_shipment', ['new order', 'upgrade'])
           .order('created_at', { ascending: false }),
         supabase
           .from('order_pack_lists')
