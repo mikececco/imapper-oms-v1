@@ -372,9 +372,29 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
         }));
       }
     } else if (name === 'order_pack_quantity') {
-      const quantity = parseInt(value);
+      const valueStr = String(value).trim();
+      let quantity = parseInt(valueStr);
+
+      if (valueStr === '' || isNaN(quantity)) {
+        // If input is empty or not a number, treat as invalid or set a default
+        // For now, let's prevent update or you could set a default like 1
+        // Depending on desired UX, you might want to set formData to 1 or an error state
+        // For safety, let's revert to previous or default if user clears it
+        setFormData(prev => ({
+          ...prev,
+          order_pack_quantity: prev.order_pack_quantity || 1 // Revert or default to 1
+        }));
+        return; 
+      }
+
       if (!validateQuantity(quantity)) {
-        return; // Don't update if invalid
+        // If validation fails (e.g., out of range), revert or show error
+        // For now, reverting to previous valid quantity
+        setFormData(prev => ({
+          ...prev,
+          order_pack_quantity: prev.order_pack_quantity 
+        }));        
+        return; 
       }
       
       // Find the selected pack to get its weight
@@ -499,7 +519,13 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       customs_shipment_type: customsShipmentType,
       customs_invoice_nr: customsInvoiceNr,
       customs_parcel_items: editableParcelItems, // Save the array/object directly (assuming JSONB column)
-      eori: eori
+      eori: eori,
+      // Ensure order_pack_list_id is null if empty, not an empty string
+      order_pack_list_id: formData.order_pack_list_id === '' || formData.order_pack_list_id === null ? null : formData.order_pack_list_id,
+      // Ensure order_pack_quantity is a valid integer, default to 1 if somehow invalid or empty
+      order_pack_quantity: parseInt(String(formData.order_pack_quantity), 10) || 1,
+      // Ensure shipping_id is null if empty (if it's a numeric/bigint type in DB)
+      shipping_id: formData.shipping_id === '' ? null : formData.shipping_id 
     };
     delete updateData.order_pack; // Remove derived field
 
@@ -549,6 +575,19 @@ export default function OrderDetailForm({ order, orderPackOptions, onUpdate, cal
       try {
         // Log the updateData object for debugging
         console.log('[Order Update] updateData:', updateData);
+
+        // +++ DETAILED LOGGING START +++
+        console.log('[Order Update Debug] Current formData:', JSON.stringify(formData, null, 2));
+        console.log('[Order Update Debug] formData.order_pack_list_id:', formData.order_pack_list_id, 'Type:', typeof formData.order_pack_list_id);
+        console.log('[Order Update Debug] formData.order_pack_quantity:', formData.order_pack_quantity, 'Type:', typeof formData.order_pack_quantity);
+        console.log('[Order Update Debug] formData.weight:', formData.weight, 'Type:', typeof formData.weight);
+        
+        console.log('[Order Update Debug] Constructed updateData before send:', JSON.stringify(updateData, null, 2));
+        console.log('[Order Update Debug] updateData.order_pack_list_id:', updateData.order_pack_list_id, 'Type:', typeof updateData.order_pack_list_id);
+        console.log('[Order Update Debug] updateData.order_pack_quantity:', updateData.order_pack_quantity, 'Type:', typeof updateData.order_pack_quantity);
+        console.log('[Order Update Debug] updateData.weight:', updateData.weight, 'Type:', typeof updateData.weight);
+        // +++ DETAILED LOGGING END +++
+
         const { error } = await supabase
           .from('orders')
           .update(updateData)
