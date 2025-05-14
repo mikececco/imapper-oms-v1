@@ -704,7 +704,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     // Create the order in Supabase with dynamic fields
     const insertData = {
       id: orderId,
-      stripe_event_id: stripeEvent.id,
       name: customerName,
       email: customerEmail,
       phone: customerPhone,
@@ -713,7 +712,8 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_city: shippingAddressCity,
       shipping_address_postal_code: shippingAddressPostalCode,
       shipping_address_country: shippingAddressCountry,
-      shipping_address_house_number: houseNumber || '',
+      // Use the result of extraction, default to empty string if null
+      shipping_address_house_number: houseNumber || '', 
       order_notes: orderNotes,
       status: 'pending',
       stripe_customer_id: stripeCustomerId,
@@ -722,13 +722,9 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       customer_id: customerId,
       paid: isPaid,
       ok_to_ship: false,
-      amount: 0,
-      order_pack_list_id: null,
-      order_pack_quantity: 1,
-      weight: 0,
-      created_at: new Date(stripeEvent.created * 1000).toISOString(),
+      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      created_via: 'stripe_webhook',
+      created_via: 'standard',
       reason_for_shipment: 'new order'
     };
 
