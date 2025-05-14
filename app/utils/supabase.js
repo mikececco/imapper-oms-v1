@@ -705,7 +705,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     const orderData = {
       id: orderId, // Use the generated order ID
       stripe_event_id: stripeEvent.id,
-      stripe_customer_id: customerId,
+      stripe_customer_id: stripeCustomerId,
       customer_id: customerId, // Link to our internal customer table
       name: customerName,
       email: customerEmail,
@@ -716,8 +716,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       shipping_address_city: shippingAddressCity,
       shipping_address_postal_code: shippingAddressPostalCode,
       shipping_address_country: shippingAddressCountry, // Normalized country code
-      line_items: lineItems,
-      currency: 'eur', // Assuming default currency
+      line_items: lineItemsJson,
       amount: 0, // Assuming amount is not available in the event data
       payment_status: isPaid ? 'paid' : 'pending', // Set based on invoice.paid or session status
       status: 'pending', // Initial status
