@@ -65,9 +65,7 @@ export default function TrainingsPage() {
           'status.ilike.%delivered%,'
           + 'status.ilike.%package delivered%,'
           + 'status.ilike.%shipment collected by customer%,'
-          + 'status.ilike.%package picked-up%,'
-          + 'status.ilike.%parcel was returned to the sender%,'
-          + 'status.ilike.%cancelled%' // Also include cancelled as per your previous change
+          + 'status.ilike.%package picked-up%'
         )
         .in('reason_for_shipment', ['new order', 'upgrade'])
         .order('created_at', { ascending: false });
