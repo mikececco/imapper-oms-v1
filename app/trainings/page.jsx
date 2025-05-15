@@ -228,22 +228,6 @@ export default function TrainingsPage() {
       }
     },
     {
-      id: 'training_done',
-      label: 'Training Done',
-      className: 'w-[100px] text-center',
-      type: 'custom',
-      render: (order) => (
-        <div className="flex justify-center items-center">
-          <Checkbox
-            checked={!!order.training_done}
-            onCheckedChange={() => handleTrainingDoneToggle(order.id, !!order.training_done)}
-            disabled={updatingTrainingStatus === order.id}
-            aria-label={`Mark training as ${order.training_done ? 'not done' : 'done'} for order ${order.id}, customer: ${order.name}`}
-          />
-        </div>
-      )
-    },
-    {
       id: 'welcome_email_sent',
       label: (
         <div className="flex items-center justify-center">
@@ -263,6 +247,22 @@ export default function TrainingsPage() {
           />
         </div>
       ),
+    },
+    {
+      id: 'training_done',
+      label: 'Training Done',
+      className: 'w-[100px] text-center',
+      type: 'custom',
+      render: (order) => (
+        <div className="flex justify-center items-center">
+          <Checkbox
+            checked={!!order.training_done}
+            onCheckedChange={() => handleTrainingDoneToggle(order.id, !!order.training_done)}
+            disabled={updatingTrainingStatus === order.id}
+            aria-label={`Mark training as ${order.training_done ? 'not done' : 'done'} for order ${order.id}, customer: ${order.name}`}
+          />
+        </div>
+      )
     },
     {
       id: 'days_since_arrival',
