@@ -24,7 +24,8 @@ const initialFormData = {
   order_pack_list_id: '',
   weight: '',
   order_notes: '',
-  manual_instruction: ''
+  manual_instruction: '',
+  order_type: 'new order',
 };
 
 const initialNewPackData = {
@@ -289,6 +290,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
         order_pack_list_id: formData.order_pack_list_id || null,
         weight: parseFloat(formData.weight).toFixed(3) || 1.000,
         order_notes: formData.order_notes || null,
+        order_type: formData.order_type,
         created_via: isReturnsContext ? 'returns_portal' : 'standard',
         ...(formData.manual_instruction && { manual_instruction: formData.manual_instruction }),
         paid: true,
@@ -516,6 +518,25 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
                       <option value="NO ACTION REQUIRED">NO ACTION REQUIRED</option>
                     </select>
                   </div>
+                </div>
+              </section>
+
+              <section className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-gray-50">
+                <h3 className="text-lg font-medium mb-2 col-span-full">Order Details</h3>
+                <div>
+                  <label htmlFor="order_type" className="block text-sm font-medium">Order Type *</label>
+                  <select
+                    id="order_type"
+                    name="order_type"
+                    value={formData.order_type}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full p-2 border rounded-md bg-white"
+                  >
+                    <option value="new order">New Order</option>
+                    <option value="upgrade">Upgrade</option>
+                    <option value="replacement">Replacement</option>
+                  </select>
                 </div>
               </section>
 
