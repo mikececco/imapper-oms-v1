@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { SERVER_SUPABASE_URL } from './env';
 import { normalizeCountryToCode } from './country-utils';
-import { WebClient } from '@slack/web-api';
 
 // Check if we're in a build context
 const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
@@ -272,6 +271,7 @@ export async function searchOrders(query) {
 
 // Helper function to create an order from a Stripe event
 export async function createOrderFromStripeEvent(stripeEvent) {
+  let customerName = 'Unknown Customer'; // Initialize customerName to ensure it's always defined
   try {
     // Verify that the event is stored in the database
     await verifyStripeEventStored(stripeEvent);
@@ -321,7 +321,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     const eventData = stripeEvent.data.object;
     
     // Initialize variables for order data
-    let customerName = '';
     let customerEmail = '';
     let customerPhone = '';
     let shippingAddressForDisplay = ''; // Initialize this variable
@@ -350,7 +349,7 @@ export async function createOrderFromStripeEvent(stripeEvent) {
       stripeCustomerId = customer.id || '';
       
       // Extract customer details
-      customerName = customer.name || '';
+      customerName = customer.name || 'Stripe Customer';
       customerEmail = customer.email || '';
       customerPhone = customer.phone || '';
       
@@ -743,14 +742,21 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     
     if (orderError) {
       console.error('Error creating order from Stripe event:', orderError);
-      await sendSlackNotification('Error creating order from Stripe event, customer name: ' + customerName, orderError);
+      if (typeof window === 'undefined') { // Check if server-side
+        const { sendSlackNotification } = await import('./slack-notifications.server.js');
+        await sendSlackNotification(`Error creating order for ${customerName}`, orderError);
+      }
       return { success: false, error: orderError };
     }
     
     return { success: true, data: order, orderId };
   } catch (e) {
     console.error('Exception creating order from Stripe event:', e);
-    await sendSlackNotification('Exception creating order from Stripe event, customer name: ' + customerName, e);
+    if (typeof window === 'undefined') { // Check if server-side
+      const { sendSlackNotification } = await import('./slack-notifications.server.js');
+      // Use the customerName variable that should be populated from the try block
+      await sendSlackNotification(`Exception creating order for ${customerName}`, e);
+    }
     return { success: false, error: e };
   }
 }
@@ -1160,42 +1166,5 @@ export async function fetchDeliveryStats() {
       unknown: 0,
       by_instruction: {}
     };
-  }
-}
-
-// New function to send Slack notifications
-export async function sendSlackNotification(message, error) {
-  try {
-    const token = process.env.SLACK_BOT_TOKEN;
-    const channelId = process.env.SLACK_ERROR_CHANNEL_ID;
-    const mentionUserId = process.env.SLACK_MENTION_USER_ID; // Added for user mention
-
-    console.log(token);
-    console.log('------------------------------------------');
-    console.log(channelId);
-    console.log('------------------------------------------');
-    if (!token || !channelId) {
-      console.error('Slack token or channel ID is not configured. Please set SLACK_BOT_TOKEN and SLACK_ERROR_CHANNEL_ID environment variables.');
-      return;
-    }
-
-    const web = new WebClient(token);
-    const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-    const stackTrace = error instanceof Error && error.stack ? `\n\`\`\`${error.stack}\`\`\`` : '';
-
-    let notificationText = '';
-    if (mentionUserId) {
-      notificationText += `<@${mentionUserId}> `;
-    }
-    notificationText += `🚨 Error in imapper-oms-v1 🚨\n*Message:* ${message}\n*Details:* ${errorMessage}${stackTrace}`;
-
-    await web.chat.postMessage({
-      channel: channelId,
-      text: notificationText, // Updated text
-      mrkdwn: true,
-    });
-    console.log('Slack notification sent successfully.');
-  } catch (slackError) {
-    console.error('Error sending Slack notification:', slackError);
   }
 } 
