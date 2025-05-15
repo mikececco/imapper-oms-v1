@@ -46,6 +46,22 @@ const nextConfig = {
     SENDCLOUD_API_KEY: process.env.SENDCLOUD_API_KEY,
     SENDCLOUD_API_SECRET: process.env.SENDCLOUD_API_SECRET,
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Prevent these modules from being bundled on the client
+      // causing errors with 'node:' prefix resolution.
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        os: false,
+        path: false,
+        querystring: false,
+        stream: false,
+        crypto: false, // crypto is also used by supabase-js, ensure it's handled or polyfilled if needed elsewhere
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig; 
