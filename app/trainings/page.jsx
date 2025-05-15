@@ -13,6 +13,7 @@ import { formatAddressForTable } from '../utils/formatters';
 import { Badge } from '../components/ui/badge';
 import { Checkbox } from '../components/ui/checkbox';
 import { getReasonTagStyle } from '../components/EnhancedOrdersTable'; // For styling the reason tag
+import { Mail } from 'lucide-react'; // Added import for Mail icon
 
 export default function TrainingsPage() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function TrainingsPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [decodedQuery, setDecodedQuery] = useState('');
   const [updatingTrainingStatus, setUpdatingTrainingStatus] = useState(null);
+  const [updatingWelcomeEmailStatus, setUpdatingWelcomeEmailStatus] = useState(null);
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -169,6 +171,33 @@ export default function TrainingsPage() {
     }
   };
 
+  const handleWelcomeEmailSentToggle = async (orderId, currentStatus) => {
+    if (updatingWelcomeEmailStatus === orderId) return; // Prevent multiple clicks
+    setUpdatingWelcomeEmailStatus(orderId);
+    const newValue = !currentStatus;
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ welcome_email_sent: newValue, updated_at: new Date().toISOString() })
+        .eq('id', orderId)
+        .select('id, welcome_email_sent, updated_at')
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setAllOrders(prevOrders => 
+        prevOrders.map(o => o.id === orderId ? { ...o, welcome_email_sent: data.welcome_email_sent, updated_at: data.updated_at } : o)
+      );
+      toast.success(`Welcome email status updated for order ${orderId}.`);
+    } catch (err) {
+      console.error('Error updating welcome email status:', err);
+      toast.error('Failed to update welcome email status.');
+    } finally {
+      setUpdatingWelcomeEmailStatus(null);
+    }
+  };
+
   const trainingOrdersColumns = [
     {
       id: 'actions',
@@ -197,6 +226,43 @@ export default function TrainingsPage() {
         const styleClasses = getReasonTagStyle(reason);
         return <span className={styleClasses}>{reason.charAt(0).toUpperCase() + reason.slice(1)}</span>;
       }
+    },
+    {
+      id: 'training_done',
+      label: 'Training Done',
+      className: 'w-[100px] text-center',
+      type: 'custom',
+      render: (order) => (
+        <div className="flex justify-center items-center">
+          <Checkbox
+            checked={!!order.training_done}
+            onCheckedChange={() => handleTrainingDoneToggle(order.id, !!order.training_done)}
+            disabled={updatingTrainingStatus === order.id}
+            aria-label={`Mark training as ${order.training_done ? 'not done' : 'done'} for order ${order.id}, customer: ${order.name}`}
+          />
+        </div>
+      )
+    },
+    {
+      id: 'welcome_email_sent',
+      label: (
+        <div className="flex items-center justify-center">
+          <span>Welcome</span>
+          <Mail className="ml-1 h-4 w-4" />
+        </div>
+      ),
+      className: 'w-[100px] text-center',
+      type: 'custom',
+      render: (order) => (
+        <div className="flex justify-center items-center">
+          <Checkbox
+            checked={!!order.welcome_email_sent}
+            onCheckedChange={() => handleWelcomeEmailSentToggle(order.id, !!order.welcome_email_sent)}
+            disabled={updatingWelcomeEmailStatus === order.id}
+            aria-label={`Toggle welcome email sent for order ${order.id}, customer: ${order.name}`}
+          />
+        </div>
+      ),
     },
     {
       id: 'days_since_arrival',
@@ -244,22 +310,6 @@ export default function TrainingsPage() {
         }
         return <span className="text-xs text-gray-500">Not Delivered</span>;
       }
-    },
-    {
-      id: 'training_done',
-      label: 'Training Done',
-      className: 'w-[100px] text-center',
-      type: 'custom',
-      render: (order) => (
-        <div className="flex justify-center items-center">
-          <Checkbox
-            checked={!!order.training_done}
-            onCheckedChange={() => handleTrainingDoneToggle(order.id, !!order.training_done)}
-            disabled={updatingTrainingStatus === order.id}
-            aria-label={`Mark training as ${order.training_done ? 'not done' : 'done'} for order ${order.id}`}
-          />
-        </div>
-      )
     },
     { 
       id: 'status', 
