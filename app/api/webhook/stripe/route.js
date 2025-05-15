@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { createOrderFromStripeEvent, findOrCreateCustomer, extractHouseNumber } from '../../../utils/supabase';
 import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
-
+import { sendSlackNotification } from '../../../utils/supabase';
 // Initialize Stripe with your secret key
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: '2023-10-16',
@@ -94,11 +94,13 @@ export async function POST(request) {
         
       if (insertError) {
         console.error('Error storing Stripe event:', insertError);
+        await sendSlackNotification('Error storing Stripe event', insertError);
       } else {
         console.log(`Stored event ${event.id} in stripe_events table`);
       }
     } catch (storeError) {
       console.error('Exception storing Stripe event:', storeError);
+      await sendSlackNotification('Exception storing Stripe event', storeError);
     }
 
     let result = { success: false };
@@ -137,14 +139,17 @@ export async function POST(request) {
         
       if (updateError) {
         console.error('Error marking Stripe event as processed:', updateError);
+        await sendSlackNotification('Error marking Stripe event as processed', updateError);
       }
     } catch (updateError) {
       console.error('Exception marking Stripe event as processed:', updateError);
+      await sendSlackNotification('Exception marking Stripe event as processed', updateError);
     }
 
     // Return a 200 response to acknowledge receipt of the event
     return NextResponse.json({ received: true, result });
   } catch (error) {
+    await sendSlackNotification('Error handling webhook', error);
     console.error('Error handling webhook:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
