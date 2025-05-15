@@ -1168,6 +1168,7 @@ export async function sendSlackNotification(message, error) {
   try {
     const token = process.env.SLACK_BOT_TOKEN;
     const channelId = process.env.SLACK_ERROR_CHANNEL_ID;
+    const mentionUserId = process.env.SLACK_MENTION_USER_ID; // Added for user mention
 
     console.log(token);
     console.log('------------------------------------------');
@@ -1180,11 +1181,17 @@ export async function sendSlackNotification(message, error) {
 
     const web = new WebClient(token);
     const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-    const stackTrace = error instanceof Error && error.stack ? `\\n\`\`\`${error.stack}\`\`\`` : '';
+    const stackTrace = error instanceof Error && error.stack ? `\n\`\`\`${error.stack}\`\`\`` : '';
+
+    let notificationText = '';
+    if (mentionUserId) {
+      notificationText += `<@${mentionUserId}> `;
+    }
+    notificationText += `🚨 Error in imapper-oms-v1 🚨\n*Message:* ${message}\n*Details:* ${errorMessage}${stackTrace}`;
 
     await web.chat.postMessage({
       channel: channelId,
-      text: `🚨 Error in imapper-oms-v1 🚨\\n*Message:* ${message}\\n*Details:* ${errorMessage}${stackTrace}`,
+      text: notificationText, // Updated text
       mrkdwn: true,
     });
     console.log('Slack notification sent successfully.');
