@@ -707,7 +707,6 @@ export async function createOrderFromStripeEvent(stripeEvent) {
     // Create the order in Supabase with dynamic fields
     const insertData = {
       id: orderId,
-      stripe_event_id: stripeEvent.id, 
       name: customerName,
       email: customerEmail,
       phone: customerPhone,
