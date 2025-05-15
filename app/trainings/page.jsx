@@ -54,13 +54,26 @@ export default function TrainingsPage() {
     setLoading(true);
     setLoadingPacks(true);
     try {
+      const ordersQuery = supabase
+        .from('orders')
+        .select('*')
+        .eq('created_via', 'standard')
+        .eq('paid', true)
+        .not('status', 'eq', 'pending')
+        .not('status', 'eq', 'Ready to send')
+        .or(
+          'status.ilike.%delivered%,'
+          + 'status.ilike.%package delivered%,'
+          + 'status.ilike.%shipment collected by customer%,'
+          + 'status.ilike.%package picked-up%,'
+          + 'status.ilike.%parcel was returned to the sender%,'
+          + 'status.ilike.%cancelled%' // Also include cancelled as per your previous change
+        )
+        .in('reason_for_shipment', ['new order', 'upgrade'])
+        .order('created_at', { ascending: false });
+
       const [ordersResult, packsResult] = await Promise.allSettled([
-        supabase
-          .from('orders')
-          .select('*')
-          .eq('created_via', 'standard')
-          .in('reason_for_shipment', ['new order', 'upgrade'])
-          .order('created_at', { ascending: false }),
+        ordersQuery, // Use the constructed query
         supabase
           .from('order_pack_lists')
           .select('id, label')
@@ -207,7 +220,16 @@ export default function TrainingsPage() {
             const carrierMessage = event.carrier_message?.toLowerCase() || '';
             
             // Check parent_status for 'delivered' OR carrier_message for 'delivered' or 'delivery'
-            if (parentStatus.includes('delivered') || carrierMessage.includes('delivered') || carrierMessage.includes('delivery')) {
+            if (parentStatus.includes('delivered') || 
+                parentStatus.includes('delivery') ||
+                parentStatus.includes('package delivered') || 
+                parentStatus.includes('shipment collected by customer') || 
+                parentStatus.includes('package picked-up') ||
+                carrierMessage.includes('delivered') || 
+                carrierMessage.includes('delivery') ||
+                carrierMessage.includes('package delivered') || 
+                carrierMessage.includes('shipment collected by customer') || 
+                carrierMessage.includes('package picked-up')) {
               if (!latestDeliveryEvent || new Date(event.carrier_update_timestamp) > new Date(latestDeliveryEvent.carrier_update_timestamp)) {
                 latestDeliveryEvent = event;
               }
