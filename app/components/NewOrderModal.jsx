@@ -25,7 +25,7 @@ const initialFormData = {
   weight: '',
   order_notes: '',
   manual_instruction: '',
-  order_type: 'new order',
+  reason_for_shipment: 'new order',
 };
 
 const initialNewPackData = {
@@ -290,7 +290,7 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
         order_pack_list_id: formData.order_pack_list_id || null,
         weight: parseFloat(formData.weight).toFixed(3) || 1.000,
         order_notes: formData.order_notes || null,
-        order_type: formData.order_type,
+        reason_for_shipment: formData.reason_for_shipment,
         created_via: isReturnsContext ? 'returns_portal' : 'standard',
         ...(formData.manual_instruction && { manual_instruction: formData.manual_instruction }),
         paid: true,
@@ -524,11 +524,11 @@ export default function NewOrderModal({ isOpen, onClose, onOrderCreated, origina
               <section className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-gray-50">
                 <h3 className="text-lg font-medium mb-2 col-span-full">Order Details</h3>
                 <div>
-                  <label htmlFor="order_type" className="block text-sm font-medium">Order Type *</label>
+                  <label htmlFor="reason_for_shipment" className="block text-sm font-medium">Order Type *</label>
                   <select
-                    id="order_type"
-                    name="order_type"
-                    value={formData.order_type}
+                    id="reason_for_shipment"
+                    name="reason_for_shipment"
+                    value={formData.reason_for_shipment}
                     onChange={handleInputChange}
                     required
                     className="w-full p-2 border rounded-md bg-white"
