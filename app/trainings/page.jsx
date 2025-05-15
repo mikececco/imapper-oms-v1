@@ -217,7 +217,7 @@ export default function TrainingsPage() {
     { id: 'name', label: 'Customer', className: 'w-[180px] max-w-[180px] whitespace-nowrap truncate' },
     { 
       id: 'reason_for_shipment', 
-      label: 'Reason', 
+      label: 'Order Type', 
       className: 'w-[120px] whitespace-nowrap text-center', 
       type: 'custom', 
       render: (order) => {
