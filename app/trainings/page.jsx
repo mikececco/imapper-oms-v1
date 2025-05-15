@@ -213,7 +213,7 @@ export default function TrainingsPage() {
         },
       ]
     },
-    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' }, 
+    // { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' }, 
     { id: 'name', label: 'Customer', className: 'w-[180px] max-w-[180px] whitespace-nowrap truncate' },
     { 
       id: 'reason_for_shipment', 
