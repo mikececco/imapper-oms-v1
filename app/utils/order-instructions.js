@@ -184,7 +184,7 @@ export function calculateOrderInstruction(order) {
   if (
     status !== "pending" &&
     paid === true &&
-    (status?.toLowerCase().includes('delivered') || status?.toLowerCase().includes('package delivered') || status?.toLowerCase().includes('shipment collected by customer') || status?.toLowerCase().includes('package picked-up'))
+    (status?.toLowerCase().includes('delivered') || status?.toLowerCase().includes('delivery') || status?.toLowerCase().includes('delivering') || status?.toLowerCase().includes('package delivered') || status?.toLowerCase().includes('shipment collected by customer') || status?.toLowerCase().includes('package picked-up'))
   ) {
     return 'DELIVERED';
   }
