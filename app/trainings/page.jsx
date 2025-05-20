@@ -41,7 +41,6 @@ export default function TrainingsPage() {
   const [decodedQuery, setDecodedQuery] = useState('');
   const [updatingTrainingStatus, setUpdatingTrainingStatus] = useState(null);
   const [updatingWelcomeEmailStatus, setUpdatingWelcomeEmailStatus] = useState(null);
-  const [fetchingStripeData, setFetchingStripeData] = useState(false);
   const [trialEnds, setTrialEnds] = useState({});
   const [trialEndMessages, setTrialEndMessages] = useState({});
 
@@ -138,10 +137,16 @@ export default function TrainingsPage() {
         if (stripeCustomerId && !trialEnds[stripeCustomerId]) {
           try {
             const res = await fetch(`/api/stripe/trial-end/${stripeCustomerId}`);
+            if (!res.ok) throw new Error('Failed to fetch trial end');
             const data = await res.json();
+            
+            // Store the actual trial_end value, not the message
             updates[stripeCustomerId] = data.trial_end;
             messages[stripeCustomerId] = data.message;
+            
+            console.log('Trial end data for', stripeCustomerId, ':', data); // Debug log
           } catch (error) {
+            console.error('Error fetching trial end:', error);
             updates[stripeCustomerId] = null;
             messages[stripeCustomerId] = 'Error fetching data';
           }
@@ -153,7 +158,6 @@ export default function TrainingsPage() {
       }
     };
     if (allOrders.length) fetchAllTrialEnds();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allOrders]);
 
   const filterOrdersTable = () => {
@@ -241,25 +245,6 @@ export default function TrainingsPage() {
     }
   };
 
-  const handleFetchStripeData = async () => {
-    setFetchingStripeData(true);
-    try {
-      const response = await fetch('/api/customers/fetch-stripe');
-      const data = await response.json();
-      
-      if (!response.ok) throw new Error(data.error || 'Failed to fetch Stripe data');
-      
-      toast.success(data.message);
-      // Refresh the orders to get updated Stripe data
-      await fetchTrainingOrdersAndPacks();
-    } catch (error) {
-      console.error('Error fetching Stripe data:', error);
-      toast.error(error.message);
-    } finally {
-      setFetchingStripeData(false);
-    }
-  };
-
   const trainingOrdersColumns = [
     {
       id: 'actions',
@@ -313,7 +298,7 @@ export default function TrainingsPage() {
     {
       id: 'trial_end',
       label: 'Trial Period',
-      className: 'w-[150px] whitespace-nowrap',
+      className: 'w-[150px] whitespace-nowrap text-center',
       type: 'custom',
       render: (order) => {
         const stripeCustomerId = order.stripe_customer_id;
@@ -323,6 +308,13 @@ export default function TrainingsPage() {
         
         const trialEnd = trialEnds[stripeCustomerId];
         const message = trialEndMessages[stripeCustomerId];
+        
+        // Debug log
+        console.log('Rendering trial end for', stripeCustomerId, ':', {
+          trialEnd,
+          message,
+          hasStripeId: !!stripeCustomerId
+        });
         
         // Loading state
         if (trialEnd === undefined) {
@@ -400,10 +392,12 @@ export default function TrainingsPage() {
             if (parentStatus.includes('delivered') || 
                 parentStatus.includes('delivery') ||
                 parentStatus.includes('package delivered') || 
+                parentStatus.includes('delivering') ||
                 parentStatus.includes('shipment collected by customer') || 
                 parentStatus.includes('package picked-up') ||
                 carrierMessage.includes('delivered') || 
                 carrierMessage.includes('delivery') ||
+                carrierMessage.includes('delivering') ||
                 carrierMessage.includes('package delivered') || 
                 carrierMessage.includes('shipment collected by customer') || 
                 carrierMessage.includes('package picked-up')) {
@@ -419,7 +413,7 @@ export default function TrainingsPage() {
 
         if (latestDeliveryEvent && latestDeliveryEvent.carrier_update_timestamp) {
           const days = calculateDaysSince(latestDeliveryEvent.carrier_update_timestamp);
-          return days !== null ? `${days} day(s)` : <span className="text-xs text-gray-400">N/A</span>;
+          return days !== null ? `${days} day(s)` : 'N/A';
         }
         return <span className="text-xs text-gray-500">Not Delivered</span>;
       }
@@ -457,18 +451,6 @@ export default function TrainingsPage() {
         <div>
           <h1 className="text-2xl font-bold mb-2">Training</h1>
           <p className="text-gray-600">Displaying orders where training is required.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={handleFetchStripeData} 
-            disabled={fetchingStripeData}
-            variant="outline"
-          >
-            {fetchingStripeData ? 'Updating Stripe Data...' : 'Update Stripe Data'}
-          </Button>
-          <Button onClick={() => fetchTrainingOrdersAndPacks()} disabled={loading || loadingPacks}>
-            {loading || loadingPacks ? 'Refreshing...' : 'Refresh Orders'}
-          </Button>
         </div>
       </header>
 
