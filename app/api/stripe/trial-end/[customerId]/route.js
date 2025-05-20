@@ -49,6 +49,7 @@ export async function GET(req, { params }) {
     return new Response(JSON.stringify({
       trial_end: subscription.trial_end,
       status: subscription.status,
+      subscription_id: subscription.id,
       message: 'Subscription found'
     }), { status: 200 });
 

@@ -13,7 +13,7 @@ import { formatAddressForTable } from '../utils/formatters';
 import { Badge } from '../components/ui/badge';
 import { Checkbox } from '../components/ui/checkbox';
 import { getReasonTagStyle } from '../components/EnhancedOrdersTable'; // For styling the reason tag
-import { Mail } from 'lucide-react'; // Added import for Mail icon
+import { Mail, Link as LinkIcon } from 'lucide-react'; // Added import for Mail and Link icons
 
 // Helper function to calculate days remaining
 const calculateDaysRemaining = (trialEnd) => {
@@ -43,6 +43,7 @@ export default function TrainingsPage() {
   const [updatingWelcomeEmailStatus, setUpdatingWelcomeEmailStatus] = useState(null);
   const [trialEnds, setTrialEnds] = useState({});
   const [trialEndMessages, setTrialEndMessages] = useState({});
+  const [subscriptionIds, setSubscriptionIds] = useState({});
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -132,6 +133,7 @@ export default function TrainingsPage() {
     const fetchAllTrialEnds = async () => {
       const updates = {};
       const messages = {};
+      const subIds = {};
       for (const order of allOrders) {
         const stripeCustomerId = order.stripe_customer_id;
         if (stripeCustomerId && !trialEnds[stripeCustomerId]) {
@@ -139,12 +141,11 @@ export default function TrainingsPage() {
             const res = await fetch(`/api/stripe/trial-end/${stripeCustomerId}`);
             if (!res.ok) throw new Error('Failed to fetch trial end');
             const data = await res.json();
-            
-            // Store the actual trial_end value, not the message
             updates[stripeCustomerId] = data.trial_end;
             messages[stripeCustomerId] = data.message;
-            
-            console.log('Trial end data for', stripeCustomerId, ':', data); // Debug log
+            if (data.subscription_id) {
+              subIds[stripeCustomerId] = data.subscription_id;
+            }
           } catch (error) {
             console.error('Error fetching trial end:', error);
             updates[stripeCustomerId] = null;
@@ -155,6 +156,9 @@ export default function TrainingsPage() {
       if (Object.keys(updates).length > 0) {
         setTrialEnds(prev => ({ ...prev, ...updates }));
         setTrialEndMessages(prev => ({ ...prev, ...messages }));
+      }
+      if (Object.keys(subIds).length > 0) {
+        setSubscriptionIds(prev => ({ ...prev, ...subIds }));
       }
     };
     if (allOrders.length) fetchAllTrialEnds();
@@ -305,22 +309,13 @@ export default function TrainingsPage() {
         if (!stripeCustomerId) {
           return <span className="text-xs text-gray-400">No Stripe ID</span>;
         }
-        
         const trialEnd = trialEnds[stripeCustomerId];
         const message = trialEndMessages[stripeCustomerId];
-        
-        // Debug log
-        console.log('Rendering trial end for', stripeCustomerId, ':', {
-          trialEnd,
-          message,
-          hasStripeId: !!stripeCustomerId
-        });
-        
+        const subscriptionId = subscriptionIds[stripeCustomerId];
         // Loading state
         if (trialEnd === undefined) {
           return <span className="text-xs text-gray-400">Loading...</span>;
         }
-        
         // No trial or error states
         if (!trialEnd) {
           return (
@@ -329,25 +324,34 @@ export default function TrainingsPage() {
             </div>
           );
         }
-        
         // Success state with trial end data
         const daysRemaining = calculateDaysRemaining(trialEnd);
         const formattedDate = formatDate(new Date(trialEnd * 1000));
-        
         let badgeVariant = 'default';
         if (daysRemaining < 0) {
           badgeVariant = 'destructive';
         } else if (daysRemaining <= 7) {
           badgeVariant = 'warning';
         }
-        
+        const stripeUrl = subscriptionId ? `https://dashboard.stripe.com/subscriptions/${subscriptionId}` : null;
         return (
           <div className="flex flex-col items-center gap-1">
-            <Badge variant={badgeVariant}>
-              {daysRemaining < 0 
-                ? 'Expired' 
-                : `${daysRemaining} days left`}
-            </Badge>
+            {stripeUrl ? (
+              <a href={stripeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 underline text-blue-600 hover:text-blue-800">
+                <Badge variant={badgeVariant}>
+                  {daysRemaining < 0 
+                    ? 'Expired' 
+                    : `${daysRemaining} days left`}
+                </Badge>
+                <LinkIcon className="h-4 w-4 text-blue-500" aria-label="Open in Stripe" />
+              </a>
+            ) : (
+              <Badge variant={badgeVariant}>
+                {daysRemaining < 0 
+                  ? 'Expired' 
+                  : `${daysRemaining} days left`}
+              </Badge>
+            )}
             <span className="text-xs text-gray-500">{formattedDate}</span>
           </div>
         );
