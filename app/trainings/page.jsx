@@ -43,6 +43,7 @@ export default function TrainingsPage() {
   const [updatingWelcomeEmailStatus, setUpdatingWelcomeEmailStatus] = useState(null);
   const [fetchingStripeData, setFetchingStripeData] = useState(false);
   const [trialEnds, setTrialEnds] = useState({});
+  const [trialEndMessages, setTrialEndMessages] = useState({});
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -131,6 +132,7 @@ export default function TrainingsPage() {
   useEffect(() => {
     const fetchAllTrialEnds = async () => {
       const updates = {};
+      const messages = {};
       for (const order of allOrders) {
         const stripeCustomerId = order.stripe_customer_id;
         if (stripeCustomerId && !trialEnds[stripeCustomerId]) {
@@ -138,13 +140,16 @@ export default function TrainingsPage() {
             const res = await fetch(`/api/stripe/trial-end/${stripeCustomerId}`);
             const data = await res.json();
             updates[stripeCustomerId] = data.trial_end;
-          } catch {
+            messages[stripeCustomerId] = data.message;
+          } catch (error) {
             updates[stripeCustomerId] = null;
+            messages[stripeCustomerId] = 'Error fetching data';
           }
         }
       }
       if (Object.keys(updates).length > 0) {
         setTrialEnds(prev => ({ ...prev, ...updates }));
+        setTrialEndMessages(prev => ({ ...prev, ...messages }));
       }
     };
     if (allOrders.length) fetchAllTrialEnds();
@@ -308,21 +313,42 @@ export default function TrainingsPage() {
     {
       id: 'trial_end',
       label: 'Trial Period',
-      className: 'w-[150px] whitespace-nowrap text-center',
+      className: 'w-[150px] whitespace-nowrap',
       type: 'custom',
       render: (order) => {
-        const trialEnd = trialEnds[order.stripe_customer_id];
-        if (!order.stripe_customer_id) return <span className="text-xs text-gray-400">No Stripe ID</span>;
-        if (trialEnd === undefined) return <span className="text-xs text-gray-400">Loading...</span>;
-        if (!trialEnd) return <span className="text-xs text-gray-400">No Trial</span>;
+        const stripeCustomerId = order.stripe_customer_id;
+        if (!stripeCustomerId) {
+          return <span className="text-xs text-gray-400">No Stripe ID</span>;
+        }
+        
+        const trialEnd = trialEnds[stripeCustomerId];
+        const message = trialEndMessages[stripeCustomerId];
+        
+        // Loading state
+        if (trialEnd === undefined) {
+          return <span className="text-xs text-gray-400">Loading...</span>;
+        }
+        
+        // No trial or error states
+        if (!trialEnd) {
+          return (
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-xs text-gray-400">{message || 'No Trial'}</span>
+            </div>
+          );
+        }
+        
+        // Success state with trial end data
         const daysRemaining = calculateDaysRemaining(trialEnd);
         const formattedDate = formatDate(new Date(trialEnd * 1000));
+        
         let badgeVariant = 'default';
         if (daysRemaining < 0) {
           badgeVariant = 'destructive';
         } else if (daysRemaining <= 7) {
           badgeVariant = 'warning';
         }
+        
         return (
           <div className="flex flex-col items-center gap-1">
             <Badge variant={badgeVariant}>
