@@ -416,7 +416,11 @@ export default function TrainingsPage() {
         }
 
         if (latestDeliveryEvent && latestDeliveryEvent.carrier_update_timestamp) {
-          const days = calculateDaysSince(latestDeliveryEvent.carrier_update_timestamp);
+          const days = calculateDaysSince(
+            typeof latestDeliveryEvent.carrier_update_timestamp === 'number'
+              ? new Date(latestDeliveryEvent.carrier_update_timestamp * 1000).toISOString()
+              : latestDeliveryEvent.carrier_update_timestamp
+          );
           return days !== null ? `${days} day(s)` : 'N/A';
         }
         return <span className="text-xs text-gray-500">Not Delivered</span>;
