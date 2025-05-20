@@ -134,6 +134,7 @@ export default function TrainingsPage() {
       const updates = {};
       const messages = {};
       const subIds = {};
+      const links = {};
       for (const order of allOrders) {
         const stripeCustomerId = order.stripe_customer_id;
         if (stripeCustomerId && !trialEnds[stripeCustomerId]) {
@@ -143,8 +144,8 @@ export default function TrainingsPage() {
             const data = await res.json();
             updates[stripeCustomerId] = data.trial_end;
             messages[stripeCustomerId] = data.message;
-            if (data.subscription_id) {
-              subIds[stripeCustomerId] = data.subscription_id;
+            if (data.link) {
+              links[stripeCustomerId] = data.link;
             }
           } catch (error) {
             console.error('Error fetching trial end:', error);
@@ -157,8 +158,8 @@ export default function TrainingsPage() {
         setTrialEnds(prev => ({ ...prev, ...updates }));
         setTrialEndMessages(prev => ({ ...prev, ...messages }));
       }
-      if (Object.keys(subIds).length > 0) {
-        setSubscriptionIds(prev => ({ ...prev, ...subIds }));
+      if (Object.keys(links).length > 0) {
+        setSubscriptionIds(prev => ({ ...prev, ...links }));
       }
     };
     if (allOrders.length) fetchAllTrialEnds();
