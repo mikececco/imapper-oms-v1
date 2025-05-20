@@ -50,6 +50,7 @@ export async function GET(req, { params }) {
       trial_end: subscription.trial_end,
       status: subscription.status,
       subscription_id: subscription.id,
+      link: `https://dashboard.stripe.com/subscriptions/${subscription.id}`,
       message: 'Subscription found'
     }), { status: 200 });
 
