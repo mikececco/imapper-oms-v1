@@ -1,113 +1,88 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import Stripe from 'stripe';
-import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY } from '../../../utils/env';
 
-// Initialize Stripe with your secret key
-const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16',
-}) : null;
-
-// Initialize Supabase client
-const supabase = SERVER_SUPABASE_URL && SERVER_SUPABASE_ANON_KEY && SERVER_SUPABASE_URL !== 'build-placeholder'
-  ? createClient(SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY)
-  : null;
+export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
-    // Check if clients aren't initialized
-    if (!stripe || !supabase) {
-      console.error('Stripe or Supabase client not initialized');
-      return NextResponse.json({ error: 'Service unavailable during build or initialization' }, { status: 503 });
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const supabase = createRouteHandlerClient({ cookies });
+
+    // Get all customers with Stripe IDs
+    const { data: customers, error: fetchError } = await supabase
+      .from('customers')
+      .select('id, stripe_customer_id')
+      .not('stripe_customer_id', 'is', null);
+
+    if (fetchError) {
+      throw new Error(`Error fetching customers: ${fetchError.message}`);
     }
 
-    // Get the customer ID from the query parameters
-    const { searchParams } = new URL(request.url);
-    const customerId = searchParams.get('customerId');
+    // Process each customer
+    const updates = await Promise.all(customers.map(async (customer) => {
+      try {
+        // Fetch latest subscription for the customer
+        const subscriptions = await stripe.subscriptions.list({
+          customer: customer.stripe_customer_id,
+          limit: 1,
+          status: 'all',
+        });
 
-    if (!customerId) {
-      return NextResponse.json({ error: 'Customer ID is required' }, { status: 400 });
-    }
+        const subscription = subscriptions.data[0];
+        
+        // Prepare subscription data
+        const subscriptionData = subscription ? {
+          subscription_id: subscription.id,
+          status: subscription.status,
+          trial_start: subscription.trial_start,
+          trial_end: subscription.trial_end,
+          current_period_end: subscription.current_period_end,
+          cancel_at: subscription.cancel_at,
+          canceled_at: subscription.canceled_at,
+          ended_at: subscription.ended_at,
+        } : null;
 
-    try {
-      // Fetch customer data from Stripe
-      const stripeCustomer = await stripe.customers.retrieve(customerId);
-
-      if (!stripeCustomer) {
-        return NextResponse.json({ error: 'Customer not found in Stripe' }, { status: 404 });
-      }
-
-      // Prepare customer data for our database
-      const customerData = {
-        stripe_customer_id: stripeCustomer.id,
-        name: stripeCustomer.name || 'New Customer',
-        email: stripeCustomer.email || '',
-        phone: stripeCustomer.phone || '',
-        address_line1: stripeCustomer.address?.line1 || '',
-        address_line2: stripeCustomer.address?.line2 || '',
-        address_city: stripeCustomer.address?.city || '',
-        address_postal_code: stripeCustomer.address?.postal_code || '',
-        address_country: stripeCustomer.address?.country || '',
-        metadata: stripeCustomer.metadata || {}
-      };
-
-      // If shipping address exists, use it instead of billing address
-      if (stripeCustomer.shipping && stripeCustomer.shipping.address) {
-        customerData.address_line1 = stripeCustomer.shipping.address.line1 || customerData.address_line1;
-        customerData.address_line2 = stripeCustomer.shipping.address.line2 || customerData.address_line2;
-        customerData.address_city = stripeCustomer.shipping.address.city || customerData.address_city;
-        customerData.address_postal_code = stripeCustomer.shipping.address.postal_code || customerData.address_postal_code;
-        customerData.address_country = stripeCustomer.shipping.address.country || customerData.address_country;
-      }
-
-      // Check if customer already exists in our database
-      const { data: existingCustomer, error: fetchError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('stripe_customer_id', customerId)
-        .single();
-
-      let result;
-      let isUpdate = false;
-      
-      if (existingCustomer) {
-        // Update existing customer
-        isUpdate = true;
-        result = await supabase
+        // Update customer in database
+        const { error: updateError } = await supabase
           .from('customers')
-          .update(customerData)
-          .eq('id', existingCustomer.id)
-          .select()
-          .single();
-      } else {
-        // Create new customer
-        result = await supabase
-          .from('customers')
-          .insert([customerData])
-          .select()
-          .single();
-      }
+          .update({
+            stripe_subscription_data: subscriptionData,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', customer.id);
 
-      if (result.error) {
-        throw result.error;
-      }
+        if (updateError) {
+          console.error(`Error updating customer ${customer.id}:`, updateError);
+          return { success: false, customer: customer.id, error: updateError.message };
+        }
 
-      // Return the customer data with a flag indicating if it was an update
-      return NextResponse.json({
-        ...result.data,
-        isUpdate
-      });
-    } catch (stripeError) {
-      // Handle Stripe API errors specifically
-      if (stripeError.type === 'StripeInvalidRequestError') {
-        return NextResponse.json({ 
-          error: 'Invalid Stripe customer ID. Please check and try again.' 
-        }, { status: 400 });
+        return { success: true, customer: customer.id };
+      } catch (error) {
+        console.error(`Error processing customer ${customer.id}:`, error);
+        return { success: false, customer: customer.id, error: error.message };
       }
-      throw stripeError;
-    }
+    }));
+
+    // Count successes and failures
+    const successful = updates.filter(u => u.success).length;
+    const failed = updates.filter(u => !u.success).length;
+
+    return new Response(JSON.stringify({
+      message: `Updated ${successful} customers, ${failed} failed`,
+      details: updates
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
   } catch (error) {
-    console.error('Error handling customer fetch:', error);
-    return NextResponse.json({ error: error.message || 'Failed to fetch customer data' }, { status: 500 });
+    console.error('Error in fetch-stripe route:', error);
+    return new Response(JSON.stringify({
+      error: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 } 

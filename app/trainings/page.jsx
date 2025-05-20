@@ -15,6 +15,16 @@ import { Checkbox } from '../components/ui/checkbox';
 import { getReasonTagStyle } from '../components/EnhancedOrdersTable'; // For styling the reason tag
 import { Mail } from 'lucide-react'; // Added import for Mail icon
 
+// Helper function to calculate days remaining
+const calculateDaysRemaining = (trialEnd) => {
+  if (!trialEnd) return null;
+  const now = new Date();
+  const end = new Date(trialEnd * 1000); // Convert Unix timestamp to milliseconds
+  const diffTime = end - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
 export default function TrainingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,6 +41,8 @@ export default function TrainingsPage() {
   const [decodedQuery, setDecodedQuery] = useState('');
   const [updatingTrainingStatus, setUpdatingTrainingStatus] = useState(null);
   const [updatingWelcomeEmailStatus, setUpdatingWelcomeEmailStatus] = useState(null);
+  const [fetchingStripeData, setFetchingStripeData] = useState(false);
+  const [trialEnds, setTrialEnds] = useState({});
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
@@ -66,6 +78,8 @@ export default function TrainingsPage() {
         .or(
           'status.ilike.%delivered%,'
           + 'status.ilike.%package delivered%,'
+          + 'status.ilike.%delivery%,'
+          + 'status.ilike.%delivering%,'
           + 'status.ilike.%shipment collected by customer%,'
           + 'status.ilike.%package picked-up%'
         )
@@ -73,7 +87,7 @@ export default function TrainingsPage() {
         .order('created_at', { ascending: false });
 
       const [ordersResult, packsResult] = await Promise.allSettled([
-        ordersQuery, // Use the constructed query
+        ordersQuery,
         supabase
           .from('order_pack_lists')
           .select('id, label')
@@ -112,6 +126,30 @@ export default function TrainingsPage() {
       setLoadingPacks(false);
     }
   };
+
+  // Fetch trial_end for each order's stripe_customer_id
+  useEffect(() => {
+    const fetchAllTrialEnds = async () => {
+      const updates = {};
+      for (const order of allOrders) {
+        const stripeCustomerId = order.stripe_customer_id;
+        if (stripeCustomerId && !trialEnds[stripeCustomerId]) {
+          try {
+            const res = await fetch(`/api/stripe/trial-end/${stripeCustomerId}`);
+            const data = await res.json();
+            updates[stripeCustomerId] = data.trial_end;
+          } catch {
+            updates[stripeCustomerId] = null;
+          }
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        setTrialEnds(prev => ({ ...prev, ...updates }));
+      }
+    };
+    if (allOrders.length) fetchAllTrialEnds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allOrders]);
 
   const filterOrdersTable = () => {
     let filtered = allOrders;
@@ -198,6 +236,25 @@ export default function TrainingsPage() {
     }
   };
 
+  const handleFetchStripeData = async () => {
+    setFetchingStripeData(true);
+    try {
+      const response = await fetch('/api/customers/fetch-stripe');
+      const data = await response.json();
+      
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch Stripe data');
+      
+      toast.success(data.message);
+      // Refresh the orders to get updated Stripe data
+      await fetchTrainingOrdersAndPacks();
+    } catch (error) {
+      console.error('Error fetching Stripe data:', error);
+      toast.error(error.message);
+    } finally {
+      setFetchingStripeData(false);
+    }
+  };
+
   const trainingOrdersColumns = [
     {
       id: 'actions',
@@ -247,6 +304,36 @@ export default function TrainingsPage() {
           />
         </div>
       ),
+    },
+    {
+      id: 'trial_end',
+      label: 'Trial Period',
+      className: 'w-[150px] whitespace-nowrap text-center',
+      type: 'custom',
+      render: (order) => {
+        const trialEnd = trialEnds[order.stripe_customer_id];
+        if (!order.stripe_customer_id) return <span className="text-xs text-gray-400">No Stripe ID</span>;
+        if (trialEnd === undefined) return <span className="text-xs text-gray-400">Loading...</span>;
+        if (!trialEnd) return <span className="text-xs text-gray-400">No Trial</span>;
+        const daysRemaining = calculateDaysRemaining(trialEnd);
+        const formattedDate = formatDate(new Date(trialEnd * 1000));
+        let badgeVariant = 'default';
+        if (daysRemaining < 0) {
+          badgeVariant = 'destructive';
+        } else if (daysRemaining <= 7) {
+          badgeVariant = 'warning';
+        }
+        return (
+          <div className="flex flex-col items-center gap-1">
+            <Badge variant={badgeVariant}>
+              {daysRemaining < 0 
+                ? 'Expired' 
+                : `${daysRemaining} days left`}
+            </Badge>
+            <span className="text-xs text-gray-500">{formattedDate}</span>
+          </div>
+        );
+      }
     },
     {
       id: 'training_done',
@@ -345,9 +432,18 @@ export default function TrainingsPage() {
           <h1 className="text-2xl font-bold mb-2">Training</h1>
           <p className="text-gray-600">Displaying orders where training is required.</p>
         </div>
-        <Button onClick={() => fetchTrainingOrdersAndPacks()} disabled={loading || loadingPacks}>
-          {loading || loadingPacks ? 'Refreshing...' : 'Refresh Orders'}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleFetchStripeData} 
+            disabled={fetchingStripeData}
+            variant="outline"
+          >
+            {fetchingStripeData ? 'Updating Stripe Data...' : 'Update Stripe Data'}
+          </Button>
+          <Button onClick={() => fetchTrainingOrdersAndPacks()} disabled={loading || loadingPacks}>
+            {loading || loadingPacks ? 'Refreshing...' : 'Refresh Orders'}
+          </Button>
+        </div>
       </header>
 
       <div className="mb-6">
