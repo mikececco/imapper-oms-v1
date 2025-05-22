@@ -263,11 +263,15 @@ async function handleCustomerCreated(event) {
     }
     
     // Extract house number using extractHouseNumber utility
-    const houseNumber = extractHouseNumber(addressLine1);
-    console.log('House number:', houseNumber);
+    const { houseNumber, streetLine } = extractHouseNumber(addressLine1);
+    console.log('Extracted house number:', houseNumber, 'Street line:', streetLine);
     if (houseNumber) {
       console.log('House number found:', houseNumber);
       customerData.address_house_number = houseNumber;
+      customerData.address_line1 = streetLine; // Update address_line1 with the street part
+    } else {
+      // If no house number, ensure address_line1 is the original (or modified by shipping) addressLine1
+      customerData.address_line1 = addressLine1;
     }
     
     const customerResult = await findOrCreateCustomer(customer.id, customerData);
