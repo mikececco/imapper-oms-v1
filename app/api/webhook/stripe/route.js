@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { createOrderFromStripeEvent, findOrCreateCustomer, extractHouseNumber } from '../../../utils/supabase';
 import { SERVER_SUPABASE_URL, SERVER_SUPABASE_ANON_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../../../utils/env';
-import { sendSlackNotification } from '../../../utils/supabase';
+import { sendSlackNotification } from '../../../utils/slack-notifications.server.js';
 // Initialize Stripe with your secret key
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: '2023-10-16',
