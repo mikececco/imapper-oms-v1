@@ -1,0 +1,46 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Feature: Customer Self-Service Returns Portal
+
+1.  **Create a New Public-Facing Page/Route for Self-Service Returns:**
+    *   Define a route (e.g., `/returns/initiate/[token]`) where `[token]` is a unique identifier for the order/customer.
+    *   Create the page component that will allow users to initiate a return.
+    *   **Status:** Done
+    *   **Summary:** Created `app/returns/initiate/[token]/page.jsx` as a dynamic route. The page component `InitiateReturnPage` is set up to receive a `token` parameter from the URL and includes placeholder comments for future development (token validation, UI, etc.).
+
+2.  **Develop Token Generation and Validation Logic:**
+    *   Determine what information the token should represent (e.g., order ID, customer ID, or a combination).
+    *   Implement a secure method to generate unique tokens when an order is eligible for return.
+    *   Implement a mechanism to validate the token on the self-service return page and retrieve associated order/customer details.
+    *   **Status:** In Progress
+    *   **Summary:** Created an API endpoint `app/api/returns/validate-token/[token]/route.js`. This GET route takes a token, queries the `orders` table for a match on the `self_service_return_token` column, and returns order details or an error. A Supabase migration `supabase/migrations/20231120100000_add_self_service_return_token_to_orders.sql` has been created to add the `self_service_return_token` (TEXT, UNIQUE, UUID-like format) column and an index to the `orders` table. Next is implementing token generation logic.
+
+3.  **Design the Self-Service Return Page UI/UX:**
+    *   The page should display relevant order details (e.g., items, purchase date).
+    *   Provide a simple interface for the customer to select items to return, specify a return reason (if applicable), and confirm their return address.
+    *   Display clear instructions and feedback to the user throughout the process.
+    *   **Status:** To Do
+
+4.  **Adapt Backend API for Public Return Creation:**
+    *   Modify or create a new API endpoint (e.g., `/api/returns/initiate-public-return`) that the self-service page will use.
+    *   This endpoint will take the validated token (or order/customer details derived from it) and return creation parameters (items, reason, address).
+    *   It should leverage the existing `createReturnLabel` utility or similar logic, ensuring necessary security checks.
+    *   **Status:** To Do
+
+5.  **Update Order/Customer Data Models (if necessary):**
+    *   Consider if any new fields are needed in the `orders` or `customers` tables to store the self-service return token or link.
+    *   **Status:** Done (as part of Step 2)
+    *   **Summary:** Added `self_service_return_token` column to the `orders` table via a Supabase migration. This column will store the unique token for customer self-service returns.
+
+6.  **Implement Email/Notification System:**
+    *   Optionally, implement a system to email customers the self-service return link when their order becomes eligible for return.
+    *   Notify admins/support when a customer initiates a return via the portal.
+    *   **Status:** To Do
+
+7.  **Testing and Security Review:**
+    *   Thoroughly test the end-to-end flow.
+    *   Conduct a security review to ensure the process is safe from unauthorized access or data breaches.
+    *   **Status:** To Do
