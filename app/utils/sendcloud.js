@@ -521,24 +521,29 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
     };
 
     // --- Construct Main Payload ---
+    const fromCountryCode = returnFromAddress.country ? returnFromAddress.country.toUpperCase() : null;
+
+    let shipWithFunctionalities
+
+    if (fromCountryCode === 'CH' || fromCountryCode === 'GB') {
+      shipWithFunctionalities.direct_contract_only = true;
+      shipWithFunctionalities.service_area = "international";
+      shipWithFunctionalities.incoterm = "dap";
+    }
+
     const returnPayload = {
-      from_address: fromAddressPayload, // Use the constructed object
-      to_address: toAddressPayload,     // Use the constructed object
-      weight: {                       // Weight object at root level
-          value: parseFloat(parcelWeight) || 1.0,
-          unit: "kg"
+      from_address: fromAddressPayload,
+      to_address: toAddressPayload,
+      weight: {
+        value: parseFloat(parcelWeight) || 1.0,
+        unit: "kg"
       },
       ship_with: {
-          shipping_product_code: "dhl_express",
-        functionalities: {
-          carrier_insurance: false,
-          labelless: false,
-          direct_contract_only: true,
-          first_mile: "pickup_dropoff"
-        },
+        shipping_product_code: "dhl_express:worldwide_import/dropoff",
+        functionalities: shipWithFunctionalities,
         contract: 106496
       },
-      // parcel_items: [...] // Add if required
+      // parcel_items: [] // Add if required for customs or detailed returns
     };
 
     console.log("Sending Corrected Payload to SendCloud Returns API:", JSON.stringify(returnPayload, null, 2));
