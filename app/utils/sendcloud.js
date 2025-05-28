@@ -529,7 +529,7 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           unit: "kg"
       },
       ship_with: {
-          shipping_product_code: "dhl:express/domestic-return-drop-off",
+          shipping_product_code: "dhl_express",
         functionalities: {
           carrier_insurance: false,
           labelless: false,
