@@ -547,6 +547,77 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
       // parcel_items: [] // Add if required for customs or detailed returns
     };
 
+    // --- Customs Information for International Returns ---
+    const countriesRequiringCustoms = ['GB', 'CH', 'US', 'CA', 'AU', 'NO']; // Sync with create-shipping-label
+    const requiresCustoms = countriesRequiringCustoms.includes(fromCountryCode);
+
+    if (requiresCustoms) {
+      console.log(`Return from ${fromCountryCode} requires customs. Adding parcel_items.`);
+      let parcelItemsForReturn = [];
+      const totalReturnWeight = parseFloat(parcelWeight) || 1.0;
+      let totalQuantityFromLineItems = 0;
+
+      try {
+        const lineItems = typeof order.line_items === 'string' 
+          ? JSON.parse(order.line_items) 
+          : (Array.isArray(order.line_items) ? order.line_items : []);
+
+        if (lineItems && lineItems.length > 0) {
+          totalQuantityFromLineItems = lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+          if (totalQuantityFromLineItems === 0) totalQuantityFromLineItems = 1; // Avoid division by zero
+
+          parcelItemsForReturn = lineItems.map(item => ({
+            description: (item.description ? item.description.substring(0, 50) : 'Returned Product'),
+            quantity: item.quantity || 1,
+            weight: ((totalReturnWeight / totalQuantityFromLineItems) * (item.quantity || 1)).toFixed(3),
+            value: (item.amount || 0).toFixed(2),
+            hs_code: item.hs_code || '90151000', // Default HS code for returns
+            origin_country: fromCountryCode, // Country customer is shipping from
+            sku: item.sku || ''
+          }));
+        } else {
+          // Fallback if no line items: create a single parcel item representing the whole return
+          console.warn(`Order ${order.id} for return from ${fromCountryCode} has no line_items. Creating a generic parcel item.`);
+          parcelItemsForReturn.push({
+            description: 'Returned Goods',
+            quantity: 1,
+            weight: totalReturnWeight.toFixed(3),
+            value: (order.total_amount || 0).toFixed(2), // Use order total amount if available
+            hs_code: '90151000',
+            origin_country: fromCountryCode,
+            sku: 'RETURN-ITEM'
+          });
+        }
+      } catch (parseError) {
+        console.error(`Error parsing line_items for return (Order ${order.id}):`, parseError);
+        // Fallback: create a single generic parcel item if parsing fails
+        parcelItemsForReturn.push({
+          description: 'Returned Goods - Parsing Error',
+          quantity: 1,
+          weight: totalReturnWeight.toFixed(3),
+          value: (order.total_amount || 0).toFixed(2),
+          hs_code: '90151000',
+          origin_country: fromCountryCode,
+          sku: 'RETURN-PARSE-ERROR'
+        });
+      }
+
+      if (parcelItemsForReturn.length > 0) {
+        returnPayload.parcel_items = parcelItemsForReturn;
+      }
+      // Shipment type 4 for "Returned Goods"
+      returnPayload.customs_shipment_type = 4; 
+      // Use order ID or a generic return ID for customs invoice number
+      returnPayload.customs_invoice_nr = `RETURN-${order.id}`;
+      // EORI might be needed from the 'to_address' (your business) for import
+      // This depends on SendCloud requirements for returns. Assuming to_address might have an EORI.
+      if (returnToAddress.eori) {
+        returnPayload.eori = returnToAddress.eori;
+      } else {
+        console.warn(`EORI number for the recipient (warehouse at ${returnToAddress.country}) might be required for international returns from ${fromCountryCode}. Consider adding EORI to warehouse address details.`);
+      }
+    }
+
     console.log("Sending Corrected Payload to SendCloud Returns API:", JSON.stringify(returnPayload, null, 2));
 
     const response = await fetch('https://panel.sendcloud.sc/api/v3/returns', {

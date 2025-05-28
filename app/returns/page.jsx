@@ -226,7 +226,39 @@ export default function ReturnsPage() {
   const handleOpenReturnModal = (orderId) => {
     const order = allOrders.find(o => o.id === orderId);
     if (order) {
-      setOrderForReturn(order);
+      let initialParcelItems = [];
+      const countriesRequiringCustoms = ['GB', 'CH', 'US', 'CA', 'AU', 'NO']; // Keep in sync with backend
+      const originalShippingCountry = (typeof order.shipping_address === 'object' ? order.shipping_address.country : order.shipping_address_country)?.toUpperCase();
+
+      if (originalShippingCountry && countriesRequiringCustoms.includes(originalShippingCountry)) {
+        try {
+          const lineItems = typeof order.line_items === 'string'
+            ? JSON.parse(order.line_items)
+            : (Array.isArray(order.line_items) ? order.line_items : []);
+
+          if (lineItems && lineItems.length > 0) {
+            const totalOriginalWeight = parseFloat(order.weight) || 1.0;
+            let totalQuantityFromLineItems = lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            if (totalQuantityFromLineItems === 0) totalQuantityFromLineItems = 1;
+
+            initialParcelItems = lineItems.map(item => ({
+              description: (item.description ? item.description.substring(0, 50) : 'Product'),
+              quantity: item.quantity || 1,
+              // Weight display here is based on original order for informational purpose
+              weight: ((totalOriginalWeight / totalQuantityFromLineItems) * (item.quantity || 1)).toFixed(3), 
+              value: (item.amount || 0).toFixed(2),
+              hs_code: item.hs_code || '90151000', // Original HS code or default
+              origin_country: item.origin_country || 'FR', // Original origin country or default
+              sku: item.sku || ''
+            }));
+          }
+        } catch (e) {
+          console.error("Error preparing initialParcelItems for modal:", e);
+          toast.error("Could not prepare item details for display.");
+        }
+      }
+
+      setOrderForReturn({...order, initialParcelItems }); // Add items to the state
       setIsReturnConfirmModalOpen(true);
     } else {
       toast.error("Could not find order details.");
@@ -617,7 +649,7 @@ export default function ReturnsPage() {
         }
       ]
     },
-    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' }, 
+    // { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' }, 
     { id: 'name', label: 'Customer', className: 'w-[200px] max-w-[200px] whitespace-nowrap truncate' },
     { 
       id: 'status', 
@@ -944,13 +976,13 @@ export default function ReturnsPage() {
         />
       )}
 
-      {orderForReturn && (
+      {isReturnConfirmModalOpen && orderForReturn && (
         <ReturnConfirmationModal
           isOpen={isReturnConfirmModalOpen}
           onClose={handleCloseReturnModal}
           order={orderForReturn}
           onConfirm={handleConfirmReturnStandard}
-          isLoading={!!creatingLabelOrderId}
+          isLoading={creatingLabelOrderId === orderForReturn.id}
         />
       )}
 
