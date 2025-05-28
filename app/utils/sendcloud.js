@@ -523,12 +523,17 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
     // --- Construct Main Payload ---
     const fromCountryCode = returnFromAddress.country ? returnFromAddress.country.toUpperCase() : null;
 
-    let shipWithFunctionalities
+    let shipWithObject = {
+      shipping_product_code: "dhl_express:worldwide_import/dropoff"
+    };
 
     if (fromCountryCode === 'CH' || fromCountryCode === 'GB') {
-      shipWithFunctionalities.direct_contract_only = true;
-      shipWithFunctionalities.service_area = "international";
-      shipWithFunctionalities.incoterm = "dap";
+      shipWithObject.functionalities = {
+        direct_contract_only: true,
+        service_area: "international",
+        incoterm: "dap"
+      };
+      shipWithObject.contract = 106496;
     }
 
     const returnPayload = {
@@ -538,11 +543,7 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
         value: parseFloat(parcelWeight) || 1.0,
         unit: "kg"
       },
-      ship_with: {
-        shipping_product_code: "dhl_express:worldwide_import/dropoff",
-        functionalities: shipWithFunctionalities,
-        contract: 106496
-      },
+      ship_with: shipWithObject,
       // parcel_items: [] // Add if required for customs or detailed returns
     };
 
