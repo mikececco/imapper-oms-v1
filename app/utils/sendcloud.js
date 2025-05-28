@@ -529,14 +529,14 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           unit: "kg"
       },
       ship_with: {
-        shipping_product_code: "ups:standard/return",
+          shipping_product_code: "dhl:express/domestic-return-drop-off",
         functionalities: {
           carrier_insurance: false,
           labelless: false,
           direct_contract_only: true,
           first_mile: "pickup_dropoff"
         },
-        contract: 28575
+        contract: 106496
       },
       // parcel_items: [...] // Add if required
     };
