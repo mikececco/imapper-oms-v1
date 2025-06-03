@@ -1,13 +1,16 @@
 'use client';
 
 import Link from "next/link";
-import { supabase } from "../../utils/supabase";
 import { StatusBadge, PaymentBadge, ShippingToggle, StatusSelector } from "../../components/OrderActions";
 import OrderDetailForm from "../../components/OrderDetailForm";
 import { ORDER_PACK_OPTIONS } from "../../utils/constants";
 import { normalizeCountryToCode, getCountryDisplayName, COUNTRY_MAPPING } from '../../utils/country-utils';
 import OrderActivityLog from "../../components/OrderActivityLog";
 import { calculateOrderInstruction } from "../../utils/order-instructions";
+import { useEffect, useState } from 'react';
+import { useSupabase } from '../../components/Providers';
+import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 const EU_COUNTRIES = [
   'AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'
@@ -57,18 +60,51 @@ const formatCombinedAddress = (order) => {
   return 'N/A';
 };
 
-export default async function OrderDetail({ params }) {
+export default function OrderDetail({ params }) {
   const { id } = params;
+  const supabase = useSupabase();
+  const router = useRouter();
+
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!id || !supabase) return;
+
+    async function fetchOrderDetails() {
+      setLoading(true);
+      const { data: orderData, error: fetchError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        console.error("Error fetching order:", fetchError);
+        setError(fetchError);
+        toast.error("Failed to load order details.");
+      } else {
+        setOrder(orderData);
+      }
+      setLoading(false);
+    }
+
+    fetchOrderDetails();
+  }, [id, supabase]);
   
-  // Fetch order details
-  const { data: order, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('id', id)
-    .single();
-  
-  if (error) {
-    console.error("Error fetching order:", error);
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !order) {
+    console.error("Error fetching order (state):", error);
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow p-6">
