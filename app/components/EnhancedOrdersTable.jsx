@@ -617,21 +617,6 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
       },
       size: 100,
     }),
-     columnHelper.accessor(row => isMounted ? calculateOrderInstruction(row) : (row.instruction || 'ACTION REQUIRED'), {
-        id: 'instruction',
-        header: 'INSTRUCTION',
-        cell: info => {
-            const instruction = info.getValue();
-            return (
-              <div className="w-[150px]"> {/* Add width */} 
-                <span className={`shipping-instruction ${instruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
-                    {instruction}
-                </span>
-              </div>
-            );
-        },
-        size: 150,
-    }),
     columnHelper.accessor('reason_for_shipment', {
       id: 'reason_for_shipment',
       header: () => <div className="flex items-center justify-center"><ShoppingBag className="h-4 w-4" /></div>,
@@ -651,6 +636,26 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         cellClassName: 'text-center'
       },
       size: 80,
+    }),
+     columnHelper.accessor(row => isMounted ? calculateOrderInstruction(row) : (row.instruction || 'ACTION REQUIRED'), {
+        id: 'instruction',
+        header: 'INSTRUCTION',
+        cell: info => {
+            const instruction = info.getValue();
+            return (
+              <div className="w-[150px]"> {/* Add width */} 
+                <span className={`shipping-instruction ${instruction?.toLowerCase().replace(/\s+/g, '-') || 'unknown'}`}>
+                    {instruction}
+                </span>
+              </div>
+            );
+        },
+        size: 150,
+    }),
+    columnHelper.accessor('order_notes', { 
+      header: 'Notes', 
+      cell: info => <div className="w-[150px] truncate">{truncateText(info.getValue() || 'N/A')}</div>,
+      size: 150,
     }),
     columnHelper.accessor('id', {
       header: 'ID',
@@ -736,11 +741,6 @@ export default function EnhancedOrdersTable({ orders, loading, onRefresh, onOrde
         header: 'Quantity', 
         cell: info => <div className="text-sm w-[80px]">{info.getValue() || 1}</div>, // Add width
         size: 80,
-    }),
-    columnHelper.accessor('order_notes', { 
-        header: 'Notes', 
-        cell: info => <div className="w-[150px] truncate">{truncateText(info.getValue() || 'N/A')}</div>,
-        size: 150,
     }),
     columnHelper.accessor('weight', { 
         header: 'Weight', 
