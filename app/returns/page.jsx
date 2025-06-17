@@ -724,7 +724,7 @@ export default function ReturnsPage() {
         },
       ]
     },
-    { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' },
+    // { id: 'id', label: 'Order ID', type: 'link', linkPrefix: '/orders/', className: 'w-[110px] whitespace-nowrap' },
     {
       id: 'return_type',
       label: 'Type',
@@ -739,7 +739,7 @@ export default function ReturnsPage() {
         );
       }
     },
-    { id: 'name', label: 'Customer', className: 'w-[80px] max-w-[80px] whitespace-nowrap truncate' },
+    { id: 'name', label: 'Customer', className: 'w-[110px] max-w-[110px] whitespace-nowrap truncate' },
     {
       id: 'return_status',
       label: 'Return Status',
