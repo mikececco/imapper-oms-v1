@@ -495,6 +495,8 @@ export default function ReturnsPage() {
   const fetchAllVisibleReturnStatuses = useCallback(async () => {
     if (fetchingAllStatuses) return;
     console.log("Attempting to fetch all visible return statuses...");
+    console.log("Total returned orders:", returnedOrders.length);
+    
     const ordersToFetch = returnedOrders.filter(o => {
       const returnId = o.sendcloud_return_id;
       if (!returnId) return false;
@@ -503,6 +505,8 @@ export default function ReturnsPage() {
       const dbStatus = o.sendcloud_return_status;
       const localStatus = returnStatuses[returnId];
       const status = dbStatus || localStatus;
+      
+      console.log(`Order ${o.id} - Return ID: ${returnId}, DB Status: ${dbStatus}, Local Status: ${localStatus}, Final Status: ${status}`);
       
       // If we have a status, don't fetch again to prevent infinite loops
       if (status) {
@@ -517,16 +521,21 @@ export default function ReturnsPage() {
                            lower.includes('no-label') ||
                            lower.includes('being announced');
         
+        console.log(`Order ${o.id} - Status: ${status}, isInProgress: ${isInProgress}`);
         // Don't fetch if status is final or we don't recognize it
         return isInProgress;
       }
       
+      console.log(`Order ${o.id} - No status, will fetch`);
       // No status known, fetch it
       return true;
     });
     
+    console.log("Orders to fetch:", ordersToFetch.length, ordersToFetch.map(o => ({ id: o.id, returnId: o.sendcloud_return_id })));
+    
     if (ordersToFetch.length === 0) {
       console.log("No new return statuses to fetch.");
+      toast.info('No returns need status updates at this time.');
       return;
     }
 
@@ -812,9 +821,30 @@ export default function ReturnsPage() {
     { 
       id: 'sendcloud_return_delivered_at', 
       label: 'Delivered At', 
-      type: 'date', 
+      type: 'custom',
       className: 'w-[120px] whitespace-nowrap',
-      condition: (order) => !!order.sendcloud_return_delivered_at
+      condition: (order) => !!order.sendcloud_return_delivered_at,
+      render: (order) => {
+        if (!order.sendcloud_return_delivered_at) return null;
+        
+        const trackingUrl = order.tracking_url || order.sendcloud_return_tracking_url;
+        
+        if (trackingUrl) {
+          return (
+            <a 
+              href={trackingUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+              title="Click to view tracking"
+            >
+              {formatDate(order.sendcloud_return_delivered_at)}
+            </a>
+          );
+        }
+        
+        return formatDate(order.sendcloud_return_delivered_at);
+      }
     },
   ];
 
