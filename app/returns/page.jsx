@@ -809,15 +809,6 @@ export default function ReturnsPage() {
         return <span className="text-gray-400">N/A</span>;
       }
     },
-    { id: 'sendcloud_return_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap truncate'},
-    { 
-      id: 'order_pack_list_id', 
-      label: 'Original Pack', 
-      className: 'w-[100px] max-w-[100px] whitespace-nowrap truncate',
-      type: 'custom',
-      render: getOrderPackLabel
-    },
-    { id: 'return_created_at', label: 'Created At', type: 'date', className: 'w-[120px] whitespace-nowrap' },
     { 
       id: 'sendcloud_return_delivered_at', 
       label: 'Delivered At', 
@@ -846,6 +837,15 @@ export default function ReturnsPage() {
         return formatDate(order.sendcloud_return_delivered_at);
       }
     },
+    { id: 'sendcloud_return_id', label: 'Return ID', className: 'w-[150px] whitespace-nowrap truncate'},
+    { 
+      id: 'order_pack_list_id', 
+      label: 'Original Pack', 
+      className: 'w-[100px] max-w-[100px] whitespace-nowrap truncate',
+      type: 'custom',
+      render: getOrderPackLabel
+    },
+    { id: 'return_created_at', label: 'Created At', type: 'date', className: 'w-[120px] whitespace-nowrap' },
   ];
 
   const upgradedOrdersColumns = [
