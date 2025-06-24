@@ -495,7 +495,11 @@ export default function ReturnsPage() {
   const fetchAllVisibleReturnStatuses = useCallback(async () => {
     if (fetchingAllStatuses) return;
     console.log("Attempting to fetch all visible return statuses...");
-    const ordersToFetch = returnedOrders.filter(o => o.sendcloud_return_id && !returnStatuses[o.sendcloud_return_id]);
+    const ordersToFetch = returnedOrders.filter(o => {
+      const returnId = o.sendcloud_return_id;
+      const status = returnStatuses[returnId];
+      return returnId && (!status || !status.toLowerCase().includes('delivered') || !status.toLowerCase().includes('delivery'));
+    });
     
     if (ordersToFetch.length === 0) {
       console.log("No new return statuses to fetch.");
@@ -661,6 +665,7 @@ export default function ReturnsPage() {
         let badgeVariant = 'secondary';
         const lowerStatus = displayStatus?.toLowerCase();
         if (lowerStatus === 'delivered') badgeVariant = 'success';
+        else if (lowerStatus === 'delivery') badgeVariant = 'success';
         else if (lowerStatus === 'pending') badgeVariant = 'outline';
         else if (lowerStatus === 'processing') badgeVariant = 'default';
         else if (lowerStatus === 'cancelled') badgeVariant = 'destructive';
@@ -756,8 +761,8 @@ export default function ReturnsPage() {
         if (status) {
             let badgeVariant = 'secondary';
             const lowerStatus = status.toLowerCase();
-            if (lowerStatus.includes('delivered') || lowerStatus.includes('received')) badgeVariant = 'success';
-            else if (lowerStatus.includes('transit') || lowerStatus.includes('shipping')) badgeVariant = 'default';
+            if (lowerStatus.includes('delivered') || lowerStatus.includes('delivery') || lowerStatus.includes('received')) badgeVariant = 'success';
+            else if (lowerStatus.includes('transit') || lowerStatus.includes('shipping') || lowerStatus.includes('pending') || lowerStatus.includes('processing')) badgeVariant = 'default';
             else if (lowerStatus.includes('announced') || lowerStatus.includes('created')) badgeVariant = 'outline';
             else if (lowerStatus.includes('cancelled') || lowerStatus.includes('error')) badgeVariant = 'destructive';
             else if (status === 'Status Unknown') badgeVariant = 'secondary';
@@ -826,7 +831,7 @@ export default function ReturnsPage() {
           }
           if (status) {
               let badgeVariant = 'secondary';
-              if (status.toLowerCase().includes('delivered')) badgeVariant = 'success';
+              if (status.toLowerCase().includes('delivered') || status.toLowerCase().includes('delivery')) badgeVariant = 'success';
               if (status.toLowerCase().includes('cancelled') || status.toLowerCase().includes('error')) badgeVariant = 'destructive';
               if (status.toLowerCase().includes('created') || status.toLowerCase().includes('announced') || status.toLowerCase().includes('label')) badgeVariant = 'outline';
               return <Badge variant={badgeVariant}>{status}</Badge>;
