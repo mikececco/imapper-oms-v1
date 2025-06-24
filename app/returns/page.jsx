@@ -802,6 +802,13 @@ export default function ReturnsPage() {
       render: getOrderPackLabel
     },
     { id: 'return_created_at', label: 'Created At', type: 'date', className: 'w-[120px] whitespace-nowrap' },
+    { 
+      id: 'sendcloud_return_delivered_at', 
+      label: 'Delivered At', 
+      type: 'date', 
+      className: 'w-[120px] whitespace-nowrap',
+      condition: (order) => !!order.sendcloud_return_delivered_at
+    },
   ];
 
   const upgradedOrdersColumns = [

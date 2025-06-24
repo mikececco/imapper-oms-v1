@@ -35,6 +35,16 @@ async function fetchSendcloudReturnStatus(returnId) {
 
     // ---- NEW STATUS EXTRACTION LOGIC ----
     let extractedStatus = 'Status Unknown'; // Default
+    let deliveredAt = null; // Extract delivery timestamp
+    
+    // Extract delivery timestamp if available
+    if (data.delivered_at_iso) {
+      deliveredAt = data.delivered_at_iso;
+      console.log(`Extracted delivered_at_iso for return ${returnId}:`, deliveredAt);
+    } else if (data.delivered_at) {
+      deliveredAt = data.delivered_at;
+      console.log(`Extracted delivered_at for return ${returnId}:`, deliveredAt);
+    }
     
     // 1. Prioritize latest status from history
     if (data.status_history && Array.isArray(data.status_history) && data.status_history.length > 0) {
@@ -55,7 +65,7 @@ async function fetchSendcloudReturnStatus(returnId) {
         console.warn(`Could not determine a status for return ${returnId} from response:`, JSON.stringify(data, null, 2));
     }
     
-    return extractedStatus; 
+    return { status: extractedStatus, deliveredAt }; 
     // ---- END NEW STATUS EXTRACTION LOGIC ----
 
   } catch (error) {
@@ -74,16 +84,28 @@ export async function GET(request) {
 
   try {
     console.log(`[API /returns/get-status] Received request for returnId: ${returnId}`);
-    const status = await fetchSendcloudReturnStatus(returnId);
+    const { status, deliveredAt } = await fetchSendcloudReturnStatus(returnId);
     console.log(`[API /returns/get-status] Fetched status for returnId ${returnId}: ${status}`);
     
     // --- Update the status in the database ---
     if (status && status !== 'Status Unknown') {
         console.log(`[API /returns/get-status] Attempting DB update for returnId ${returnId} with status: ${status}`);
+        
+        const updatePayload = { 
+          sendcloud_return_status: status, 
+          updated_at: new Date().toISOString() 
+        };
+        
+        // Add delivery timestamp if available
+        if (deliveredAt) {
+          updatePayload.sendcloud_return_delivered_at = deliveredAt;
+          console.log(`[API /returns/get-status] Including delivery timestamp for returnId ${returnId}: ${deliveredAt}`);
+        }
+        
         const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
         const { error: dbError } = await supabase
           .from('orders')
-          .update({ sendcloud_return_status: status, updated_at: new Date().toISOString() })
+          .update(updatePayload)
           .eq('sendcloud_return_id', returnId); // Match based on the return ID
           
         if (dbError) { 
@@ -98,7 +120,7 @@ export async function GET(request) {
     }
     // --- End DB Update ---
 
-    return NextResponse.json({ status });
+    return NextResponse.json({ status, deliveredAt });
 
   } catch (error) {
     console.error(`API route error for returnId ${returnId}:`, error);
