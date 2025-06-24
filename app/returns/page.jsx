@@ -498,7 +498,10 @@ export default function ReturnsPage() {
     const ordersToFetch = returnedOrders.filter(o => {
       const returnId = o.sendcloud_return_id;
       const status = returnStatuses[returnId];
-      return returnId && (!status || !status.toLowerCase().includes('delivered') || !status.toLowerCase().includes('delivery'));
+      if (!returnId) return false;
+      if (!status) return true;
+      const lower = status.toLowerCase();
+      return !lower.includes('delivered') && !lower.includes('delivery');
     });
     
     if (ordersToFetch.length === 0) {
