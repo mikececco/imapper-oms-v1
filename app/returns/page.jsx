@@ -497,11 +497,25 @@ export default function ReturnsPage() {
     console.log("Attempting to fetch all visible return statuses...");
     const ordersToFetch = returnedOrders.filter(o => {
       const returnId = o.sendcloud_return_id;
-      const status = returnStatuses[returnId];
       if (!returnId) return false;
-      if (!status) return true;
+      
+      // Check database status first, then local state as fallback
+      const dbStatus = o.sendcloud_return_status;
+      const localStatus = returnStatuses[returnId];
+      const status = dbStatus || localStatus;
+      
+      if (!status) return true; // No status known, fetch it
+      
       const lower = status.toLowerCase();
-      return !lower.includes('delivered') && !lower.includes('delivery');
+      // Exclude statuses that indicate final state or no further checking needed
+      return !lower.includes('delivered') && 
+             !lower.includes('delivery') && 
+             !lower.includes('cancelled') &&
+             !lower.includes('ready-to-send') &&
+             !lower.includes('ready to send') &&
+             !lower.includes('received') &&
+             !lower.includes('completed') &&
+             !lower.includes('finished');
     });
     
     if (ordersToFetch.length === 0) {
@@ -756,7 +770,12 @@ export default function ReturnsPage() {
       render: (order) => {
         const returnId = order.sendcloud_return_id;
         if (!returnId) return <span className="text-gray-400">N/A</span>;
-        const status = returnStatuses[returnId];
+        
+        // Check database status first, then local state as fallback
+        const dbStatus = order.sendcloud_return_status;
+        const localStatus = returnStatuses[returnId];
+        const status = dbStatus || localStatus;
+        
         const isLoading = loadingStatuses[returnId];
         if (isLoading) {
           return <span className="text-gray-500 italic flex items-center"><RefreshCw className="animate-spin h-3 w-3 mr-1" /> Checking...</span>;
@@ -782,7 +801,7 @@ export default function ReturnsPage() {
       type: 'custom',
       render: getOrderPackLabel
     },
-    { id: 'updated_at', label: 'Return Date', type: 'date', className: 'w-[120px] whitespace-nowrap' },
+    { id: 'return_created_at', label: 'Created At', type: 'date', className: 'w-[120px] whitespace-nowrap' },
   ];
 
   const upgradedOrdersColumns = [
