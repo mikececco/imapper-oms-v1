@@ -504,18 +504,25 @@ export default function ReturnsPage() {
       const localStatus = returnStatuses[returnId];
       const status = dbStatus || localStatus;
       
-      if (!status) return true; // No status known, fetch it
+      // If we have a status, don't fetch again to prevent infinite loops
+      if (status) {
+        const lower = status.toLowerCase();
+        // Only fetch if status indicates it's still in progress
+        const isInProgress = lower.includes('transit') || 
+                           lower.includes('shipping') || 
+                           lower.includes('pending') || 
+                           lower.includes('processing') ||
+                           lower.includes('announcing') ||
+                           lower.includes('created') ||
+                           lower.includes('no-label') ||
+                           lower.includes('being announced');
+        
+        // Don't fetch if status is final or we don't recognize it
+        return isInProgress;
+      }
       
-      const lower = status.toLowerCase();
-      // Exclude statuses that indicate final state or no further checking needed
-      return !lower.includes('delivered') && 
-             !lower.includes('delivery') && 
-             !lower.includes('cancelled') &&
-             !lower.includes('ready-to-send') &&
-             !lower.includes('ready to send') &&
-             !lower.includes('received') &&
-             !lower.includes('completed') &&
-             !lower.includes('finished');
+      // No status known, fetch it
+      return true;
     });
     
     if (ordersToFetch.length === 0) {
