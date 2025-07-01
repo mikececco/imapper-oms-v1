@@ -75,8 +75,8 @@ export default function ReturnsPage() {
         supabase
           .from('orders')
           .select('*')
-          .or('status.in.("delivered","Delivered"),manual_instruction.eq.NO ACTION REQUIRED,manual_instruction.eq.DELIVERED,sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal')
-          .order('updated_at', { ascending: false }),
+          .or('status.in.("delivered","Delivered","delivery"),manual_instruction.eq.NO ACTION REQUIRED,manual_instruction.eq.DELIVERED,sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal')
+          .order('became_to_ship_at', { ascending: false, nullsFirst: false }),
         supabase
           .from('order_pack_lists')
           .select('id, label')
@@ -723,6 +723,7 @@ export default function ReturnsPage() {
     },
     { id: 'tracking_number', label: 'Tracking', className: 'w-[180px] whitespace-nowrap truncate'},
     { id: 'created_at', label: 'Created', type: 'date', className: 'w-[120px] whitespace-nowrap' },
+    { id: 'became_to_ship_at', label: 'Shipped', type: 'date', className: 'w-[120px] whitespace-nowrap' },
   ];
 
   const returnedOrdersColumns = [
