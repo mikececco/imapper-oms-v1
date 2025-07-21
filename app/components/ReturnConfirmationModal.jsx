@@ -196,27 +196,7 @@ export default function ReturnConfirmationModal({
       setParcelWeight(order.weight || '1.000');
 
       const initialItems = order.initialParcelItems || [];
-      const fromCountry = (order.shipping_address?.country || order.shipping_address_country)?.toUpperCase();
-      const effectiveReturnFromCountry = (returnFromAddress.country || fromCountry)?.toUpperCase(); 
-      const countriesReqCustoms = ['GB', 'CH', 'US', 'CA', 'AU', 'NO'];
-      
-      if (countriesReqCustoms.includes(effectiveReturnFromCountry)) {
-        if (initialItems.length > 0) {
-          setEditableParcelItems(JSON.parse(JSON.stringify(initialItems))); // Deep copy
-        } else {
-          // Start with one blank item if customs are required for the return and no initial items from order
-          setEditableParcelItems([{
-            description: '',
-            quantity: 1,
-            weight: '0.100', // Default item weight
-            value: '1.00',   // Default item value
-            hs_code: '',     // Default HS Code
-            origin_country: effectiveReturnFromCountry || '' // Default to return from country
-          }]);
-        }
-      } else {
-        setEditableParcelItems([]); // No items needed if not a customs country for return
-      }
+      setEditableParcelItems(initialItems.length > 0 ? JSON.parse(JSON.stringify(initialItems)) : []);
     } else {
       // Reset customer address if order is null
       setReturnFromAddress({ name: '', company_name: '', email: '', phone: '', line1: '', line2: '', house_number: '', city: '', postal_code: '', country: '' });
@@ -231,7 +211,39 @@ export default function ReturnConfirmationModal({
     setReturnToAddressState({...fixedWarehouseAddress});
     // ADDED: Reset return reason
     setReturnReason('');
-  }, [order, returnFromAddress.country]);
+  }, [order]);
+
+  // Separate effect to handle parcel items based on country changes
+  useEffect(() => {
+    if (!order) return;
+    
+    const fromCountry = (order.shipping_address?.country || order.shipping_address_country)?.toUpperCase();
+    const effectiveReturnFromCountry = (returnFromAddress.country || fromCountry)?.toUpperCase(); 
+    const countriesReqCustoms = ['GB', 'CH', 'US', 'CA', 'AU', 'NO'];
+    
+    if (countriesReqCustoms.includes(effectiveReturnFromCountry)) {
+      // Only initialize if no items exist yet
+      if (editableParcelItems.length === 0) {
+        const initialItems = order.initialParcelItems || [];
+        if (initialItems.length > 0) {
+          setEditableParcelItems(JSON.parse(JSON.stringify(initialItems))); // Deep copy
+        } else {
+          // Start with one blank item if customs are required for the return and no initial items from order
+          setEditableParcelItems([{
+            description: '',
+            quantity: 1,
+            weight: '0.100', // Default item weight
+            value: '1.00',   // Default item value
+            hs_code: '',     // Default HS Code
+            origin_country: effectiveReturnFromCountry || '' // Default to return from country
+          }]);
+        }
+      }
+    } else {
+      // Clear items if not a customs country
+      setEditableParcelItems([]);
+    }
+  }, [returnFromAddress.country, order]);
 
   const initialParcelItems = order?.initialParcelItems || [];
 
