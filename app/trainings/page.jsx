@@ -167,14 +167,17 @@ export default function TrainingsPage() {
   const filterOrdersTable = () => {
     let filtered = allOrders;
     if (decodedQuery) {
-      const lowercaseQuery = decodedQuery.toLowerCase();
+      // Split by comma and trim each query
+      const queries = decodedQuery.split(',').map(q => q.trim().toLowerCase()).filter(q => q.length > 0);
+      
       filtered = allOrders.filter(order => {
         const packLabel = orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || '';
         const displayStatus = order.manual_instruction || order.status || '';
         const shippingAddress = formatAddressForTable(order, true);
         const createdAt = formatDate(order.created_at) || '';
         
-        return (
+        // Check if order matches ANY of the queries
+        return queries.some(lowercaseQuery => (
           // Basic order info
           (order.id && order.id.toLowerCase().includes(lowercaseQuery)) ||
           (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
@@ -194,7 +197,7 @@ export default function TrainingsPage() {
           // Additional fields that might be useful
           (order.stripe_customer_id && order.stripe_customer_id.toLowerCase().includes(lowercaseQuery)) ||
           (order.sendcloud_parcel_id && order.sendcloud_parcel_id.toLowerCase().includes(lowercaseQuery))
-        );
+        ));
       });
     }
     setFilteredOrders(filtered);

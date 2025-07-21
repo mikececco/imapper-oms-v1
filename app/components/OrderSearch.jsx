@@ -63,7 +63,7 @@ export default function OrderSearch() {
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search orders by name, email, address, status..."
+          placeholder="Search orders by name, email, address, status... (separate multiple terms with commas)"
           className="search-input flex-grow p-2 border border-gray-300 rounded"
           aria-label="Search orders"
         />
@@ -86,7 +86,7 @@ export default function OrderSearch() {
         )}
       </form>
       <p className="text-sm text-gray-500">
-        Search across all fields: name, email, address, order pack, status, etc.
+        Search across all fields: name, email, address, order pack, status, etc. Use commas to search for multiple terms at once.
       </p>
     </div>
   );
