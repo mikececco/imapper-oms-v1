@@ -1,18 +1,20 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useSupabase } from '../components/Providers';
 import { toast } from 'react-hot-toast';
 import { formatDate, calculateDaysSince } from '../utils/date-utils';
 import LateralOrderModal from '../components/LateralOrderModal';
 import ReturnsTable from '../components/ReturnsTable'; // Assuming ReturnsTable is generic enough
 import OrderSearch from '../components/OrderSearch';
+import CountryTabs from '../components/CountryTabs';
 import { formatAddressForTable } from '../utils/formatters';
 import { Badge } from '../components/ui/badge';
 import { Checkbox } from '../components/ui/checkbox';
 import { getReasonTagStyle } from '../components/EnhancedOrdersTable'; // For styling the reason tag
 import { Mail, Link as LinkIcon } from 'lucide-react'; // Added import for Mail and Link icons
+import { normalizeCountryToCode } from '../utils/country-utils';
 
 // Helper function to calculate days remaining
 const calculateDaysRemaining = (trialEnd) => {
@@ -25,6 +27,8 @@ const calculateDaysRemaining = (trialEnd) => {
 };
 
 export default function TrainingsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const supabase = useSupabase();
 
@@ -42,15 +46,18 @@ export default function TrainingsPage() {
   const [trialEnds, setTrialEnds] = useState({});
   const [trialEndMessages, setTrialEndMessages] = useState({});
   const [subscriptionIds, setSubscriptionIds] = useState({});
+  const [activeCountryTab, setActiveCountryTab] = useState('all');
 
   useEffect(() => {
     const queryFromUrl = searchParams?.get('q') || '';
+    const countryFromUrl = searchParams?.get('country') || 'all';
     try {
       setDecodedQuery(decodeURIComponent(queryFromUrl));
     } catch (e) {
       console.error("Failed to decode query param:", e);
       setDecodedQuery(queryFromUrl);
     }
+    setActiveCountryTab(countryFromUrl);
   }, [searchParams]);
 
   useEffect(() => {
@@ -61,7 +68,7 @@ export default function TrainingsPage() {
   useEffect(() => {
     if (loading || loadingPacks) return;
     filterOrdersTable();
-  }, [decodedQuery, allOrders, orderPackLists, loading, loadingPacks]);
+  }, [decodedQuery, allOrders, orderPackLists, loading, loadingPacks, activeCountryTab]);
 
   const fetchTrainingOrdersAndPacks = async () => {
     setLoading(true);
@@ -166,11 +173,36 @@ export default function TrainingsPage() {
 
   const filterOrdersTable = () => {
     let filtered = allOrders;
+    
+    // Filter by country first
+    if (activeCountryTab !== 'all') {
+      filtered = filtered.filter(order => {
+        let orderCountry = 'Unknown';
+        
+        // Try to get country from different possible fields
+        if (order.shipping_address_country) {
+          orderCountry = order.shipping_address_country;
+        } else if (order.shipping_address?.country) {
+          orderCountry = order.shipping_address.country;
+        } else if (typeof order.shipping_address === 'string' && order.shipping_address.includes(',')) {
+          const parts = order.shipping_address.split(',');
+          if (parts.length >= 4) {
+            orderCountry = parts[3].trim();
+          }
+        }
+        
+        // Normalize the country code
+        const normalizedCountry = normalizeCountryToCode(orderCountry);
+        return normalizedCountry === activeCountryTab;
+      });
+    }
+    
+    // Then filter by search query
     if (decodedQuery) {
       // Split by comma and trim each query
       const queries = decodedQuery.split(',').map(q => q.trim().toLowerCase()).filter(q => q.length > 0);
       
-      filtered = allOrders.filter(order => {
+      filtered = filtered.filter(order => {
         const packLabel = orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || '';
         const displayStatus = order.manual_instruction || order.status || '';
         const shippingAddress = formatAddressForTable(order, true);
@@ -200,7 +232,23 @@ export default function TrainingsPage() {
         ));
       });
     }
+    
     setFilteredOrders(filtered);
+  };
+
+  const handleCountryTabChange = (country) => {
+    setActiveCountryTab(country);
+    
+    // Update URL with country parameter
+    const params = new URLSearchParams(searchParams);
+    if (country === 'all') {
+      params.delete('country');
+    } else {
+      params.set('country', country);
+    }
+    
+    const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    router.replace(newUrl);
   };
 
   const handleOpenOrderModal = (orderId) => {
@@ -484,6 +532,14 @@ export default function TrainingsPage() {
 
       <div className="mb-6">
         <OrderSearch />
+      </div>
+
+      <div className="mb-6">
+        <CountryTabs 
+          orders={allOrders} 
+          activeTab={activeCountryTab} 
+          setActiveTab={handleCountryTabChange} 
+        />
       </div>
 
       <ReturnsTable
