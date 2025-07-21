@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 export default function OrderSearch() {
@@ -24,36 +24,43 @@ export default function OrderSearch() {
     }
   }, [searchParams]);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    
+  const updateURL = useCallback((term) => {
     // Create new URLSearchParams object
     const params = new URLSearchParams(searchParams);
     
     // Update or remove the 'q' parameter based on searchTerm
-    if (searchTerm && searchTerm.trim()) {
-      params.set('q', encodeURIComponent(searchTerm.trim()));
+    if (term && term.trim()) {
+      params.set('q', encodeURIComponent(term.trim()));
     } else {
       params.delete('q');
     }
     
     // Navigate to the same page with updated query parameters
     const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
-    console.log(`Navigating to: ${newUrl}`);
     router.replace(newUrl);
+  }, [searchParams, pathname, router]);
+
+  // Debounced effect to update URL after user stops typing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      updateURL(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, updateURL]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    updateURL(searchTerm);
+  };
+
+  const handleInputChange = (e) => {
+    setSearchTerm(e.target.value);
   };
 
   const handleClear = () => {
     setSearchTerm('');
-    
-    // Create new URLSearchParams object
-    const params = new URLSearchParams(searchParams);
-    
-    // Remove the 'q' parameter
-    params.delete('q');
-    
-    // Navigate to the same page without the query parameter
-    router.replace(pathname);
+    updateURL('');
   };
 
   return (
@@ -62,7 +69,7 @@ export default function OrderSearch() {
         <input
           type="text"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={handleInputChange}
           placeholder="Search orders by name, email, address, status... (separate multiple terms with commas)"
           className="search-input flex-grow p-2 border border-gray-300 rounded"
           aria-label="Search orders"
