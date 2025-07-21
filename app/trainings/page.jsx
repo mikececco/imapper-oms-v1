@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useSupabase } from '../components/Providers';
 import { toast } from 'react-hot-toast';
-import { Button } from "../components/ui/button";
 import { formatDate, calculateDaysSince } from '../utils/date-utils';
 import LateralOrderModal from '../components/LateralOrderModal';
 import ReturnsTable from '../components/ReturnsTable'; // Assuming ReturnsTable is generic enough
@@ -26,7 +25,6 @@ const calculateDaysRemaining = (trialEnd) => {
 };
 
 export default function TrainingsPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useSupabase();
 
@@ -135,7 +133,6 @@ export default function TrainingsPage() {
     const fetchAllTrialEnds = async () => {
       const updates = {};
       const messages = {};
-      const subIds = {};
       const links = {};
       for (const order of allOrders) {
         const stripeCustomerId = order.stripe_customer_id;
@@ -173,13 +170,30 @@ export default function TrainingsPage() {
       const lowercaseQuery = decodedQuery.toLowerCase();
       filtered = allOrders.filter(order => {
         const packLabel = orderPackLists.find(pack => pack.id === order.order_pack_list_id)?.label || '';
-        // Add more fields to search if needed
+        const displayStatus = order.manual_instruction || order.status || '';
+        const shippingAddress = formatAddressForTable(order, true);
+        const createdAt = formatDate(order.created_at) || '';
+        
         return (
+          // Basic order info
           (order.id && order.id.toLowerCase().includes(lowercaseQuery)) ||
           (order.name && order.name.toLowerCase().includes(lowercaseQuery)) ||
           (order.email && order.email.toLowerCase().includes(lowercaseQuery)) ||
+          // Order type
+          (order.reason_for_shipment && order.reason_for_shipment.toLowerCase().includes(lowercaseQuery)) ||
+          // Order status
+          (displayStatus && displayStatus.toLowerCase().includes(lowercaseQuery)) ||
+          // Pack
           (packLabel && packLabel.toLowerCase().includes(lowercaseQuery)) ||
-          (order.reason_for_shipment && order.reason_for_shipment.toLowerCase().includes(lowercaseQuery))
+          // Shipping address
+          (shippingAddress && shippingAddress.toLowerCase().includes(lowercaseQuery)) ||
+          // Created date
+          (createdAt && createdAt.toLowerCase().includes(lowercaseQuery)) ||
+          // Phone number
+          (order.phone && order.phone.toLowerCase().includes(lowercaseQuery)) ||
+          // Additional fields that might be useful
+          (order.stripe_customer_id && order.stripe_customer_id.toLowerCase().includes(lowercaseQuery)) ||
+          (order.sendcloud_parcel_id && order.sendcloud_parcel_id.toLowerCase().includes(lowercaseQuery))
         );
       });
     }
