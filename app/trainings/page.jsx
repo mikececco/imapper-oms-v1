@@ -77,7 +77,9 @@ export default function TrainingsPage() {
         .not('status', 'eq', 'pending')
         .not('status', 'eq', 'Ready to send')
         .or(
-          'status.ilike.%delivered%,'
+          'status.eq.delivered,'
+          + 'status.eq.Delivered,'
+          + 'status.ilike.%delivered%,'
           + 'status.ilike.%package delivered%,'
           + 'status.ilike.%delivery%,'
           + 'status.ilike.%delivering%,'
