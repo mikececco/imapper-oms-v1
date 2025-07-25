@@ -89,7 +89,9 @@ export default function TrainingsPage() {
           + 'status.ilike.%delivery%,'
           + 'status.ilike.%delivering%,'
           + 'status.ilike.%shipment collected by customer%,'
-          + 'status.ilike.%package picked-up%'
+          + 'status.ilike.%package picked-up%,'
+          + 'manual_instruction.eq.DELIVERED,'
+          + 'manual_instruction.eq.NO ACTION REQUIRED'
         )
         .in('reason_for_shipment', ['new order', 'upgrade'])
         .order('created_at', { ascending: false });
