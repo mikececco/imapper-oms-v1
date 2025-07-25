@@ -78,8 +78,6 @@ export default function TrainingsPage() {
         .from('orders')
         .select('*')
         .eq('created_via', 'standard')
-        .eq('paid', true)
-        .not('status', 'eq', 'pending')
         .not('status', 'eq', 'Ready to send')
         .or('status.eq.delivered,status.eq.Delivered,status.ilike.%delivered%,status.ilike.%package delivered%,status.ilike.%delivery%,status.ilike.%delivering%,status.ilike.%shipment collected by customer%,status.ilike.%package picked-up%,manual_instruction.eq.NO ACTION REQUIRED,manual_instruction.eq.DELIVERED')
         .in('reason_for_shipment', ['new order', 'upgrade'])
