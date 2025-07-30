@@ -569,8 +569,8 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           parcelItemsForReturn = lineItems.map(item => ({
             description: (item.description ? item.description.substring(0, 50) : 'Returned Product'),
             quantity: item.quantity || 1,
-            weight: ((totalReturnWeight / totalQuantityFromLineItems) * (item.quantity || 1)).toFixed(3),
-            value: (item.amount || 0).toFixed(2),
+            weight: parseFloat(((totalReturnWeight / totalQuantityFromLineItems) * (item.quantity || 1)).toFixed(3)),
+            value: parseFloat((item.amount || 0).toFixed(2)),
             hs_code: item.hs_code || '90151000', // Default HS code for returns
             origin_country: fromCountryCode, // Country customer is shipping from
             sku: item.sku || ''
@@ -581,8 +581,8 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           parcelItemsForReturn.push({
             description: 'Returned Goods',
             quantity: 1,
-            weight: totalReturnWeight.toFixed(3),
-            value: (order.total_amount || 0).toFixed(2), // Use order total amount if available
+            weight: parseFloat(totalReturnWeight.toFixed(3)),
+            value: parseFloat((order.total_amount || 0).toFixed(2)), // Use order total amount if available
             hs_code: '90151000',
             origin_country: fromCountryCode,
             sku: 'RETURN-ITEM'
@@ -594,8 +594,8 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
         parcelItemsForReturn.push({
           description: 'Returned Goods - Parsing Error',
           quantity: 1,
-          weight: totalReturnWeight.toFixed(3),
-          value: (order.total_amount || 0).toFixed(2),
+          weight: parseFloat(totalReturnWeight.toFixed(3)),
+          value: parseFloat((order.total_amount || 0).toFixed(2)),
           hs_code: '90151000',
           origin_country: fromCountryCode,
           sku: 'RETURN-PARSE-ERROR'
