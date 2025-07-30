@@ -67,7 +67,7 @@ export async function POST(request) {
     // Fetch order details from Supabase
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id') // Only need ID for update
+      .select('id, line_items, total_amount, amount') // Include necessary fields for return label creation
       .eq('id', orderId)
       .single();
 
