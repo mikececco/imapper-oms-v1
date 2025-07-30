@@ -582,7 +582,7 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
             description: 'Returned Goods',
             quantity: 1,
             weight: totalReturnWeight.toFixed(3),
-            value: (order.total_amount || 0).toFixed(2), // Use order total amount if available
+            value: (order.amount || 0).toFixed(2), // Use order amount if available
             hs_code: '90151000',
             origin_country: fromCountryCode,
             sku: 'RETURN-ITEM'
@@ -595,7 +595,7 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           description: 'Returned Goods - Parsing Error',
           quantity: 1,
           weight: totalReturnWeight.toFixed(3),
-          value: (order.total_amount || 0).toFixed(2),
+          value: (order.amount || 0).toFixed(2),
           hs_code: '90151000',
           origin_country: fromCountryCode,
           sku: 'RETURN-PARSE-ERROR'
