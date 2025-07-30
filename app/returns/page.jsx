@@ -153,7 +153,7 @@ export default function ReturnsPage() {
 
   const ordersForCreateReturn = filteredOrders.filter(o => 
     (
-      o.status?.toLowerCase() === 'delivered' || 
+      (o.status?.toLowerCase() === 'delivered' || o.status?.toLowerCase() === 'delivery') || 
       o.manual_instruction === 'NO ACTION REQUIRED' || 
       o.manual_instruction === 'DELIVERED' ||
       o.created_via === 'returns_portal'
