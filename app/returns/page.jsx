@@ -950,6 +950,7 @@ export default function ReturnsPage() {
 
     console.log("Refreshing orders list after new order creation...");
     await loadData();
+    setActiveTab('returnedOrders');
   };
 
   return (
