@@ -491,7 +491,7 @@ export async function fetchSendCloudParcelTrackingUrl(parcelId) {
  * @param {string} parcelWeight 
  * @returns {Promise<object>} 
  */
-export async function createReturnLabel(order, returnFromAddress, returnToAddress, parcelWeight) {
+export async function createReturnLabel(order, returnFromAddress, returnToAddress, parcelWeight, customParcelItems = null) {
   try {
     // --- Construct Address Objects ---
     const fromAddressPayload = {
@@ -557,12 +557,26 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
       const totalReturnWeight = parseFloat(parcelWeight) || 1.0;
       let totalQuantityFromLineItems = 0;
 
-      try {
-        const lineItems = typeof order.line_items === 'string' 
-          ? JSON.parse(order.line_items) 
-          : (Array.isArray(order.line_items) ? order.line_items : []);
+      // Use custom parcel items if provided, otherwise fall back to order line items
+      if (customParcelItems && Array.isArray(customParcelItems) && customParcelItems.length > 0) {
+        console.log(`Using custom parcel items provided in return form:`, customParcelItems);
+        parcelItemsForReturn = customParcelItems.map(item => ({
+          description: (item.description || 'Returned Product').substring(0, 50),
+          quantity: parseInt(item.quantity) || 1,
+          weight: parseFloat(item.weight || 0).toFixed(3),
+          value: parseFloat(item.value || 0).toFixed(2),
+          hs_code: item.hs_code || '90151000',
+          origin_country: item.origin_country || fromCountryCode,
+          sku: item.sku || ''
+        }));
+      } else {
+        // Fall back to parsing order.line_items
+        try {
+          const lineItems = typeof order.line_items === 'string' 
+            ? JSON.parse(order.line_items) 
+            : (Array.isArray(order.line_items) ? order.line_items : []);
 
-        if (lineItems && lineItems.length > 0) {
+          if (lineItems && lineItems.length > 0) {
           totalQuantityFromLineItems = lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
           if (totalQuantityFromLineItems === 0) totalQuantityFromLineItems = 1; // Avoid division by zero
 
@@ -601,6 +615,7 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           sku: 'RETURN-PARSE-ERROR'
         });
       }
+      } // Close the else block for custom parcel items fallback
 
       if (parcelItemsForReturn.length > 0) {
         returnPayload.parcel_items = parcelItemsForReturn;

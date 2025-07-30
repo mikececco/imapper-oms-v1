@@ -16,7 +16,8 @@ export async function POST(request) {
       returnFromAddress, 
       returnToAddress, 
       parcelWeight, 
-      returnReason // ADDED: Extract returnReason
+      returnReason, // ADDED: Extract returnReason
+      parcelItems // ADDED: Extract parcelItems
     } = await request.json();
     orderId = receivedOrderId; // Assign to outer scope variable
 
@@ -78,7 +79,7 @@ export async function POST(request) {
 
     console.log(`API Route: Calling createReturnLabel utility for Order ID: ${orderId}`);
     // Create return label - now returns labelUrl as well
-    const sendcloudReturnData = await createReturnLabel(order, returnFromAddress, returnToAddress, parcelWeight);
+    const sendcloudReturnData = await createReturnLabel(order, returnFromAddress, returnToAddress, parcelWeight, parcelItems);
     console.log(`API Route: createReturnLabel utility call completed for Order ID: ${orderId}`, sendcloudReturnData);
 
     // --- Update Supabase Order ---

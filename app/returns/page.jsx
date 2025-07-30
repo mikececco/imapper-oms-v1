@@ -177,7 +177,7 @@ export default function ReturnsPage() {
     }
   };
 
-  const createReturnLabelStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight, returnReason) => {
+  const createReturnLabelStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight, returnReason, parcelItems) => {
     setCreatingLabelOrderId(orderId);
     const toastId = toast.loading('Creating return label...');
     try {
@@ -189,7 +189,8 @@ export default function ReturnsPage() {
           returnFromAddress, 
           returnToAddress, 
           parcelWeight, 
-          returnReason
+          returnReason,
+          parcelItems
         }),
       });
       const data = await response.json();
@@ -270,8 +271,8 @@ export default function ReturnsPage() {
     setOrderForReturn(null);
   };
 
-  const handleConfirmReturnStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight, returnReason) => {
-    await createReturnLabelStandard(orderId, returnFromAddress, returnToAddress, parcelWeight, returnReason);
+  const handleConfirmReturnStandard = async (orderId, returnFromAddress, returnToAddress, parcelWeight, returnReason, parcelItems) => {
+    await createReturnLabelStandard(orderId, returnFromAddress, returnToAddress, parcelWeight, returnReason, parcelItems);
   };
 
   const handleOpenUpgradeModal = async (orderId) => {
