@@ -564,15 +564,53 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
       // Use custom parcel items if provided, otherwise fall back to order line items
       if (customParcelItems && Array.isArray(customParcelItems) && customParcelItems.length > 0) {
         console.log(`Using custom parcel items provided in return form:`, customParcelItems);
-        parcelItemsForReturn = customParcelItems.map(item => ({
-          description: (item.description || 'Returned Product').substring(0, 50),
-          quantity: parseInt(item.quantity) || 1,
-          weight: parseFloat(item.weight || 0).toFixed(3),
-          value: parseFloat(item.value || 0).toFixed(2),
-          hs_code: item.hs_code || '90151000',
-          origin_country: item.origin_country || fromCountryCode,
-          sku: item.sku || ''
-        }));
+        parcelItemsForReturn = customParcelItems.map((item, index) => {
+          // Validate and convert weight with proper error handling
+          let weightValue = 0.1; // Default fallback weight
+          if (item.weight !== undefined && item.weight !== null && item.weight !== '') {
+            const parsedWeight = parseFloat(item.weight);
+            if (!isNaN(parsedWeight) && parsedWeight > 0) {
+              weightValue = parsedWeight;
+            } else {
+              console.warn(`Invalid weight "${item.weight}" for parcel item ${index}, using default: ${weightValue}`);
+            }
+          }
+          
+          // Validate and convert value with proper error handling
+          let valueAmount = 0; // Default fallback value
+          if (item.value !== undefined && item.value !== null && item.value !== '') {
+            const parsedValue = parseFloat(item.value);
+            if (!isNaN(parsedValue) && parsedValue >= 0) {
+              valueAmount = parsedValue;
+            } else {
+              console.warn(`Invalid value "${item.value}" for parcel item ${index}, using default: ${valueAmount}`);
+            }
+          }
+          
+          // Validate quantity
+          let quantityValue = 1;
+          if (item.quantity !== undefined && item.quantity !== null && item.quantity !== '') {
+            const parsedQuantity = parseInt(item.quantity);
+            if (!isNaN(parsedQuantity) && parsedQuantity > 0) {
+              quantityValue = parsedQuantity;
+            } else {
+              console.warn(`Invalid quantity "${item.quantity}" for parcel item ${index}, using default: ${quantityValue}`);
+            }
+          }
+
+          const processedItem = {
+            description: (item.description || 'Returned Product').substring(0, 50),
+            quantity: quantityValue,
+            weight: weightValue.toFixed(3),
+            value: valueAmount.toFixed(2),
+            hs_code: item.hs_code || '90151000',
+            origin_country: item.origin_country || fromCountryCode,
+            sku: item.sku || ''
+          };
+          
+          console.log(`Processed parcel item ${index}:`, processedItem);
+          return processedItem;
+        });
       } else {
         // Fall back to parsing order.line_items
         try {
@@ -584,45 +622,145 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           totalQuantityFromLineItems = lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
           if (totalQuantityFromLineItems === 0) totalQuantityFromLineItems = 1; // Avoid division by zero
 
-          parcelItemsForReturn = lineItems.map(item => ({
-            description: (item.description ? item.description.substring(0, 50) : 'Returned Product'),
-            quantity: item.quantity || 1,
-            weight: ((totalReturnWeight / totalQuantityFromLineItems) * (item.quantity || 1)).toFixed(3),
-            value: (item.amount || 0).toFixed(2),
-            hs_code: item.hs_code || '90151000', // Default HS code for returns
-            origin_country: fromCountryCode, // Country customer is shipping from
-            sku: item.sku || ''
-          }));
+          parcelItemsForReturn = lineItems.map((item, index) => {
+            // Validate and convert quantity
+            let quantityValue = 1;
+            if (item.quantity !== undefined && item.quantity !== null && item.quantity !== '') {
+              const parsedQuantity = parseInt(item.quantity);
+              if (!isNaN(parsedQuantity) && parsedQuantity > 0) {
+                quantityValue = parsedQuantity;
+              } else {
+                console.warn(`Invalid quantity "${item.quantity}" for line item ${index}, using default: ${quantityValue}`);
+              }
+            }
+
+            // Calculate weight per item with validation
+            let weightValue = 0.1; // Default fallback weight
+            const calculatedWeight = (totalReturnWeight / totalQuantityFromLineItems) * quantityValue;
+            if (!isNaN(calculatedWeight) && calculatedWeight > 0) {
+              weightValue = calculatedWeight;
+            } else {
+              console.warn(`Invalid calculated weight for line item ${index}, using default: ${weightValue}`);
+            }
+
+            // Validate and convert value
+            let valueAmount = 0; // Default fallback value
+            if (item.amount !== undefined && item.amount !== null && item.amount !== '') {
+              const parsedValue = parseFloat(item.amount);
+              if (!isNaN(parsedValue) && parsedValue >= 0) {
+                valueAmount = parsedValue;
+              } else {
+                console.warn(`Invalid amount "${item.amount}" for line item ${index}, using default: ${valueAmount}`);
+              }
+            }
+
+            const processedLineItem = {
+              description: (item.description ? item.description.substring(0, 50) : 'Returned Product'),
+              quantity: quantityValue,
+              weight: weightValue.toFixed(3),
+              value: valueAmount.toFixed(2),
+              hs_code: item.hs_code || '90151000', // Default HS code for returns
+              origin_country: fromCountryCode, // Country customer is shipping from
+              sku: item.sku || ''
+            };
+            
+            console.log(`Processed line item ${index}:`, processedLineItem);
+            return processedLineItem;
+          });
         } else {
           // Fallback if no line items: create a single parcel item representing the whole return
           console.warn(`Order ${order.id} for return from ${fromCountryCode} has no line_items. Creating a generic parcel item.`);
-          parcelItemsForReturn.push({
+          
+          // Validate weight
+          let fallbackWeight = 1.0; // Default fallback weight
+          if (!isNaN(totalReturnWeight) && totalReturnWeight > 0) {
+            fallbackWeight = totalReturnWeight;
+          }
+
+          // Validate order amount
+          let fallbackValue = 0; // Default fallback value
+          if (order.amount !== undefined && order.amount !== null && order.amount !== '') {
+            const parsedAmount = parseFloat(order.amount);
+            if (!isNaN(parsedAmount) && parsedAmount >= 0) {
+              fallbackValue = parsedAmount;
+            }
+          }
+
+          const fallbackItem = {
             description: 'Returned Goods',
             quantity: 1,
-            weight: totalReturnWeight.toFixed(3),
-            value: (order.amount || 0).toFixed(2), // Use order amount if available
+            weight: fallbackWeight.toFixed(3),
+            value: fallbackValue.toFixed(2),
             hs_code: '90151000',
             origin_country: fromCountryCode,
             sku: 'RETURN-ITEM'
-          });
+          };
+          
+          console.log('Created fallback parcel item:', fallbackItem);
+          parcelItemsForReturn.push(fallbackItem);
         }
       } catch (parseError) {
         console.error(`Error parsing line_items for return (Order ${order.id}):`, parseError);
         // Fallback: create a single generic parcel item if parsing fails
-        parcelItemsForReturn.push({
+        
+        // Validate weight
+        let errorFallbackWeight = 1.0; // Default fallback weight
+        if (!isNaN(totalReturnWeight) && totalReturnWeight > 0) {
+          errorFallbackWeight = totalReturnWeight;
+        }
+
+        // Validate order amount
+        let errorFallbackValue = 0; // Default fallback value
+        if (order.amount !== undefined && order.amount !== null && order.amount !== '') {
+          const parsedAmount = parseFloat(order.amount);
+          if (!isNaN(parsedAmount) && parsedAmount >= 0) {
+            errorFallbackValue = parsedAmount;
+          }
+        }
+
+        const errorFallbackItem = {
           description: 'Returned Goods - Parsing Error',
           quantity: 1,
-          weight: totalReturnWeight.toFixed(3),
-          value: (order.amount || 0).toFixed(2),
+          weight: errorFallbackWeight.toFixed(3),
+          value: errorFallbackValue.toFixed(2),
           hs_code: '90151000',
           origin_country: fromCountryCode,
           sku: 'RETURN-PARSE-ERROR'
-        });
+        };
+        
+        console.log('Created error fallback parcel item:', errorFallbackItem);
+        parcelItemsForReturn.push(errorFallbackItem);
       }
       } // Close the else block for custom parcel items fallback
 
       if (parcelItemsForReturn.length > 0) {
-        returnPayload.parcel_items = parcelItemsForReturn;
+        // Final validation of parcel items before sending to SendCloud
+        const validatedParcelItems = parcelItemsForReturn.map((item, index) => {
+          const validatedItem = { ...item };
+          
+          // Final check for weight field
+          if (!validatedItem.weight || validatedItem.weight === 'NaN' || validatedItem.weight === 'undefined') {
+            console.warn(`Final validation: Invalid weight detected for item ${index}, setting to default`);
+            validatedItem.weight = '0.100';
+          }
+          
+          // Final check for value field
+          if (!validatedItem.value || validatedItem.value === 'NaN' || validatedItem.value === 'undefined') {
+            console.warn(`Final validation: Invalid value detected for item ${index}, setting to default`);
+            validatedItem.value = '0.00';
+          }
+          
+          // Final check for quantity
+          if (!validatedItem.quantity || isNaN(validatedItem.quantity) || validatedItem.quantity <= 0) {
+            console.warn(`Final validation: Invalid quantity detected for item ${index}, setting to default`);
+            validatedItem.quantity = 1;
+          }
+          
+          return validatedItem;
+        });
+        
+        returnPayload.parcel_items = validatedParcelItems;
+        console.log('Final validated parcel items:', JSON.stringify(validatedParcelItems, null, 2));
       }
       // Shipment type 4 for "Returned Goods"
       returnPayload.customs_shipment_type = 4; 
