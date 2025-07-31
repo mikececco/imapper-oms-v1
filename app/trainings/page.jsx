@@ -77,7 +77,8 @@ export default function TrainingsPage() {
       const ordersQuery = supabase
         .from('orders')
         .select('*')
-        .or('status.in.("delivered","Delivered","delivery","Delivery"),manual_instruction.eq.NO ACTION REQUIRED,manual_instruction.eq.DELIVERED,sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal,created_via.eq.standard')
+        .or('status.in.("delivered","Delivered","delivery","Delivery"),manual_instruction.eq.NO ACTION REQUIRED,manual_instruction.eq.DELIVERED')
+        .not('status', 'eq', 'Ready to send')
         .order('became_to_ship_at', { ascending: false, nullsFirst: false });
 
       const [ordersResult, packsResult] = await Promise.allSettled([
