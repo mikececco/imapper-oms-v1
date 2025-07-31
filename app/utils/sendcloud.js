@@ -493,6 +493,10 @@ export async function fetchSendCloudParcelTrackingUrl(parcelId) {
  */
 export async function createReturnLabel(order, returnFromAddress, returnToAddress, parcelWeight, customParcelItems = null) {
   try {
+    // DEBUG: Log what we received
+    console.log('createReturnLabel - customParcelItems received:', customParcelItems);
+    console.log('createReturnLabel - customParcelItems type:', typeof customParcelItems);
+    console.log('createReturnLabel - customParcelItems length:', customParcelItems?.length);
     // --- Construct Address Objects ---
     const fromAddressPayload = {
         name: returnFromAddress.name || order.name,

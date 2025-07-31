@@ -23,6 +23,10 @@ export async function POST(request) {
 
     // --- Add Logging --- 
     console.log(`API Route: Received Order ID: ${orderId}`);
+    // DEBUG: Log parcel items received
+    console.log('API Route - parcelItems received:', parcelItems);
+    console.log('API Route - parcelItems type:', typeof parcelItems);
+    console.log('API Route - parcelItems length:', parcelItems?.length);
     console.log(`API Route: Checking Environment Variables...`);
     const publicKeyExists = !!process.env.SENDCLOUD_PUBLIC_KEY;
     const secretKeyExists = !!process.env.SENDCLOUD_SECRET_KEY;
