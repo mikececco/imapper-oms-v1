@@ -5,8 +5,8 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './env';
 import { calculateOrderInstruction } from './order-instructions';
 import { toast } from 'react-hot-toast';
 
-// Check if we're in a build context
-const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
+// Check if we're in a build context (currently unused but kept for future use)
+// const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined' && !process.env.VERCEL_ENV;
 
 // Check if environment variables are set
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL === 'build-placeholder') {
@@ -32,7 +32,7 @@ function initializeSupabase(url, key) {
       // Verify the client is working by testing a simple query
       const testQuery = async () => {
         try {
-          const { data, error } = await supabase.from('orders').select('id').limit(1);
+          const { error } = await supabase.from('orders').select('id').limit(1);
           if (error) {
             console.error('Supabase client test query failed:', error);
             return false;
@@ -129,10 +129,11 @@ export async function fetchOrders() {
       return [];
     }
     
+    // Include all orders with comprehensive filtering, ordered by creation date
     const { data, error } = await supabase
       .from('orders')
       .select('*')
-      .eq('created_via', 'standard')
+      .or('status.in.("delivered","Delivered","delivery","Delivery"),manual_instruction.eq.NO ACTION REQUIRED,manual_instruction.eq.DELIVERED,sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal,created_via.eq.standard')
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -197,10 +198,11 @@ export async function searchOrders(query) {
       // Add any other relevant text fields here
     ].join(',');
 
+    // Apply comprehensive filtering plus standard orders, then apply search filter
     const { data: dbData, error: searchError } = await supabase
       .from('orders')
       .select('*')
-      .eq('created_via', 'standard') // Keep this if you only want standard orders
+      .or('status.in.("delivered","Delivered","delivery","Delivery"),manual_instruction.eq.NO ACTION REQUIRED,manual_instruction.eq.DELIVERED,sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal,created_via.eq.standard')
       .or(orFilter)
       .order('created_at', { ascending: false });
 
@@ -209,7 +211,7 @@ export async function searchOrders(query) {
       return [];
     }
 
-    // 3. Return DB results directly (Secondary client-side filter removed)
+    // Return DB results directly
     console.log(`Search returned ${dbData.length} results from database.`);
     return dbData || [];
 
@@ -320,10 +322,11 @@ export async function updateShippingStatus(orderId) {
 // Filter orders
 export async function filterOrders(filters) {
   try {
+    // Start with the same base filtering as returns page plus standard orders
     let query = supabase
       .from('orders')
       .select('*')
-      .eq('created_via', 'standard');
+      .or('status.in.("delivered","Delivered","delivery","Delivery"),manual_instruction.eq.NO ACTION REQUIRED,manual_instruction.eq.DELIVERED,sendcloud_return_id.not.is.null,sendcloud_return_parcel_id.not.is.null,created_via.eq.returns_portal,created_via.eq.standard');
     
     // Apply paid status filter
     if (filters.paid && filters.paid !== 'all') {
@@ -350,7 +353,7 @@ export async function filterOrders(filters) {
       query = query.lte('created_at', endDateTime.toISOString());
     }
     
-    // Order by created_at descending
+    // Order by created_at descending for chronological order
     query = query.order('created_at', { ascending: false });
     
     const { data, error } = await query;
