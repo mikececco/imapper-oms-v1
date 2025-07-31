@@ -452,6 +452,26 @@ function base64Encode(str) {
   return Buffer.from(str).toString('base64');
 }
 
+/**
+ * Get currency code based on country code
+ * @param {string} countryCode - ISO 2-letter country code
+ * @returns {string} - Currency code (EUR, GBP, USD)
+ */
+function getCurrencyForCountry(countryCode) {
+  const currencyMap = {
+    'GB': 'GBP',
+    'US': 'USD',
+    'CA': 'CAD',
+    'AU': 'AUD',
+    'CH': 'CHF',
+    'NO': 'NOK',
+    'SE': 'SEK',
+    'DK': 'DKK'
+  };
+  
+  return currencyMap[countryCode?.toUpperCase()] || 'EUR'; // Default to EUR
+}
+
 export async function fetchSendCloudParcelTrackingUrl(parcelId) {
   try {
     const credentials = `${SENDCLOUD_API_KEY}:${SENDCLOUD_API_SECRET}`;
@@ -564,6 +584,9 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
       // Use custom parcel items if provided, otherwise fall back to order line items
       if (customParcelItems && Array.isArray(customParcelItems) && customParcelItems.length > 0) {
         console.log(`Using custom parcel items provided in return form:`, customParcelItems);
+        const currency = getCurrencyForCountry(fromCountryCode);
+        console.log(`Using currency ${currency} for country ${fromCountryCode}`);
+        
         parcelItemsForReturn = customParcelItems.map((item, index) => {
           // Validate and convert weight with proper error handling
           let weightValue = 0.1; // Default fallback weight
@@ -601,8 +624,14 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           const processedItem = {
             description: (item.description || 'Returned Product').substring(0, 50),
             quantity: quantityValue,
-            weight: weightValue.toFixed(3),
-            value: valueAmount.toFixed(2),
+            weight: {
+              value: weightValue,
+              unit: "kg"
+            },
+            value: {
+              value: valueAmount,
+              currency: currency
+            },
             hs_code: item.hs_code || '90151000',
             origin_country: item.origin_country || fromCountryCode,
             sku: item.sku || ''
@@ -621,6 +650,9 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           if (lineItems && lineItems.length > 0) {
           totalQuantityFromLineItems = lineItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
           if (totalQuantityFromLineItems === 0) totalQuantityFromLineItems = 1; // Avoid division by zero
+          
+          const currency = getCurrencyForCountry(fromCountryCode);
+          console.log(`Using currency ${currency} for country ${fromCountryCode} (line items processing)`);
 
           parcelItemsForReturn = lineItems.map((item, index) => {
             // Validate and convert quantity
@@ -657,8 +689,14 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
             const processedLineItem = {
               description: (item.description ? item.description.substring(0, 50) : 'Returned Product'),
               quantity: quantityValue,
-              weight: weightValue.toFixed(3),
-              value: valueAmount.toFixed(2),
+              weight: {
+                value: weightValue,
+                unit: "kg"
+              },
+              value: {
+                value: valueAmount,
+                currency: currency
+              },
               hs_code: item.hs_code || '90151000', // Default HS code for returns
               origin_country: fromCountryCode, // Country customer is shipping from
               sku: item.sku || ''
@@ -670,6 +708,9 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
         } else {
           // Fallback if no line items: create a single parcel item representing the whole return
           console.warn(`Order ${order.id} for return from ${fromCountryCode} has no line_items. Creating a generic parcel item.`);
+          
+          const currency = getCurrencyForCountry(fromCountryCode);
+          console.log(`Using currency ${currency} for country ${fromCountryCode} (fallback processing)`);
           
           // Validate weight
           let fallbackWeight = 1.0; // Default fallback weight
@@ -689,8 +730,14 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
           const fallbackItem = {
             description: 'Returned Goods',
             quantity: 1,
-            weight: fallbackWeight.toFixed(3),
-            value: fallbackValue.toFixed(2),
+            weight: {
+              value: fallbackWeight,
+              unit: "kg"
+            },
+            value: {
+              value: fallbackValue,
+              currency: currency
+            },
             hs_code: '90151000',
             origin_country: fromCountryCode,
             sku: 'RETURN-ITEM'
@@ -702,6 +749,9 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
       } catch (parseError) {
         console.error(`Error parsing line_items for return (Order ${order.id}):`, parseError);
         // Fallback: create a single generic parcel item if parsing fails
+        
+        const currency = getCurrencyForCountry(fromCountryCode);
+        console.log(`Using currency ${currency} for country ${fromCountryCode} (error fallback processing)`);
         
         // Validate weight
         let errorFallbackWeight = 1.0; // Default fallback weight
@@ -721,8 +771,14 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
         const errorFallbackItem = {
           description: 'Returned Goods - Parsing Error',
           quantity: 1,
-          weight: errorFallbackWeight.toFixed(3),
-          value: errorFallbackValue.toFixed(2),
+          weight: {
+            value: errorFallbackWeight,
+            unit: "kg"
+          },
+          value: {
+            value: errorFallbackValue,
+            currency: currency
+          },
           hs_code: '90151000',
           origin_country: fromCountryCode,
           sku: 'RETURN-PARSE-ERROR'
@@ -738,16 +794,28 @@ export async function createReturnLabel(order, returnFromAddress, returnToAddres
         const validatedParcelItems = parcelItemsForReturn.map((item, index) => {
           const validatedItem = { ...item };
           
-          // Final check for weight field
-          if (!validatedItem.weight || validatedItem.weight === 'NaN' || validatedItem.weight === 'undefined') {
-            console.warn(`Final validation: Invalid weight detected for item ${index}, setting to default`);
-            validatedItem.weight = '0.100';
+          // Final check for weight object
+          if (!validatedItem.weight || typeof validatedItem.weight !== 'object' || !validatedItem.weight.value || !validatedItem.weight.unit) {
+            console.warn(`Final validation: Invalid weight object detected for item ${index}, setting to default`);
+            validatedItem.weight = {
+              value: 0.1,
+              unit: "kg"
+            };
+          } else if (isNaN(validatedItem.weight.value) || validatedItem.weight.value <= 0) {
+            console.warn(`Final validation: Invalid weight value detected for item ${index}, setting to default`);
+            validatedItem.weight.value = 0.1;
           }
           
-          // Final check for value field
-          if (!validatedItem.value || validatedItem.value === 'NaN' || validatedItem.value === 'undefined') {
-            console.warn(`Final validation: Invalid value detected for item ${index}, setting to default`);
-            validatedItem.value = '0.00';
+          // Final check for value object
+          if (!validatedItem.value || typeof validatedItem.value !== 'object' || !validatedItem.value.hasOwnProperty('value') || !validatedItem.value.currency) {
+            console.warn(`Final validation: Invalid value object detected for item ${index}, setting to default`);
+            validatedItem.value = {
+              value: 0,
+              currency: getCurrencyForCountry(fromCountryCode)
+            };
+          } else if (isNaN(validatedItem.value.value) || validatedItem.value.value < 0) {
+            console.warn(`Final validation: Invalid value amount detected for item ${index}, setting to default`);
+            validatedItem.value.value = 0;
           }
           
           // Final check for quantity
